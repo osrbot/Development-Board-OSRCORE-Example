@@ -1,0 +1,66 @@
+---
+layout: home
+
+hero:
+  name: OSRCORE
+  text: ESP-IDF 机器人控制板教程
+  tagline: 从点亮 WS2812B 到完整机器人控制系统，把开发板文档整体糊成一个顺手可查的网站。
+  image:
+    src: /logo.svg
+    alt: OSRCORE robot board
+  actions:
+    - theme: brand
+      text: 开始阅读
+      link: /tutorial_zh
+    - theme: alt
+      text: 查看示例代码
+      link: https://github.com/osrbot/Development-Board-OSRCORE-Example
+
+features:
+  - icon: 🧭
+    title: 章节化导航
+    details: 0–11 章完整串联，侧边栏可直接跳转到 LED、蜂鸣器、SBUS、IMU、PID、AHRS 与完整示例。
+  - icon: 🤖
+    title: 面向机器人
+    details: 围绕 OSRCORE 的真实外设展开，覆盖遥控输入、速度反馈、姿态估计和多任务控制。
+  - icon: ⚙️
+    title: ESP-IDF 优先
+    details: 代码和说明贴近 ESP-IDF v5.x API，方便边看边编译、烧录、调试。
+---
+
+<div class="osrcore-chip-row">
+  <span class="osrcore-chip">ESP32-S3</span>
+  <span class="osrcore-chip">USB CDC</span>
+  <span class="osrcore-chip">RMT</span>
+  <span class="osrcore-chip">LEDC</span>
+  <span class="osrcore-chip">UART / SBUS</span>
+  <span class="osrcore-chip">I2C / IMU</span>
+  <span class="osrcore-chip">PCNT / Encoder</span>
+  <span class="osrcore-chip">FreeRTOS</span>
+</div>
+
+<div class="osrcore-panel">
+  <strong>推荐阅读路径：</strong>
+  先从第 0 章完成 ESP-IDF 环境与开发板资源确认，再按外设逐章运行示例。最后阅读第 11 章，把遥控、姿态、编码器和闭环控制拼成完整机器人程序。
+</div>
+
+## 本地预览
+
+```bash
+cd docs
+npm install
+npm run dev
+```
+
+构建静态站点：
+
+```bash
+cd docs
+npm run build
+npm run preview
+```
+
+## 文档入口
+
+- [完整中文教程](/tutorial_zh)
+- [GitHub 示例仓库](https://github.com/osrbot/Development-Board-OSRCORE-Example)
