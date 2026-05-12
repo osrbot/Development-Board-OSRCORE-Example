@@ -14,6 +14,8 @@ export default defineConfig({
     lineNumbers: true
   },
   head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
+    ['link', { rel: 'apple-touch-icon', href: '/logo.svg' }],
     ['meta', { name: 'theme-color', content: '#16a34a' }],
     ['meta', { name: 'viewport', content: 'width=device-width,initial-scale=1' }]
   ],
@@ -22,6 +24,13 @@ export default defineConfig({
     siteTitle: 'OSRCORE',
     nav: [
       { text: '教程', link: '/tutorial_zh' },
+      {
+        text: '语言',
+        items: [
+          { text: '简体中文', link: '/' },
+          { text: 'English', link: '/en/' }
+        ]
+      },
       { text: '示例仓库', link: 'https://github.com/osrbot/Development-Board-OSRCORE-Example' }
     ],
     sidebar: [
@@ -29,7 +38,8 @@ export default defineConfig({
         text: 'OSRCORE 教程',
         items: [
           { text: '总览', link: '/' },
-          { text: '完整中文教程', link: '/tutorial_zh' }
+          { text: '完整中文教程', link: '/tutorial_zh' },
+          { text: 'English Overview', link: '/en/' }
         ]
       },
       {
