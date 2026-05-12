@@ -2,7 +2,6 @@
 
 > 适用硬件：OSRCORE（ESP32-S3-WROOM-1U N8R16）
 > 工具链：ESP-IDF v5.3+
-> 对标参考：RoboMaster C 型开发板教程（共 12 章）
 
 ---
 

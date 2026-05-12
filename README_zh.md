@@ -1,6 +1,6 @@
 # OSRCORE 开发板 — ESP-IDF 示例集
 
-面向 **OSRCORE** 开发板（ESP32-S3）的渐进式 ESP-IDF 示例集，结构参照 RoboMaster C 型开发板教程系列。
+面向 **OSRCORE** 开发板（ESP32-S3）的渐进式 ESP-IDF 示例集，按章节递进，覆盖从 LED 到完整机器人的全流程。
 
 ## 硬件概览
 
@@ -87,7 +87,7 @@ idf.py -p /dev/ttyACM0 flash monitor
 
 ## 教程文档
 
-完整中文教程（对标 RoboMaster C 型开发板教程 PDF 结构）：
+完整中文教程，共 12 章，覆盖 OSRCORE 全部外设与软件架构：
 
 **[docs/tutorial_zh.md](docs/tutorial_zh.md)**
 

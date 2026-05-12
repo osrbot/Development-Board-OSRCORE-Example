@@ -1,6 +1,6 @@
 # OSRCORE Development Board — ESP-IDF Examples
 
-Progressive ESP-IDF example collection for the **OSRCORE** development board (ESP32-S3), structured after the RoboMaster C-type board tutorial series.
+Progressive ESP-IDF example collection for the **OSRCORE** development board (ESP32-S3), structured as a step-by-step embedded tutorial series.
 
 ## Hardware Overview
 
@@ -87,7 +87,7 @@ idf.py -p /dev/ttyACM0 flash monitor
 
 ## Tutorial Document
 
-A full tutorial document (Chinese) mirroring the structure of the RoboMaster C-type board tutorial is available at:
+A full Chinese tutorial document covering all 12 chapters is available at:
 
 **[docs/tutorial_zh.md](docs/tutorial_zh.md)**
 
