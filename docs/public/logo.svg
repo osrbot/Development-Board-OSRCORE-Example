@@ -1,1 +1,27 @@
-<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAABpWklEQVR42uW9ebAk2X4W9vtOZlbV3bdW+co6JY3IYj8lBDQFMggQhSQKIPAgmDhxwE2DnO2iCBKBBIEkgTgYxeccxYsAMyWGBE4I0uPcQGiHBDbp27+vrlqtcYYmZrKr8/lyvqvuPd2p+qSqVm/7v6r7Eo7++2f3ZWQkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAO7yn34gKJU6BwAADFw1eSPshwAAAPjzi1v+/i1+Tn8AADBOvK356svsvXjxduXiEQAAWq63p4ml05Fe/Yx26P9srV+vrVx78dtdPQAAeIvBX//nn/3JX6P/9J+/F1fk/0veq5/5QFgGKkkXyEIAgNV4mO0X/4uC6eg+keuPD79PGQB77tE/aXIr6fWGCs7ZbAAAAABJRU5ErkJggg==" width="256" height="256" preserveAspectRatio="xMidYMid meet"/></svg>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="47%" r="70%">
+      <stop offset="0" stop-color="#303333"/>
+      <stop offset="1" stop-color="#1f2121"/>
+    </radialGradient>
+    <linearGradient id="mark" x1="285" y1="598" x2="646" y2="179" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1495ff"/>
+      <stop offset="0.48" stop-color="#07b8f0"/>
+      <stop offset="1" stop-color="#10f39c"/>
+    </linearGradient>
+    <linearGradient id="leg" x1="610" y1="489" x2="784" y2="600" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0df39a"/>
+      <stop offset="1" stop-color="#13dfa0"/>
+    </linearGradient>
+    <filter id="shadow" x="250" y="130" width="560" height="510" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g filter="url(#shadow)">
+    <path d="M282 600H360L390 584C416 570 433 553 433 533V316L598 234V521C598 542 609 557 627 568L698 611H782L638 525V187C638 171 623 162 610 169L405 272C394 277 388 289 388 301V533L282 600Z" fill="#0b0f10" opacity="0.38"/>
+    <path d="M282 600H360L390 584C416 570 433 553 433 533V316L598 234V521C598 542 609 557 627 568L698 611H782L638 525V187C638 171 623 162 610 169L405 272C394 277 388 289 388 301V533L282 600Z" fill="url(#mark)"/>
+    <path d="M598 234V521C598 542 609 557 627 568L698 611H782L638 525V187C638 171 623 162 610 169L598 175V234Z" fill="url(#leg)"/>
+  </g>
+  <text x="512" y="770" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="142" font-weight="900" letter-spacing="7" fill="#555858" stroke="#141616" stroke-width="2">OSRBOT</text>
+</svg>
