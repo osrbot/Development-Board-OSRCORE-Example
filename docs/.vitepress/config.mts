@@ -1,9 +1,12 @@
 import { defineConfig } from 'vitepress'
 
+const isGitHubPages = process.env.GITHUB_ACTIONS === 'true'
+
 export default defineConfig({
   title: 'OSRCORE Docs',
   description: 'OSRCORE 开发板 ESP-IDF 示例与机器人嵌入式教程',
   lang: 'zh-CN',
+  base: isGitHubPages ? '/Development-Board-OSRCORE-Example/' : '/',
   cleanUrls: true,
   lastUpdated: true,
   metaChunk: true,
