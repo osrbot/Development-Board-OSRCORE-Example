@@ -4,14 +4,14 @@ layout: home
 hero:
   name: OSRCORE
   text: ESP-IDF Robot Control Board Guide
-  tagline: A practical bilingual documentation site for OSRCORE examples, from peripheral bring-up to a complete robot control stack.
+  tagline: A practical bilingual documentation site for OSRCORE examples, maintained as aligned chapter pages from peripheral bring-up to a complete robot control stack.
   image:
     src: /logo.svg
     alt: OSRBOT logo
   actions:
     - theme: brand
       text: Start Reading
-      link: /en/tutorial
+      link: /en/chapter-00
     - theme: alt
       text: View Examples
       link: https://github.com/osrbot/Development-Board-OSRCORE-Example
@@ -19,10 +19,10 @@ hero:
 features:
   - icon: 🧭
     title: Chapter-Based Navigation
-    details: Follow the guide from ESP-IDF setup to LED, buzzer, SBUS, IMU, encoder, NVS, FreeRTOS, PID, AHRS, and the complete robot example.
-  - icon: 🤖
-    title: Robot-Oriented
-    details: The examples focus on the real peripherals used on the OSRCORE mobile robot control board.
+    details: Follow split chapters from ESP-IDF setup to LED, buzzer, SBUS, IMU, encoder, NVS, FreeRTOS, PID, AHRS, and the complete robot example.
+  - icon: 🌐
+    title: Bilingual Alignment
+    details: Chinese and English chapters are paired by an i18n map and checked before the documentation site is built.
   - icon: ⚙️
     title: ESP-IDF First
     details: Code and explanations are aligned with ESP-IDF v5.x APIs so they can be built, flashed, and debugged directly.
@@ -46,6 +46,7 @@ features:
 
 ## Documentation
 
-- [English Tutorial](/en/tutorial)
-- [中文教程](/tutorial_zh)
+- [Chapter 0: ESP-IDF Toolchain and OSRCORE Hardware](/en/chapter-00)
+- [Compatibility Single-Page Tutorial](/en/tutorial)
+- [中文章节索引](/zh/)
 - [GitHub Repository](https://github.com/osrbot/Development-Board-OSRCORE-Example)
