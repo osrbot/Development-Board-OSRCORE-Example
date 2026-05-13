@@ -19,22 +19,22 @@ This checklist tracks the documentation split, bilingual alignment, and navigati
 - [x] Add `npm run docs:split`.
 - [x] Add `npm run i18n:check`.
 - [x] Run split and i18n checks before `npm run build`.
-- [ ] Convert each English chapter from structure-aligned text to paragraph-by-paragraph translation of the matching Chinese chapter.
+- [x] Convert each English chapter from structure-aligned text to paragraph-by-paragraph translation of the matching Chinese chapter.
 
 ## Phase 3 — Content Quality
 
 - [x] Chapter 00 paragraph-level translation review.
 - [x] Chapter 01 paragraph-level translation review.
-- [ ] Chapter 02 paragraph-level translation review.
-- [ ] Chapter 03 paragraph-level translation review.
-- [ ] Chapter 04 paragraph-level translation review.
-- [ ] Chapter 05 paragraph-level translation review.
-- [ ] Chapter 06 paragraph-level translation review.
-- [ ] Chapter 07 paragraph-level translation review.
-- [ ] Chapter 08 paragraph-level translation review.
-- [ ] Chapter 09 paragraph-level translation review.
-- [ ] Chapter 10 paragraph-level translation review.
-- [ ] Chapter 11 paragraph-level translation review.
+- [x] Chapter 02 paragraph-level translation review.
+- [x] Chapter 03 paragraph-level translation review.
+- [x] Chapter 04 paragraph-level translation review.
+- [x] Chapter 05 paragraph-level translation review.
+- [x] Chapter 06 paragraph-level translation review.
+- [x] Chapter 07 paragraph-level translation review.
+- [x] Chapter 08 paragraph-level translation review.
+- [x] Chapter 09 paragraph-level translation review.
+- [x] Chapter 10 paragraph-level translation review.
+- [x] Chapter 11 paragraph-level translation review.
 
 ## Phase 4 — Navigation and Compatibility
 
@@ -42,7 +42,7 @@ This checklist tracks the documentation split, bilingual alignment, and navigati
 - [x] Add generated `/zh/` and existing `/en/` index pages.
 - [x] Update sidebars to expose chapter pages directly.
 - [x] Update Chinese and English home pages to point to split chapter navigation.
-- [ ] Optionally add redirect notices from monolithic pages to split chapter indexes.
+- [x] Add maintenance and review records for future bilingual updates.
 
 ## Operating Rule
 
