@@ -17,7 +17,7 @@ A chapter can be marked as reviewed when:
 | Chapter | Status | Notes |
 |---|---|---|
 | 00 | Reviewed | English Chapter 0 mirrors the Chinese 0.1–0.5 structure: key points, course content, ESP-IDF installation, project structure, idf.py commands, OSRCORE resource table, USB CDC configuration, minimal app, and summary. |
-| 01 | Pending | Needs paragraph-level comparison against Chinese source. |
+| 01 | Reviewed | English Chapter 1 mirrors the Chinese 1.1–1.5 structure: WS2812B timing requirements, ESP-IDF RMT TX v5.x API, custom encoder architecture, GRB byte order, timing table, RMT tick conversion, TX channel setup, color transmission function, and chapter summary. |
 | 02 | Pending | Needs paragraph-level comparison against Chinese source. |
 | 03 | Pending | Needs paragraph-level comparison against Chinese source. |
 | 04 | Pending | Needs paragraph-level comparison against Chinese source. |
@@ -31,4 +31,4 @@ A chapter can be marked as reviewed when:
 
 ## Next Item
 
-Continue with Chapter 01: WS2812B RGB LED (RMT Driver).
+Continue with Chapter 02: Passive Buzzer (LEDC PWM Tone Control).
