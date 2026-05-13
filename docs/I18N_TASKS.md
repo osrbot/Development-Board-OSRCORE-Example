@@ -23,7 +23,7 @@ This checklist tracks the documentation split, bilingual alignment, and navigati
 
 ## Phase 3 — Content Quality
 
-- [ ] Chapter 00 paragraph-level translation review.
+- [x] Chapter 00 paragraph-level translation review.
 - [ ] Chapter 01 paragraph-level translation review.
 - [ ] Chapter 02 paragraph-level translation review.
 - [ ] Chapter 03 paragraph-level translation review.
