@@ -4,19 +4,34 @@ const isGitHubPages = process.env.GITHUB_ACTIONS === 'true'
 const base = isGitHubPages ? '/Development-Board-OSRCORE-Example/' : '/'
 const repo = 'https://github.com/osrbot/Development-Board-OSRCORE-Example'
 
-const chapterAnchors = [
-  ['第 0 章：ESP-IDF 与硬件入门', '/tutorial_zh#第-0-章-入门-esp-idf-工具链与-osrcore-硬件'],
-  ['第 1 章：WS2812B 彩色 LED', '/tutorial_zh#第-1-章-ws2812b-彩色-led-rmt-驱动'],
-  ['第 2 章：无源蜂鸣器', '/tutorial_zh#第-2-章-无源蜂鸣器-ledc-pwm-音调控制'],
-  ['第 3 章：PWM 舵机与 ESC', '/tutorial_zh#第-3-章-pwm-舵机与-esc-控制'],
-  ['第 4 章：SBUS 遥控接收', '/tutorial_zh#第-4-章-sbus-遥控接收'],
-  ['第 5 章：QMI8658 IMU', '/tutorial_zh#第-5-章-qmi8658-imu-i2c-读取'],
-  ['第 6 章：正交编码器测速', '/tutorial_zh#第-6-章-正交编码器速度测量-pcnt'],
-  ['第 7 章：NVS 参数持久化', '/tutorial_zh#第-7-章-nvs-参数持久化'],
-  ['第 8 章：FreeRTOS 多任务', '/tutorial_zh#第-8-章-freertos-多任务架构'],
-  ['第 9 章：PID 电机闭环', '/tutorial_zh#第-9-章-pid-电机速度闭环控制'],
-  ['第 10 章：Madgwick AHRS', '/tutorial_zh#第-10-章-madgwick-ahrs-姿态解算'],
-  ['第 11 章：完整机器人示例', '/tutorial_zh#第-11-章-完整机器人示例']
+const zhChapters = [
+  ['第 0 章：ESP-IDF 与硬件入门', '/zh/chapter-00'],
+  ['第 1 章：WS2812B 彩色 LED', '/zh/chapter-01'],
+  ['第 2 章：无源蜂鸣器', '/zh/chapter-02'],
+  ['第 3 章：PWM 舵机与 ESC', '/zh/chapter-03'],
+  ['第 4 章：SBUS 遥控接收', '/zh/chapter-04'],
+  ['第 5 章：QMI8658 IMU', '/zh/chapter-05'],
+  ['第 6 章：正交编码器测速', '/zh/chapter-06'],
+  ['第 7 章：NVS 参数持久化', '/zh/chapter-07'],
+  ['第 8 章：FreeRTOS 多任务', '/zh/chapter-08'],
+  ['第 9 章：PID 电机闭环', '/zh/chapter-09'],
+  ['第 10 章：Madgwick AHRS', '/zh/chapter-10'],
+  ['第 11 章：完整机器人示例', '/zh/chapter-11']
+] as const
+
+const enChapters = [
+  ['0. ESP-IDF & Hardware', '/en/chapter-00'],
+  ['1. WS2812B LED', '/en/chapter-01'],
+  ['2. Passive Buzzer', '/en/chapter-02'],
+  ['3. Servo & ESC PWM', '/en/chapter-03'],
+  ['4. SBUS Receiver', '/en/chapter-04'],
+  ['5. QMI8658 IMU', '/en/chapter-05'],
+  ['6. Quadrature Encoder', '/en/chapter-06'],
+  ['7. NVS Persistence', '/en/chapter-07'],
+  ['8. FreeRTOS Tasks', '/en/chapter-08'],
+  ['9. PID Speed Loop', '/en/chapter-09'],
+  ['10. Madgwick AHRS', '/en/chapter-10'],
+  ['11. Full Robot Example', '/en/chapter-11']
 ] as const
 
 export default defineConfig({
@@ -53,20 +68,22 @@ export default defineConfig({
       description: 'OSRCORE 开发板 ESP-IDF 示例与机器人嵌入式教程',
       themeConfig: {
         nav: [
-          { text: '教程', link: '/tutorial_zh' },
+          { text: '教程', link: '/zh/' },
+          { text: '兼容单页版', link: '/tutorial_zh' },
           { text: '示例仓库', link: repo }
         ],
         sidebar: [
           {
             text: 'OSRCORE 教程',
             items: [
-              { text: '总览', link: '/' },
-              { text: '完整中文教程', link: '/tutorial_zh' }
+              { text: '首页', link: '/' },
+              { text: '章节索引', link: '/zh/' },
+              { text: '兼容单页版', link: '/tutorial_zh' }
             ]
           },
           {
             text: '章节导航',
-            items: chapterAnchors.map(([text, link]) => ({ text, link }))
+            items: zhChapters.map(([text, link]) => ({ text, link }))
           }
         ],
         outline: {
@@ -128,7 +145,8 @@ export default defineConfig({
       description: 'OSRCORE development board ESP-IDF examples and robot tutorial',
       themeConfig: {
         nav: [
-          { text: 'Guide', link: '/en/tutorial' },
+          { text: 'Guide', link: '/en/' },
+          { text: 'Compatibility Single Page', link: '/en/tutorial' },
           { text: 'Examples', link: repo }
         ],
         sidebar: [
@@ -136,25 +154,12 @@ export default defineConfig({
             text: 'OSRCORE Guide',
             items: [
               { text: 'Overview', link: '/en/' },
-              { text: 'Tutorial', link: '/en/tutorial' }
+              { text: 'Compatibility Single Page', link: '/en/tutorial' }
             ]
           },
           {
             text: 'Chapters',
-            items: [
-              { text: '0. ESP-IDF & Hardware', link: '/en/tutorial#chapter-0-esp-idf-toolchain-and-osrcore-hardware' },
-              { text: '1. WS2812B LED', link: '/en/tutorial#chapter-1-ws2812b-rgb-led-rmt' },
-              { text: '2. Passive Buzzer', link: '/en/tutorial#chapter-2-passive-buzzer-ledc-pwm' },
-              { text: '3. Servo & ESC PWM', link: '/en/tutorial#chapter-3-servo-and-esc-control' },
-              { text: '4. SBUS Receiver', link: '/en/tutorial#chapter-4-sbus-rc-receiver' },
-              { text: '5. QMI8658 IMU', link: '/en/tutorial#chapter-5-qmi8658-imu-over-i2c' },
-              { text: '6. Quadrature Encoder', link: '/en/tutorial#chapter-6-quadrature-encoder-speed-measurement' },
-              { text: '7. NVS Persistence', link: '/en/tutorial#chapter-7-nvs-parameter-persistence' },
-              { text: '8. FreeRTOS Tasks', link: '/en/tutorial#chapter-8-freertos-multitasking' },
-              { text: '9. PID Speed Loop', link: '/en/tutorial#chapter-9-pid-motor-speed-control' },
-              { text: '10. Madgwick AHRS', link: '/en/tutorial#chapter-10-madgwick-ahrs-attitude-estimation' },
-              { text: '11. Full Robot Example', link: '/en/tutorial#chapter-11-complete-robot-example' }
-            ]
+            items: enChapters.map(([text, link]) => ({ text, link }))
           }
         ],
         outline: {
