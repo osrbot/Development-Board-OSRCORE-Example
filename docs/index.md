@@ -4,14 +4,14 @@ layout: home
 hero:
   name: OSRCORE
   text: ESP-IDF 机器人控制板教程
-  tagline: 从点亮 WS2812B 到完整机器人控制系统，把开发板文档整体糊成一个顺手可查的网站。
+  tagline: 从点亮 WS2812B 到完整机器人控制系统，把开发板文档整理成按章节维护、可双语对齐的网站。
   image:
     src: /logo.svg
     alt: OSRBOT logo
   actions:
     - theme: brand
       text: 开始阅读
-      link: /tutorial_zh
+      link: /zh/
     - theme: alt
       text: 查看示例代码
       link: https://github.com/osrbot/Development-Board-OSRCORE-Example
@@ -19,10 +19,10 @@ hero:
 features:
   - icon: 🧭
     title: 章节化导航
-    details: 0–11 章完整串联，侧边栏可直接跳转到 LED、蜂鸣器、SBUS、IMU、PID、AHRS 与完整示例。
-  - icon: 🤖
-    title: 面向机器人
-    details: 围绕 OSRCORE 的真实外设展开，覆盖遥控输入、速度反馈、姿态估计和多任务控制。
+    details: 0–11 章拆分维护，侧边栏可直接跳转到 LED、蜂鸣器、SBUS、IMU、PID、AHRS 与完整示例。
+  - icon: 🌐
+    title: 中英文对齐
+    details: 使用 i18n 映射表维护章节配对，构建前自动检查中文和英文版本的索引、标题与章节文件。
   - icon: ⚙️
     title: ESP-IDF 优先
     details: 代码和说明贴近 ESP-IDF v5.x API，方便边看边编译、烧录、调试。
@@ -46,6 +46,7 @@ features:
 
 ## 文档入口
 
-- [完整中文教程](/tutorial_zh)
-- [English Overview](/en/)
+- [中文章节索引](/zh/)
+- [English Chapter Index](/en/)
+- [兼容单页中文教程](/tutorial_zh)
 - [GitHub 示例仓库](https://github.com/osrbot/Development-Board-OSRCORE-Example)
