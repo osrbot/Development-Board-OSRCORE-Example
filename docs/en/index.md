@@ -11,7 +11,7 @@ hero:
   actions:
     - theme: brand
       text: Start Reading
-      link: /en/chapter-00
+      link: /en/chapters
     - theme: alt
       text: View Examples
       link: https://github.com/osrbot/Development-Board-OSRCORE-Example
@@ -46,8 +46,7 @@ features:
 
 ## Documentation
 
-- [Chapter 0: ESP-IDF Toolchain and OSRCORE Hardware](/en/chapter-00)
 - [English Chapter Index](/en/chapters)
-- [Compatibility Single-Page Tutorial](/en/tutorial)
+- [Chapter 0: ESP-IDF Toolchain and OSRCORE Hardware](/en/chapter-00)
 - [中文章节索引](/chapters)
 - [GitHub Repository](https://github.com/osrbot/Development-Board-OSRCORE-Example)
