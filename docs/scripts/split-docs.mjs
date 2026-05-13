@@ -50,7 +50,9 @@ function indexPage(locale) {
   for (const chapter of map.chapters) {
     const text = locale === 'zh' ? chapter.zhTitle : chapter.enTitle
     const file = locale === 'zh' ? chapter.zh : chapter.en
-    const href = file.replace(new RegExp(`^${locale}/`), '').replace(/\.md$/, '')
+    const href = locale === 'en'
+      ? file.replace(/^en\//, '').replace(/\.md$/, '')
+      : file.replace(/\.md$/, '')
     lines.push(`- [${text}](./${href})`)
   }
   lines.push('')
@@ -90,11 +92,12 @@ for (const chapter of map.chapters) {
   }
 }
 
-await writeFileEnsured('zh/index.md', indexPage('zh'))
+await writeFileEnsured('chapters.md', indexPage('zh'))
+await writeFileEnsured('en/chapters.md', indexPage('en'))
 
 if (missing.length > 0) {
   console.warn(`[split-docs] Missing chapters: ${missing.join(', ')}`)
   process.exitCode = 1
 } else {
-  console.log(`[split-docs] Generated ${map.chapters.length * 2} chapter pages and zh/index.md`)
+  console.log(`[split-docs] Generated ${map.chapters.length * 2} chapter pages and chapter indexes`)
 }
