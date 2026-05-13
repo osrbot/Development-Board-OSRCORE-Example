@@ -4,7 +4,7 @@ layout: home
 hero:
   name: OSRCORE
   text: ESP-IDF 机器人控制板教程
-  tagline: 从点亮 WS2812B 到完整机器人控制系统，把开发板文档整理成按章节维护、可双语对齐的网站。
+  tagline: 面向 OSRCORE 开发板的 ESP-IDF 上手指南，覆盖外设驱动、传感器读取、运动控制与完整机器人示例。
   image:
     src: /logo.svg
     alt: OSRBOT logo
@@ -19,10 +19,10 @@ hero:
 features:
   - icon: 🧭
     title: 章节化导航
-    details: 0–11 章拆分维护，侧边栏可直接跳转到 LED、蜂鸣器、SBUS、IMU、PID、AHRS 与完整示例。
+    details: 0–11 章覆盖 ESP-IDF 环境、LED、蜂鸣器、SBUS、IMU、PID、AHRS 与完整示例。
   - icon: 🌐
-    title: 中英文对齐
-    details: 使用 i18n 映射表维护章节配对，构建前自动检查中文和英文版本的索引、标题与章节文件。
+    title: 中英文文档
+    details: 提供中文与英文版本，并在构建时检查章节索引、标题与文件映射。
   - icon: ⚙️
     title: ESP-IDF 优先
     details: 代码和说明贴近 ESP-IDF v5.x API，方便边看边编译、烧录、调试。
