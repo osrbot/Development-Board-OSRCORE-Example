@@ -1,6 +1,6 @@
 # Maintaining Bilingual Documentation
 
-The OSRCORE documentation keeps long-form source tutorials and generates split chapter pages during build.
+The OSRCORE documentation keeps long-form source tutorials and generates the public chapter pages during preview and build.
 
 ## Source Files
 
@@ -9,15 +9,16 @@ Edit these source files:
 - Chinese: `tutorial_zh.md`
 - English: `en/tutorial.md`
 
-The generated chapter pages are created from these source files before preview and build.
+These files are source inputs for generation. They are not exposed as primary navigation entries on the site.
 
-## Generated Chapter Pages
+## Public Chapter Pages
 
-Generated pages:
+Generated public pages:
 
-- `zh/chapter-00.md` ... `zh/chapter-11.md`
-- `en/chapter-00.md` ... `en/chapter-11.md`
-- `zh/index.md`
+- Chinese root-locale chapters: `chapter-00.md` ... `chapter-11.md`
+- English chapters: `en/chapter-00.md` ... `en/chapter-11.md`
+- Chinese chapter index: `chapters.md`
+- English chapter index: `en/chapters.md`
 
 Generate them manually with:
 
