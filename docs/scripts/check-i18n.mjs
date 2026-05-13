@@ -58,7 +58,7 @@ for (const chapter of map.chapters) {
   }
 }
 
-for (const page of ['zh/index.md', 'en/index.md', 'tutorial_zh.md', 'en/tutorial.md']) {
+for (const page of ['chapters.md', 'en/chapters.md', 'en/index.md', 'tutorial_zh.md', 'en/tutorial.md']) {
   if (!(await exists(page))) {
     errors.push(`Missing required compatibility/index page: ${page}`)
   }
