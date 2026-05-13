@@ -69,7 +69,6 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '教程', link: '/chapters' },
-          { text: '兼容单页版', link: '/tutorial_zh' },
           { text: '示例仓库', link: repo }
         ],
         sidebar: [
@@ -77,8 +76,7 @@ export default defineConfig({
             text: 'OSRCORE 教程',
             items: [
               { text: '首页', link: '/' },
-              { text: '章节索引', link: '/chapters' },
-              { text: '兼容单页版', link: '/tutorial_zh' }
+              { text: '章节索引', link: '/chapters' }
             ]
           },
           {
@@ -146,7 +144,6 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: 'Guide', link: '/en/chapters' },
-          { text: 'Compatibility Single Page', link: '/en/tutorial' },
           { text: 'Examples', link: repo }
         ],
         sidebar: [
@@ -154,8 +151,7 @@ export default defineConfig({
             text: 'OSRCORE Guide',
             items: [
               { text: 'Overview', link: '/en/' },
-              { text: 'Chapter Index', link: '/en/chapters' },
-              { text: 'Compatibility Single Page', link: '/en/tutorial' }
+              { text: 'Chapter Index', link: '/en/chapters' }
             ]
           },
           {
