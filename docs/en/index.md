@@ -4,7 +4,7 @@ layout: home
 hero:
   name: OSRCORE
   text: ESP-IDF Robot Control Board Guide
-  tagline: A practical bilingual documentation site for OSRCORE examples, maintained as aligned chapter pages from peripheral bring-up to a complete robot control stack.
+  tagline: An ESP-IDF guide for the OSRCORE development board, covering peripheral drivers, sensor readout, motion control, and a complete robot example.
   image:
     src: /logo.svg
     alt: OSRBOT logo
@@ -19,10 +19,10 @@ hero:
 features:
   - icon: 🧭
     title: Chapter-Based Navigation
-    details: Follow split chapters from ESP-IDF setup to LED, buzzer, SBUS, IMU, encoder, NVS, FreeRTOS, PID, AHRS, and the complete robot example.
+    details: Chapters 0–11 cover ESP-IDF setup, LED, buzzer, SBUS, IMU, encoder, NVS, FreeRTOS, PID, AHRS, and the complete example.
   - icon: 🌐
-    title: Bilingual Alignment
-    details: Chinese and English chapters are paired by an i18n map and checked before the documentation site is built.
+    title: Chinese and English Docs
+    details: Both language versions are generated from paired chapters and checked during the documentation build.
   - icon: ⚙️
     title: ESP-IDF First
     details: Code and explanations are aligned with ESP-IDF v5.x APIs so they can be built, flashed, and debugged directly.
