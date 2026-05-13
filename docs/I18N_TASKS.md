@@ -6,18 +6,20 @@ This checklist tracks the documentation split, bilingual alignment, and navigati
 
 - [x] Keep the original monolithic Chinese tutorial as `tutorial_zh.md` for compatibility.
 - [x] Keep the original monolithic English tutorial as `en/tutorial.md` for compatibility.
-- [x] Add split Chinese chapter pages under `zh/`.
-- [x] Add split English chapter pages under `en/`.
-- [x] Add language-specific chapter index pages.
+- [x] Generate split Chinese chapter pages under `zh/` before preview/build.
+- [x] Generate split English chapter pages under `en/` before preview/build.
+- [x] Generate language-specific chapter index pages.
 - [x] Update VitePress sidebar and navigation to point to split chapter pages.
 
 ## Phase 2 — Alignment
 
 - [x] Add `docs/i18n-map.json` as the source of truth for bilingual chapter mapping.
+- [x] Add `docs/scripts/split-docs.mjs` to generate bilingual chapter pages from source tutorials.
 - [x] Add `docs/scripts/check-i18n.mjs` to verify mapped files exist and headings are aligned.
+- [x] Add `npm run docs:split`.
 - [x] Add `npm run i18n:check`.
-- [ ] Convert each English chapter from summary-level text to paragraph-by-paragraph translation of the matching Chinese chapter.
-- [ ] Require `npm run i18n:check` before publishing documentation changes.
+- [x] Run split and i18n checks before `npm run build`.
+- [ ] Convert each English chapter from structure-aligned text to paragraph-by-paragraph translation of the matching Chinese chapter.
 
 ## Phase 3 — Content Quality
 
@@ -37,8 +39,9 @@ This checklist tracks the documentation split, bilingual alignment, and navigati
 ## Phase 4 — Navigation and Compatibility
 
 - [x] Preserve `/tutorial_zh` and `/en/tutorial` as compatibility pages.
-- [x] Add `/zh/` and `/en/` chapter index pages.
+- [x] Add generated `/zh/` and existing `/en/` index pages.
 - [x] Update sidebars to expose chapter pages directly.
+- [x] Update Chinese and English home pages to point to split chapter navigation.
 - [ ] Optionally add redirect notices from monolithic pages to split chapter indexes.
 
 ## Operating Rule
