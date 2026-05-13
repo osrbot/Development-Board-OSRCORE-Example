@@ -47,6 +47,7 @@ features:
 ## Documentation
 
 - [Chapter 0: ESP-IDF Toolchain and OSRCORE Hardware](/en/chapter-00)
+- [English Chapter Index](/en/chapters)
 - [Compatibility Single-Page Tutorial](/en/tutorial)
-- [中文章节索引](/zh/)
+- [中文章节索引](/chapters)
 - [GitHub Repository](https://github.com/osrbot/Development-Board-OSRCORE-Example)
