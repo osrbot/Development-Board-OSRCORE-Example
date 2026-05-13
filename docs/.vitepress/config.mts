@@ -5,18 +5,18 @@ const base = isGitHubPages ? '/Development-Board-OSRCORE-Example/' : '/'
 const repo = 'https://github.com/osrbot/Development-Board-OSRCORE-Example'
 
 const zhChapters = [
-  ['第 0 章：ESP-IDF 与硬件入门', '/zh/chapter-00'],
-  ['第 1 章：WS2812B 彩色 LED', '/zh/chapter-01'],
-  ['第 2 章：无源蜂鸣器', '/zh/chapter-02'],
-  ['第 3 章：PWM 舵机与 ESC', '/zh/chapter-03'],
-  ['第 4 章：SBUS 遥控接收', '/zh/chapter-04'],
-  ['第 5 章：QMI8658 IMU', '/zh/chapter-05'],
-  ['第 6 章：正交编码器测速', '/zh/chapter-06'],
-  ['第 7 章：NVS 参数持久化', '/zh/chapter-07'],
-  ['第 8 章：FreeRTOS 多任务', '/zh/chapter-08'],
-  ['第 9 章：PID 电机闭环', '/zh/chapter-09'],
-  ['第 10 章：Madgwick AHRS', '/zh/chapter-10'],
-  ['第 11 章：完整机器人示例', '/zh/chapter-11']
+  ['第 0 章：ESP-IDF 与硬件入门', '/chapter-00'],
+  ['第 1 章：WS2812B 彩色 LED', '/chapter-01'],
+  ['第 2 章：无源蜂鸣器', '/chapter-02'],
+  ['第 3 章：PWM 舵机与 ESC', '/chapter-03'],
+  ['第 4 章：SBUS 遥控接收', '/chapter-04'],
+  ['第 5 章：QMI8658 IMU', '/chapter-05'],
+  ['第 6 章：正交编码器测速', '/chapter-06'],
+  ['第 7 章：NVS 参数持久化', '/chapter-07'],
+  ['第 8 章：FreeRTOS 多任务', '/chapter-08'],
+  ['第 9 章：PID 电机闭环', '/chapter-09'],
+  ['第 10 章：Madgwick AHRS', '/chapter-10'],
+  ['第 11 章：完整机器人示例', '/chapter-11']
 ] as const
 
 const enChapters = [
@@ -68,7 +68,7 @@ export default defineConfig({
       description: 'OSRCORE 开发板 ESP-IDF 示例与机器人嵌入式教程',
       themeConfig: {
         nav: [
-          { text: '教程', link: '/zh/' },
+          { text: '教程', link: '/chapters' },
           { text: '兼容单页版', link: '/tutorial_zh' },
           { text: '示例仓库', link: repo }
         ],
@@ -77,7 +77,7 @@ export default defineConfig({
             text: 'OSRCORE 教程',
             items: [
               { text: '首页', link: '/' },
-              { text: '章节索引', link: '/zh/' },
+              { text: '章节索引', link: '/chapters' },
               { text: '兼容单页版', link: '/tutorial_zh' }
             ]
           },
@@ -145,7 +145,7 @@ export default defineConfig({
       description: 'OSRCORE development board ESP-IDF examples and robot tutorial',
       themeConfig: {
         nav: [
-          { text: 'Guide', link: '/en/' },
+          { text: 'Guide', link: '/en/chapters' },
           { text: 'Compatibility Single Page', link: '/en/tutorial' },
           { text: 'Examples', link: repo }
         ],
@@ -154,6 +154,7 @@ export default defineConfig({
             text: 'OSRCORE Guide',
             items: [
               { text: 'Overview', link: '/en/' },
+              { text: 'Chapter Index', link: '/en/chapters' },
               { text: 'Compatibility Single Page', link: '/en/tutorial' }
             ]
           },
