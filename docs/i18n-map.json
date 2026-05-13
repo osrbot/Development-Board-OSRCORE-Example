@@ -3,7 +3,7 @@
   "locales": {
     "zh": {
       "label": "简体中文",
-      "root": "zh"
+      "root": "."
     },
     "en": {
       "label": "English",
@@ -15,84 +15,84 @@
       "id": "00",
       "zhTitle": "第 0 章：ESP-IDF 工具链与 OSRCORE 硬件",
       "enTitle": "Chapter 0: ESP-IDF Toolchain and OSRCORE Hardware",
-      "zh": "zh/chapter-00.md",
+      "zh": "chapter-00.md",
       "en": "en/chapter-00.md"
     },
     {
       "id": "01",
       "zhTitle": "第 1 章：WS2812B 彩色 LED（RMT 驱动）",
       "enTitle": "Chapter 1: WS2812B RGB LED (RMT Driver)",
-      "zh": "zh/chapter-01.md",
+      "zh": "chapter-01.md",
       "en": "en/chapter-01.md"
     },
     {
       "id": "02",
       "zhTitle": "第 2 章：无源蜂鸣器（LEDC PWM 音调控制）",
       "enTitle": "Chapter 2: Passive Buzzer (LEDC PWM Tone Control)",
-      "zh": "zh/chapter-02.md",
+      "zh": "chapter-02.md",
       "en": "en/chapter-02.md"
     },
     {
       "id": "03",
       "zhTitle": "第 3 章：PWM 舵机与 ESC 控制",
       "enTitle": "Chapter 3: PWM Servo and ESC Control",
-      "zh": "zh/chapter-03.md",
+      "zh": "chapter-03.md",
       "en": "en/chapter-03.md"
     },
     {
       "id": "04",
       "zhTitle": "第 4 章：SBUS 遥控接收",
       "enTitle": "Chapter 4: SBUS RC Receiver",
-      "zh": "zh/chapter-04.md",
+      "zh": "chapter-04.md",
       "en": "en/chapter-04.md"
     },
     {
       "id": "05",
       "zhTitle": "第 5 章：QMI8658 IMU（I2C 读取）",
       "enTitle": "Chapter 5: QMI8658 IMU (I2C Readout)",
-      "zh": "zh/chapter-05.md",
+      "zh": "chapter-05.md",
       "en": "en/chapter-05.md"
     },
     {
       "id": "06",
       "zhTitle": "第 6 章：正交编码器速度测量（PCNT）",
       "enTitle": "Chapter 6: Quadrature Encoder Speed Measurement (PCNT)",
-      "zh": "zh/chapter-06.md",
+      "zh": "chapter-06.md",
       "en": "en/chapter-06.md"
     },
     {
       "id": "07",
       "zhTitle": "第 7 章：NVS 参数持久化",
       "enTitle": "Chapter 7: NVS Parameter Persistence",
-      "zh": "zh/chapter-07.md",
+      "zh": "chapter-07.md",
       "en": "en/chapter-07.md"
     },
     {
       "id": "08",
       "zhTitle": "第 8 章：FreeRTOS 多任务架构",
       "enTitle": "Chapter 8: FreeRTOS Multitasking Architecture",
-      "zh": "zh/chapter-08.md",
+      "zh": "chapter-08.md",
       "en": "en/chapter-08.md"
     },
     {
       "id": "09",
       "zhTitle": "第 9 章：PID 电机速度闭环控制",
       "enTitle": "Chapter 9: PID Motor Speed Closed-Loop Control",
-      "zh": "zh/chapter-09.md",
+      "zh": "chapter-09.md",
       "en": "en/chapter-09.md"
     },
     {
       "id": "10",
       "zhTitle": "第 10 章：Madgwick AHRS 姿态解算",
       "enTitle": "Chapter 10: Madgwick AHRS Attitude Estimation",
-      "zh": "zh/chapter-10.md",
+      "zh": "chapter-10.md",
       "en": "en/chapter-10.md"
     },
     {
       "id": "11",
       "zhTitle": "第 11 章：完整机器人示例",
       "enTitle": "Chapter 11: Complete Robot Example",
-      "zh": "zh/chapter-11.md",
+      "zh": "chapter-11.md",
       "en": "en/chapter-11.md"
     }
   ]
