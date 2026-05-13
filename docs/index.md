@@ -48,5 +48,4 @@ features:
 
 - [中文章节索引](/chapters)
 - [English Chapter Index](/en/chapters)
-- [兼容单页中文教程](/tutorial_zh)
 - [GitHub 示例仓库](https://github.com/osrbot/Development-Board-OSRCORE-Example)
