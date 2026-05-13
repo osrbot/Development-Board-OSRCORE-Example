@@ -11,7 +11,7 @@ hero:
   actions:
     - theme: brand
       text: 开始阅读
-      link: /zh/
+      link: /chapters
     - theme: alt
       text: 查看示例代码
       link: https://github.com/osrbot/Development-Board-OSRCORE-Example
@@ -46,7 +46,7 @@ features:
 
 ## 文档入口
 
-- [中文章节索引](/zh/)
-- [English Chapter Index](/en/)
+- [中文章节索引](/chapters)
+- [English Chapter Index](/en/chapters)
 - [兼容单页中文教程](/tutorial_zh)
 - [GitHub 示例仓库](https://github.com/osrbot/Development-Board-OSRCORE-Example)
