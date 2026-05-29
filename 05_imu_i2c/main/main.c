@@ -2,7 +2,8 @@
  * 示例05：QMI8658 IMU 读取
  *
  * 硬件：I2C，SDA=GPIO10，SCL=GPIO11，地址 0x6B
- * 输出：加速度（g）、角速度（deg/s）、温度（°C），每 10ms 打印一次
+ * 配置：±4g 加速度计，±1024dps 陀螺仪，1000Hz ODR，5样本均值输出
+ * 输出：加速度（g，水平校正）、角速度（deg/s，零偏校正）、温度（°C），每 50ms 打印一次
  */
 
 #include <stdio.h>
@@ -43,14 +44,21 @@ void app_main(void)
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &dev_cfg, &dev));
 
     qmi8658_init(dev);
-    ESP_LOGI(TAG, "Reading IMU at 100Hz...");
+
+    /* Startup gyro bias calibration — keep the board still */
+    ESP_LOGI(TAG, "Calibrating gyro bias, keep board still...");
+    qmi8658_calibrate_bias();
+    ESP_LOGI(TAG, "Calibration done. Reading IMU...");
 
     qmi8658_data_t d;
     while (1) {
         if (qmi8658_read(&d)) {
-            printf("ax=%.3f ay=%.3f az=%.3f  gx=%.2f gy=%.2f gz=%.2f  T=%.1f\n",
-                   d.ax, d.ay, d.az, d.gx, d.gy, d.gz, d.temp);
+            printf("ax=%.3f ay=%.3f az=%.3f  gx=%.2f gy=%.2f gz=%.2f  T=%.1f  static=%d\n",
+                   d.accelX, d.accelY, d.accelZ,
+                   d.gyroX,  d.gyroY,  d.gyroZ,
+                   d.temp,
+                   (int)qmi8658_is_static());
         }
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
