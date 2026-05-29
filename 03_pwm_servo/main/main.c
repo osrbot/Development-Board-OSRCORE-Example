@@ -12,8 +12,9 @@
  *
  * LEDC TIMER_0，14-bit 分辨率，80MHz APB 时钟：
  *   period = 80_000_000 / 50 = 1_600_000 ticks
- *   1µs = 80 ticks
- *   duty = pulse_us * 80
+ *   14-bit duty register: 0-16383 maps to 0-100% of period
+ *   duty = pulse_us / 20000.0 * 16383
+ *   e.g. 1500us → 1500/20000 * 16383 ≈ 1228
  */
 
 #include <stdio.h>
@@ -31,10 +32,17 @@
 #define CH_THROTTLE   LEDC_CHANNEL_0
 #define CH_STEERING   LEDC_CHANNEL_1
 
-/* 80 MHz APB clock → 1 tick = 12.5 ns → 1 µs = 80 ticks */
-#define US_TO_DUTY(us)  ((us) * 80)
-
 static const char *TAG = "servo";
+
+/* Map a pulse width in µs to a 14-bit LEDC duty value.
+ * Clamps to the valid RC range [1000, 2000] µs.
+ * Formula: pulse_us / 20000.0 * (2^14 - 1) */
+static int duty_from_pulse(int pulse_us)
+{
+    if (pulse_us < 1000) pulse_us = 1000;
+    if (pulse_us > 2000) pulse_us = 2000;
+    return (int)((float)pulse_us / 20000.0f * ((1 << 14) - 1));
+}
 
 static void pwm_init(void)
 {
@@ -52,7 +60,7 @@ static void pwm_init(void)
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .channel    = CH_THROTTLE,
         .timer_sel  = PWM_TIMER,
-        .duty       = US_TO_DUTY(1500),
+        .duty       = duty_from_pulse(1500),
         .hpoint     = 0,
     };
     ledc_channel_config(&ch_throttle);
@@ -62,7 +70,7 @@ static void pwm_init(void)
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .channel    = CH_STEERING,
         .timer_sel  = PWM_TIMER,
-        .duty       = US_TO_DUTY(1500),
+        .duty       = duty_from_pulse(1500),
         .hpoint     = 0,
     };
     ledc_channel_config(&ch_steering);
@@ -70,7 +78,7 @@ static void pwm_init(void)
 
 static void set_pulse(ledc_channel_t ch, uint32_t pulse_us)
 {
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, ch, US_TO_DUTY(pulse_us));
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, ch, duty_from_pulse((int)pulse_us));
     ledc_update_duty(LEDC_LOW_SPEED_MODE, ch);
 }
 
