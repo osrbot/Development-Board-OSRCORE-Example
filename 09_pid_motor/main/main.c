@@ -2,7 +2,7 @@
  * 示例09：PID 电机速度闭环控制
  *
  * 硬件：
- *   编码器  GPIO3(EA) / GPIO9(EB)，512 PPR，减速比 10.55，轮径 42.5mm
+ *   编码器  GPIO3(EA) / GPIO9(EB)，1024 PPR，减速比 10.55，轮径 42.5mm
  *   ESC     GPIO1，LEDC 50Hz 14-bit，脉宽 1000-2000µs
  *
  * 控制逻辑（20ms 周期）：
@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/pulse_cnt.h"
@@ -30,7 +31,7 @@
 /* ---- Hardware config ---- */
 #define EA              3
 #define EB              9
-#define ENCODER_PPR     512
+#define ENCODER_PPR     1024
 #define GEAR_RATIO      10.55f
 #define WHEEL_RADIUS    0.0425f
 #define THROTTLE_PIN    1
@@ -53,23 +54,13 @@
 static const char *TAG = "pid_motor";
 
 static pcnt_unit_handle_t s_pcnt;
-static int32_t s_accum = 0;
 static float   s_target_speed = 0.0f;
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 
 /* ---- Encoder ---- */
-static bool IRAM_ATTR pcnt_overflow_cb(pcnt_unit_handle_t u,
-                                        const pcnt_watch_event_data_t *e,
-                                        void *ctx)
-{
-    int32_t *acc = (int32_t *)ctx;
-    *acc += e->watch_point_val;
-    return false;
-}
-
 static void encoder_init(void)
 {
-    pcnt_unit_config_t uc = { .low_limit = -32768, .high_limit = 32767 };
+    pcnt_unit_config_t uc = { .low_limit = -32768, .high_limit = 32767, .accum_count = 1 };
     pcnt_new_unit(&uc, &s_pcnt);
 
     pcnt_chan_config_t cc = { .edge_gpio_num = EA, .level_gpio_num = EB };
@@ -80,10 +71,6 @@ static void encoder_init(void)
     pcnt_channel_set_level_action(ch, PCNT_CHANNEL_LEVEL_ACTION_KEEP,
                                       PCNT_CHANNEL_LEVEL_ACTION_INVERSE);
 
-    pcnt_unit_add_watch_point(s_pcnt,  32767);
-    pcnt_unit_add_watch_point(s_pcnt, -32768);
-    pcnt_event_callbacks_t cbs = { .on_reach = pcnt_overflow_cb };
-    pcnt_unit_register_event_callbacks(s_pcnt, &cbs, &s_accum);
     pcnt_unit_enable(s_pcnt);
     pcnt_unit_clear_count(s_pcnt);
     pcnt_unit_start(s_pcnt);
@@ -93,7 +80,7 @@ static int32_t encoder_count(void)
 {
     int raw = 0;
     pcnt_unit_get_count(s_pcnt, &raw);
-    return s_accum + raw;
+    return raw;
 }
 
 /* ---- ESC PWM ---- */
@@ -124,7 +111,7 @@ static void esc_set(uint32_t pulse_us)
 /* ---- Control task ---- */
 static void task_control(void *arg)
 {
-    pid_t pid;
+    pid_ctrl_t pid;
     pid_init(&pid, 447.0f, 4.7f, 47.0f, 1000.0f, 0.05f);
 
     int32_t last_count = encoder_count();
@@ -144,11 +131,13 @@ static void task_control(void *arg)
         float target = s_target_speed;
         portEXIT_CRITICAL(&s_mux);
 
-        float out = pid_calc(&pid, target, filtered_speed, CONTROL_DT);
-        int32_t pulse = THROTTLE_NEUTRAL + (int32_t)out;
+        if (fabsf(target) < 0.05f)
+            pid_reset(&pid);
+
+        int pulse = pid_update(&pid, target, filtered_speed, THROTTLE_NEUTRAL, CONTROL_DT);
         esc_set((uint32_t)pulse);
 
-        printf("target=%.2f  actual=%.2f  pulse=%ld\n", target, filtered_speed, pulse);
+        printf("target=%.2f  actual=%.2f  pulse=%d\n", target, filtered_speed, pulse);
     }
 }
 

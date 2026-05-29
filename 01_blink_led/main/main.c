@@ -5,9 +5,9 @@
  * 原理：使用 ESP-IDF RMT TX 驱动，自定义编码器将 GRB 字节流转换为 RMT 符号。
  *
  * WS2812B 时序（80MHz RMT 时钟，12.5ns/tick）：
- *   T0H = 32 ticks (~400ns)   T0L = 68 ticks (~850ns)
- *   T1H = 64 ticks (~800ns)   T1L = 36 ticks (~450ns)
- *   Reset >= 4000 ticks (50us)
+ *   T0H = 400/12 ticks (~33)   T0L = 850/12 ticks (~70)
+ *   T1H = 800/12 ticks (~66)   T1L = 450/12 ticks (~37)
+ *   Reset >= 50000/12 ticks (~4166, 50us)
  */
 
 #include <string.h>
@@ -20,11 +20,11 @@
 #define RMT_CLK_HZ   80000000  /* 80 MHz */
 
 /* WS2812B bit timing in RMT ticks (1 tick = 12.5 ns @ 80 MHz) */
-#define T0H  32
-#define T0L  68
-#define T1H  64
-#define T1L  36
-#define RESET_TICKS 4000
+#define T0H  (400  / 12)   // ~33 ticks
+#define T0L  (850  / 12)   // ~70 ticks
+#define T1H  (800  / 12)   // ~66 ticks
+#define T1L  (450  / 12)   // ~37 ticks
+#define RESET_TICKS (50000 / 12)  // ~4166 ticks
 
 static const char *TAG = "led";
 
@@ -108,10 +108,12 @@ static esp_err_t ws2812_encoder_new(rmt_encoder_handle_t *ret)
     rmt_new_copy_encoder(&ccfg, &ws->copy_encoder);
 
     /* Reset symbol: low for >= 50 us */
-    ws->reset_symbol.level0    = 0;
-    ws->reset_symbol.duration0 = RESET_TICKS / 2;
-    ws->reset_symbol.level1    = 0;
-    ws->reset_symbol.duration1 = RESET_TICKS / 2;
+    ws->reset_symbol = (rmt_symbol_word_t){
+        .level0    = 0,
+        .duration0 = RESET_TICKS,
+        .level1    = 0,
+        .duration1 = 0,
+    };
 
     *ret = &ws->base;
     return ESP_OK;

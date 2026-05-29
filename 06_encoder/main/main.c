@@ -1,12 +1,13 @@
 /**
  * 示例06：正交编码器速度测量
  *
- * 硬件：GPIO3(EA)，GPIO9(EB)，512 PPR，减速比 10.55，轮径 42.5mm
+ * 硬件：GPIO3(EA)，GPIO9(EB)，1024 PPR，减速比 10.55，轮径 42.5mm
  * 原理：ESP-IDF PCNT（脉冲计数）新 API，单边沿模式（EA 上升沿计数，EB 控制方向）。
  *       每 20ms 读取计数差，换算为线速度（m/s）。
+ *       使用 accum_count=1 标志启用硬件级累加，pcnt_unit_get_count 直接返回真实累计值。
  *
  * 速度公式：
- *   pulses_per_rev = PPR * GEAR_RATIO = 512 * 10.55 = 5401.6
+ *   pulses_per_rev = PPR * GEAR_RATIO = 1024 * 10.55 = 10803.2
  *   distance_per_pulse = circumference / pulses_per_rev
  *   speed = (delta_pulses * distance_per_pulse) / dt
  */
@@ -20,7 +21,7 @@
 
 #define EA              3
 #define EB              9
-#define ENCODER_PPR     512
+#define ENCODER_PPR     1024
 #define GEAR_RATIO      10.55f
 #define WHEEL_RADIUS    0.0425f
 #define CALC_INTERVAL   20   /* ms */
@@ -32,24 +33,13 @@
 static const char *TAG = "encoder";
 
 static pcnt_unit_handle_t s_unit;
-static int32_t s_accum = 0;
-
-/* PCNT overflow callback: accumulate high-order counts */
-static bool IRAM_ATTR pcnt_overflow_cb(pcnt_unit_handle_t unit,
-                                        const pcnt_watch_event_data_t *edata,
-                                        void *user_ctx)
-{
-    int32_t *accum = (int32_t *)user_ctx;
-    *accum += edata->watch_point_val;
-    return false;
-}
 
 static void encoder_init(void)
 {
-    pcnt_unit_config_t unit_cfg = {
-        .low_limit  = -32768,
-        .high_limit =  32767,
-    };
+    pcnt_unit_config_t unit_cfg = {};
+    unit_cfg.low_limit         = -30000;
+    unit_cfg.high_limit        =  30000;
+    unit_cfg.flags.accum_count = 1;
     pcnt_new_unit(&unit_cfg, &s_unit);
 
     /* EA: count on rising edge; EB: controls direction */
@@ -64,12 +54,9 @@ static void encoder_init(void)
     pcnt_channel_set_level_action(ch_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP,
                                         PCNT_CHANNEL_LEVEL_ACTION_INVERSE);
 
-    /* Watch points for overflow accumulation */
-    pcnt_unit_add_watch_point(s_unit,  32767);
-    pcnt_unit_add_watch_point(s_unit, -32768);
-
-    pcnt_event_callbacks_t cbs = { .on_reach = pcnt_overflow_cb };
-    pcnt_unit_register_event_callbacks(s_unit, &cbs, &s_accum);
+    /* Watch points (used by hardware accumulator) */
+    pcnt_unit_add_watch_point(s_unit,  30000);
+    pcnt_unit_add_watch_point(s_unit, -30000);
 
     pcnt_unit_enable(s_unit);
     pcnt_unit_clear_count(s_unit);
@@ -80,7 +67,7 @@ static int32_t encoder_get_count(void)
 {
     int raw = 0;
     pcnt_unit_get_count(s_unit, &raw);
-    return s_accum + raw;
+    return raw;
 }
 
 void app_main(void)

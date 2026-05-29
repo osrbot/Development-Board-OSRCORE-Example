@@ -2,7 +2,7 @@
 #include <math.h>
 #include <string.h>
 
-void pid_init(pid_t *p, float kp, float ki, float kd,
+void pid_init(pid_ctrl_t *p, float kp, float ki, float kd,
               float max_integral, float deadband)
 {
     memset(p, 0, sizeof(*p));
@@ -13,24 +13,31 @@ void pid_init(pid_t *p, float kp, float ki, float kd,
     p->deadband     = deadband;
 }
 
-float pid_calc(pid_t *p, float target, float measured, float dt)
+int pid_update(pid_ctrl_t *p, float target, float current, int neutral, float dt_sec)
 {
-    float err = target - measured;
+    if (dt_sec <= 0.0f)
+        return neutral;
+
+    float err = target - current;
 
     if (fabsf(err) < p->deadband)
         err = 0.0f;
 
-    p->integral += err * dt;
+    p->integral += err * dt_sec;
     if (p->integral >  p->max_integral) p->integral =  p->max_integral;
     if (p->integral < -p->max_integral) p->integral = -p->max_integral;
 
-    float derivative = (err - p->last_error) / dt;
+    float derivative = (err - p->last_error) / dt_sec;
     p->last_error = err;
 
-    return p->kp * err + p->ki * p->integral + p->kd * derivative;
+    float output = p->kp * err + p->ki * p->integral + p->kd * derivative;
+    int pulse = neutral + (int)output;
+    if (pulse < 1000) pulse = 1000;
+    if (pulse > 2000) pulse = 2000;
+    return pulse;
 }
 
-void pid_reset(pid_t *p)
+void pid_reset(pid_ctrl_t *p)
 {
     p->integral   = 0.0f;
     p->last_error = 0.0f;

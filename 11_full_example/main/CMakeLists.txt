@@ -5,4 +5,11 @@ idf_component_register(
         "madgwick.c"
         "pid.c"
     INCLUDE_DIRS "."
+    REQUIRES
+        esp_adc
+        esp_timer
+        esp_system
+        nvs_flash
+        driver
+        freertos
 )

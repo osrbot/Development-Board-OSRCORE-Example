@@ -10,6 +10,7 @@
 #include "freertos/task.h"
 #include "driver/ledc.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 
 #define BUZZER_PIN      42
 #define BUZZER_TIMER    LEDC_TIMER_1
@@ -17,6 +18,19 @@
 #define BUZZER_RES      LEDC_TIMER_10_BIT  /* 1024 steps */
 
 static const char *TAG = "buzzer";
+
+static esp_timer_handle_t s_buzzer_timer = NULL;
+
+static void buzzer_set_off(void)
+{
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL, 0);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL);
+}
+
+static void buzzer_timer_cb(void *arg)
+{
+    buzzer_set_off();
+}
 
 static void buzzer_init(void)
 {
@@ -40,15 +54,21 @@ static void buzzer_init(void)
     ledc_channel_config(&ch);
 }
 
-/* Play a tone at freq Hz for duration_ms milliseconds */
+/* Play a tone at freq Hz for duration_ms milliseconds (non-blocking) */
 static void buzzer_tone(uint32_t freq_hz, uint32_t duration_ms)
 {
+    if (freq_hz == 0 || duration_ms == 0) { buzzer_set_off(); return; }
+    if (s_buzzer_timer == NULL) {
+        esp_timer_create_args_t args = {};
+        args.callback = buzzer_timer_cb;
+        args.name = "buzzer";
+        esp_timer_create(&args, &s_buzzer_timer);
+    }
+    esp_timer_stop(s_buzzer_timer);
     ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, freq_hz);
     ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL, 512); /* 50% duty */
     ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL);
-    vTaskDelay(pdMS_TO_TICKS(duration_ms));
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL, 0);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL);
+    esp_timer_start_once(s_buzzer_timer, (uint64_t)duration_ms * 1000);
 }
 
 /* ---- Note frequencies (Hz) ---- */
