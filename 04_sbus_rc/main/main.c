@@ -8,7 +8,7 @@
  *   信号电平反相（逻辑1=低电平）
  *   帧格式：0x0F + 22字节数据 + 1字节标志 + 0x00，共25字节
  *   16通道，每通道11位，范围 240-1810（中立约1024）
- *   标志字节 bit2=failsafe，bit3=lost_frame
+ *   标志字节 bit2=lost_frame，bit3=failsafe
  */
 
 #include <stdio.h>
@@ -71,8 +71,8 @@ static bool sbus_parse(const uint8_t *buf, sbus_data_t *out)
     out->ch[14] = ((buf[20] >> 2 | buf[21] << 6) & 0x07FF);
     out->ch[15] = ((buf[21] >> 5 | buf[22] << 3) & 0x07FF);
 
-    out->failsafe  = (buf[23] & (1 << 2)) != 0;
-    out->lost_frame = (buf[23] & (1 << 3)) != 0;
+    out->failsafe   = (buf[23] & (1 << 3)) != 0;
+    out->lost_frame = (buf[23] & (1 << 2)) != 0;
     return true;
 }
 
@@ -82,11 +82,18 @@ static void sbus_task(void *arg)
     sbus_data_t data;
 
     while (1) {
-        /* Sync to frame header */
+        /* Wait until at least one byte is available, then sync to header */
+        size_t avail = 0;
+        uart_get_buffered_data_len(SBUS_UART, &avail);
+        if (avail == 0) {
+            vTaskDelay(pdMS_TO_TICKS(1));
+            continue;
+        }
+
         uint8_t byte;
-        do {
-            uart_read_bytes(SBUS_UART, &byte, 1, portMAX_DELAY);
-        } while (byte != 0x0F);
+        uart_read_bytes(SBUS_UART, &byte, 1, portMAX_DELAY);
+        if (byte != 0x0F)
+            continue;
 
         buf[0] = byte;
         int got = uart_read_bytes(SBUS_UART, buf + 1, SBUS_FRAME - 1, pdMS_TO_TICKS(10));
@@ -101,9 +108,13 @@ static void sbus_task(void *arg)
             continue;
         }
 
-        printf("ch: %4d %4d %4d %4d %4d %4d %4d %4d | fs=%d lf=%d\n",
-               data.ch[0], data.ch[1], data.ch[2], data.ch[3],
-               data.ch[4], data.ch[5], data.ch[6], data.ch[7],
+        printf("ch: %4d %4d %4d %4d %4d %4d %4d %4d"
+               "  %4d %4d %4d %4d %4d %4d %4d %4d"
+               " | fs=%d lf=%d\n",
+               data.ch[0],  data.ch[1],  data.ch[2],  data.ch[3],
+               data.ch[4],  data.ch[5],  data.ch[6],  data.ch[7],
+               data.ch[8],  data.ch[9],  data.ch[10], data.ch[11],
+               data.ch[12], data.ch[13], data.ch[14], data.ch[15],
                data.failsafe, data.lost_frame);
     }
 }
