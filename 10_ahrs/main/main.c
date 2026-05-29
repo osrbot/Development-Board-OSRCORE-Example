@@ -8,6 +8,12 @@
  *   - 6-DOF 模式（仅加速度计 + 陀螺仪）
  *   - β=0.1（收敛速度与噪声抑制的平衡点）
  *   - 使用 Quake III 快速反平方根优化
+ *
+ * 驱动特性：
+ *   - ±4g / ±1024dps，1000Hz ODR
+ *   - 5 样本均值输出
+ *   - 启动零偏校准（100 样本）+ 静止批量更新（1000 样本）
+ *   - 静止检测（10 样本历史，加速度 Z 方差 + 陀螺仪 Z 均值）
  */
 
 #include <stdio.h>
@@ -34,15 +40,19 @@ static void task_imu(void *arg)
 
     while (1) {
         if (qmi8658_read(&d)) {
-            madgwick_update_imu(&g_ahrs, d.gx, d.gy, d.gz, d.ax, d.ay, d.az);
+            /* Gyro values are already bias-corrected by the driver */
+            madgwick_update_imu(&g_ahrs,
+                                d.gyroX, d.gyroY, d.gyroZ,
+                                d.accelX, d.accelY, d.accelZ);
 
             if (++print_cnt >= 20) {  /* print every 100ms */
                 print_cnt = 0;
                 float roll, pitch, yaw;
                 madgwick_get_euler(&g_ahrs, &roll, &pitch, &yaw);
-                printf("q: %.4f %.4f %.4f %.4f  euler: R=%.1f P=%.1f Y=%.1f\n",
+                printf("q: %.4f %.4f %.4f %.4f  euler: R=%.1f P=%.1f Y=%.1f  static=%d\n",
                        g_ahrs.q0, g_ahrs.q1, g_ahrs.q2, g_ahrs.q3,
-                       roll, pitch, yaw);
+                       roll, pitch, yaw,
+                       (int)qmi8658_is_static());
             }
         }
         vTaskDelay(pdMS_TO_TICKS(5));
@@ -70,6 +80,7 @@ void app_main(void)
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &dev_cfg, &g_imu_dev));
 
     qmi8658_init(g_imu_dev);
+    qmi8658_calibrate_bias();
     madgwick_init(&g_ahrs, 0.1f);
 
     ESP_LOGI(TAG, "AHRS running (6-DOF Madgwick, beta=0.1)");
