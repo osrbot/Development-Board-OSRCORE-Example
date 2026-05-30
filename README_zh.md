@@ -55,8 +55,8 @@
 | 08 | [08_freertos](08_freertos/) | FreeRTOS | 双核任务绑定、Queue、Mutex |
 | 09 | [09_pid_motor](09_pid_motor/) | PCNT + LEDC | 速度闭环：编码器 → PID → 电调 |
 | 10 | [10_ahrs](10_ahrs/) | I2C + math | Madgwick 6-DOF AHRS，四元数 → 欧拉角 |
-| 11 | [11_full_example](11_full_example/) | 全部 | 完整机器人：三任务双核，SBUS + 串口控制 |
-| 12 | [12_mag_compass](12_mag_compass/) | I2C master | QMC6309 磁力计，硬铁/软铁校准，倾斜补偿航向 |
+| 11 | [11_mag_compass](11_mag_compass/) | I2C master | QMC6309 磁力计，硬铁/软铁校准，倾斜补偿航向 |
+| 12 | [12_full_example](12_full_example/) | 全部 | 完整机器人：三任务双核，SBUS + 串口控制 |
 
 ## 工具链
 
@@ -105,7 +105,8 @@ idf.py -p /dev/ttyACM0 flash monitor
 | 第 8 章 | FreeRTOS 多任务架构 |
 | 第 9 章 | PID 电机速度闭环控制 |
 | 第 10 章 | Madgwick AHRS 姿态解算 |
-| 第 11 章 | 完整机器人示例 |
+| 第 11 章 | QMC6309 磁力计与罗盘航向 |
+| 第 12 章 | 完整机器人示例 |
 
 ## 许可证
 

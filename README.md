@@ -55,8 +55,8 @@ Progressive ESP-IDF example collection for the **OSRCORE** development board (ES
 | 08 | [08_freertos](08_freertos/) | FreeRTOS | Dual-core task pinning, Queue, Mutex |
 | 09 | [09_pid_motor](09_pid_motor/) | PCNT + LEDC | Closed-loop speed control: encoder → PID → ESC |
 | 10 | [10_ahrs](10_ahrs/) | I2C + math | Madgwick 6-DOF AHRS, quaternion → Euler angles |
-| 11 | [11_full_example](11_full_example/) | all | Complete robot: 3-task dual-core, SBUS + serial control |
-| 12 | [12_mag_compass](12_mag_compass/) | I2C master | QMC6309 magnetometer, hard/soft-iron calibration, tilt-compensated heading |
+| 11 | [11_mag_compass](11_mag_compass/) | I2C master | QMC6309 magnetometer, hard/soft-iron calibration, tilt-compensated heading |
+| 12 | [12_full_example](12_full_example/) | all | Complete robot: 3-task dual-core, SBUS + serial control |
 
 ## Toolchain
 
@@ -107,7 +107,8 @@ Chapters:
 | 8 | FreeRTOS 多任务架构 |
 | 9 | PID 电机速度闭环控制 |
 | 10 | Madgwick AHRS 姿态解算 |
-| 11 | 完整机器人示例 |
+| 11 | QMC6309 Magnetometer and Compass Heading |
+| 12 | Complete Robot Example |
 
 ## License
 

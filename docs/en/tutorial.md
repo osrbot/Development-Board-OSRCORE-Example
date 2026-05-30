@@ -975,11 +975,11 @@ This chapter introduced IMU fusion with the Madgwick algorithm. The result is a 
 
 ---
 
-## Chapter 11: Complete Robot Example
+## Chapter 12: Complete Robot Example
 
-> 📂 **Example Code**: [11_full_example](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/11_full_example)
+> 📂 **Example Code**: [12_full_example](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/12_full_example)
 
-### 11.1 Key Points
+### 12.1 Key Points
 
 - Integrating all previous peripherals into one project
 - Multi-task architecture on ESP32-S3
@@ -987,11 +987,11 @@ This chapter introduced IMU fusion with the Madgwick algorithm. The result is a 
 - Encoder feedback, PID control, ESC output, servo output, and IMU telemetry
 - Safety behavior when failsafe or signal loss occurs
 
-### 11.2 Course Content
+### 12.2 Course Content
 
 The full example combines the previous chapters into a complete robot application. Instead of testing one peripheral at a time, the firmware runs multiple tasks and coordinates input, control, and output.
 
-### 11.3 Basic Learning
+### 12.3 Basic Learning
 
 #### System Architecture
 
@@ -1020,7 +1020,7 @@ A robot control program should always have safe fallback behavior:
 - If encoder feedback is invalid, limit or disable closed-loop output.
 - Keep servo and ESC outputs within safe pulse limits.
 
-### 11.4 Program Study
+### 12.4 Program Study
 
 A simplified main initialization flow:
 
@@ -1065,17 +1065,17 @@ while (1) {
 }
 ```
 
-### 11.5 Summary
+### 12.5 Summary
 
 This final chapter integrates LED, buzzer, SBUS, I2C IMU, encoder, NVS, FreeRTOS, PID, AHRS, and PWM output into a complete OSRCORE robot firmware architecture. The project can be used as a base for further robot applications such as autonomous driving, telemetry streaming, and higher-level navigation.
 
 ---
 
-## Chapter 12: QMC6309 Magnetometer and Compass Heading
+## Chapter 11: QMC6309 Magnetometer and Compass Heading
 
-> 📂 **Example Code**: [12_mag_compass](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/12_mag_compass)
+> 📂 **Example Code**: [11_mag_compass](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/11_mag_compass)
 
-### 12.1 Key Points
+### 11.1 Key Points
 
 - QMC6309 3-axis magnetometer principle (Hall effect, I2C, address 0x7C)
 - Hard-iron interference: fixed offset from permanent magnets on the PCB, corrected with min/max calibration
@@ -1083,11 +1083,11 @@ This final chapter integrates LED, buzzer, SBUS, I2C IMU, encoder, NVS, FreeRTOS
 - Tilt-compensated heading: project horizontal field components onto the horizontal plane using roll/pitch
 - Complementary filter fusing gyroscope integration and magnetometer absolute heading
 
-### 12.2 Course Content
+### 11.2 Course Content
 
 This chapter demonstrates the complete QMC6309 workflow: initialization, raw data reading, hard/soft iron calibration, tilt-compensated heading calculation, and USB CDC console interaction. After this chapter you can integrate the magnetometer into an AHRS for absolute heading estimation.
 
-### 12.3 Basic Learning
+### 11.3 Basic Learning
 
 #### QMC6309 Register Map
 
@@ -1150,7 +1150,7 @@ float err = mag_heading - yaw_cf;
 yaw_cf += (1.0f - alpha) * err;
 ```
 
-### 12.4 Program Study
+### 11.4 Program Study
 
 #### Initialization
 
@@ -1216,6 +1216,6 @@ while (1) {
 }
 ```
 
-### 12.5 Chapter Summary
+### 11.5 Chapter Summary
 
-This chapter covered QMC6309 I2C driver implementation, the two-step hard/soft iron calibration workflow, and tilt-compensated heading calculation. The magnetometer provides an absolute heading reference but is sensitive to electromagnetic interference. In the Chapter 11 full example, a complementary filter fuses the magnetometer with the gyroscope to produce a stable compass heading under dynamic conditions.
+This chapter covered QMC6309 I2C driver implementation, the two-step hard/soft iron calibration workflow, and tilt-compensated heading calculation. The magnetometer provides an absolute heading reference but is sensitive to electromagnetic interference. In the Chapter 12 full example, a complementary filter fuses the magnetometer with the gyroscope to produce a stable compass heading under dynamic conditions.

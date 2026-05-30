@@ -539,7 +539,7 @@ if (got == 24 && sbus_parse(buf, &data)) {
 
 ### 4.5 课程总结
 
-本章掌握了 SBUS 协议的帧格式和位域解包算法，学会了配置 ESP-IDF UART 驱动处理非标准波特率和信号反相。SBUS 接收是机器人遥控操作的基础，第 11 章将把它集成到完整控制系统中。
+本章掌握了 SBUS 协议的帧格式和位域解包算法，学会了配置 ESP-IDF UART 驱动处理非标准波特率和信号反相。SBUS 接收是机器人遥控操作的基础，第 12 章将把它集成到完整控制系统中。
 
 ---
 
@@ -1258,11 +1258,11 @@ static void task_imu(void *arg)
 
 ---
 
-## 第 11 章  完整机器人示例
+## 第 12 章  完整机器人示例
 
-> 📂 **示例代码**：[11_full_example](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/11_full_example)
+> 📂 **示例代码**：[12_full_example](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/12_full_example)
 
-### 11.1 知识要点
+### 12.1 知识要点
 
 - 多外设协同初始化的顺序与依赖关系
 - 三任务双核架构的完整实现
@@ -1274,11 +1274,11 @@ static void task_imu(void *arg)
 - RC 超时（200 ms）与串口控制超时（500 ms）安全机制
 - 电池使能 GPIO 初始化（GPIO16 置 LOW）
 
-### 11.2 课程内容
+### 12.2 课程内容
 
 本章将前 10 章的所有外设整合到一个完整的机器人控制程序中，实现与 OSRCORE 固件相同的三任务架构。系统支持两种控制模式：SBUS 遥控模式（CH7 < 1500）和串口命令模式（CH7 ≥ 1500），遥控模式优先级更高。速度模式通道（CH8，index 7）控制限速：< 1500 时限速 15%，≥ 1500 时全速。RC 超时 200 ms、串口控制超时 500 ms，两者均触发自动停车。
 
-### 11.3 基础学习
+### 12.3 基础学习
 
 #### 三任务架构
 
@@ -1340,7 +1340,7 @@ g_state.odom_pos[1] += spd * dt * sinf(g_state.odom_yaw);
 12. 创建三个任务（+ serial_tx 任务已在步骤 2 创建）
 ```
 
-### 11.4 程序学习
+### 12.4 程序学习
 
 **全局状态结构体（portMUX 保护）：**
 
@@ -1483,7 +1483,7 @@ void app_main(void)
 }
 ```
 
-### 11.5 课程总结
+### 12.5 课程总结
 
 本章完成了 OSRCORE 完整机器人控制程序的实现，将 WS2812B、蜂鸣器、ESC、舵机、编码器、IMU、SBUS、NVS 和 FreeRTOS 多任务架构全部整合在一起。新增特性包括：ADC 查找表电压监测、serial_tx 队列解耦发送、里程计积分、速度模式通道（CH8）、RC 超时 200 ms 安全机制，以及电池使能 GPIO16 置 LOW 的硬件约定。三任务双核架构保证了 IMU 采样和 PID 控制的实时性，SBUS/串口双模式控制提供了灵活的操控方式。
 
@@ -1495,11 +1495,11 @@ void app_main(void)
 
 ---
 
-## 第 12 章  QMC6309 磁力计与罗盘航向
+## 第 11 章  QMC6309 磁力计与罗盘航向
 
-> 📂 **示例代码**：[12_mag_compass](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/12_mag_compass)
+> 📂 **示例代码**：[11_mag_compass](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/11_mag_compass)
 
-### 12.1 知识要点
+### 11.1 知识要点
 
 - QMC6309 三轴磁力计工作原理（霍尔效应，I2C 接口，地址 0x7C）
 - 硬铁（hard-iron）干扰：电路板上的永磁体造成固定偏移，用 min/max 法校准
@@ -1507,11 +1507,11 @@ void app_main(void)
 - 倾斜补偿航向（tilt-compensated heading）：利用 roll/pitch 将水平磁场分量投影到水平面
 - 互补滤波融合陀螺仪积分与磁力计绝对航向，抑制各自的短板
 
-### 12.2 课程内容
+### 11.2 课程内容
 
 本章演示 QMC6309 磁力计的完整使用流程：初始化、原始数据读取、硬铁/软铁校准、倾斜补偿航向计算，以及通过 USB CDC 控制台交互。掌握本章后，可将磁力计融合进 AHRS，实现绝对航向估计。
 
-### 12.3 基础学习
+### 11.3 基础学习
 
 #### QMC6309 寄存器
 
@@ -1574,7 +1574,7 @@ float err = mag_heading - yaw_cf;
 yaw_cf += (1.0f - alpha) * err;
 ```
 
-### 12.4 程序学习
+### 11.4 程序学习
 
 #### 初始化
 
@@ -1677,6 +1677,6 @@ while (1) {
 }
 ```
 
-### 12.5 课程总结
+### 11.5 课程总结
 
-本章掌握了 QMC6309 磁力计的 I2C 驱动编写、硬铁/软铁两步校准流程，以及倾斜补偿航向计算。磁力计提供绝对航向参考，但对电磁干扰敏感；第 11 章完整示例中，通过互补滤波将磁力计与陀螺仪融合，在动态场景下获得稳定的罗盘航向。
+本章掌握了 QMC6309 磁力计的 I2C 驱动编写、硬铁/软铁两步校准流程，以及倾斜补偿航向计算。磁力计提供绝对航向参考，但对电磁干扰敏感；第 12 章完整示例中，通过互补滤波将磁力计与陀螺仪融合，在动态场景下获得稳定的罗盘航向。
