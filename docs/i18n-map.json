@@ -94,6 +94,13 @@
       "enTitle": "Chapter 11: Complete Robot Example",
       "zh": "chapter-11.md",
       "en": "en/chapter-11.md"
+    },
+    {
+      "id": "12",
+      "zhTitle": "第 12 章：QMC6309 磁力计与罗盘航向",
+      "enTitle": "Chapter 12: QMC6309 Magnetometer and Compass Heading",
+      "zh": "chapter-12.md",
+      "en": "en/chapter-12.md"
     }
   ]
 }

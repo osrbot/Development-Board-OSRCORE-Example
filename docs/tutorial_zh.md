@@ -137,6 +137,8 @@ void app_main(void)
 
 ## 第 1 章  WS2812B 彩色 LED（RMT 驱动）
 
+> 📂 **示例代码**：[01_blink_led](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/01_blink_led)
+
 ### 1.1 知识要点
 
 - WS2812B 单线串行协议的时序要求（T0H/T0L/T1H/T1L/Reset）
@@ -231,6 +233,8 @@ static void led_set(uint8_t r, uint8_t g, uint8_t b)
 
 ## 第 2 章  无源蜂鸣器（LEDC PWM 音调控制）
 
+> 📂 **示例代码**：[02_buzzer](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/02_buzzer)
+
 ### 2.1 知识要点
 
 - LEDC（LED Control）外设的定时器与通道配置
@@ -323,6 +327,8 @@ static void buzzer_tone(uint32_t freq_hz, uint32_t duration_ms)
 ---
 
 ## 第 3 章  PWM 舵机与 ESC 控制
+
+> 📂 **示例代码**：[03_pwm_servo](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/03_pwm_servo)
 
 ### 3.1 知识要点
 
@@ -423,6 +429,8 @@ vTaskDelay(pdMS_TO_TICKS(2000));
 ---
 
 ## 第 4 章  SBUS 遥控接收
+
+> 📂 **示例代码**：[04_sbus_rc](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/04_sbus_rc)
 
 ### 4.1 知识要点
 
@@ -536,6 +544,8 @@ if (got == 24 && sbus_parse(buf, &data)) {
 ---
 
 ## 第 5 章  QMI8658 IMU（I2C 读取）
+
+> 📂 **示例代码**：[05_imu_i2c](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/05_imu_i2c)
 
 ### 5.1 知识要点
 
@@ -651,6 +661,8 @@ if (qmi8658_read(&d)) {
 
 ## 第 6 章  正交编码器速度测量（PCNT）
 
+> 📂 **示例代码**：[06_encoder](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/06_encoder)
+
 ### 6.1 知识要点
 
 - 正交编码器的工作原理（A/B 相，方向判断）
@@ -746,6 +758,8 @@ float speed = delta * DIST_PER_PULSE / 0.020f;  // m/s
 ---
 
 ## 第 7 章  NVS 参数持久化存储
+
+> 📂 **示例代码**：[07_nvs](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/07_nvs)
 
 ### 7.1 知识要点
 
@@ -897,6 +911,8 @@ if (fgets(line, sizeof(line), stdin)) {
 
 ## 第 8 章  FreeRTOS 多任务架构
 
+> 📂 **示例代码**：[08_freertos](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/08_freertos)
+
 ### 8.1 知识要点
 
 - FreeRTOS 任务创建、优先级与栈大小配置
@@ -1008,6 +1024,8 @@ static void task_control(void *arg)
 ---
 
 ## 第 9 章  PID 电机速度闭环控制
+
+> 📂 **示例代码**：[09_pid_motor](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/09_pid_motor)
 
 ### 9.1 知识要点
 
@@ -1135,6 +1153,8 @@ static void task_control(void *arg)
 
 ## 第 10 章  Madgwick AHRS 姿态解算
 
+> 📂 **示例代码**：[10_ahrs](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/10_ahrs)
+
 ### 10.1 知识要点
 
 - 四元数表示姿态的优势（无万向锁，计算高效）
@@ -1239,6 +1259,8 @@ static void task_imu(void *arg)
 ---
 
 ## 第 11 章  完整机器人示例
+
+> 📂 **示例代码**：[11_full_example](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/11_full_example)
 
 ### 11.1 知识要点
 
@@ -1471,3 +1493,190 @@ void app_main(void)
 - 扩展 SBUS 通道映射，支持更多遥控功能
 - 使用 ESP-IDF 的 WiFi/BLE 组件，添加无线调试界面
 
+---
+
+## 第 12 章  QMC6309 磁力计与罗盘航向
+
+> 📂 **示例代码**：[12_mag_compass](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/12_mag_compass)
+
+### 12.1 知识要点
+
+- QMC6309 三轴磁力计工作原理（霍尔效应，I2C 接口，地址 0x7C）
+- 硬铁（hard-iron）干扰：电路板上的永磁体造成固定偏移，用 min/max 法校准
+- 软铁（soft-iron）干扰：铁磁材料使磁场椭圆化，用缩放矩阵校正为圆
+- 倾斜补偿航向（tilt-compensated heading）：利用 roll/pitch 将水平磁场分量投影到水平面
+- 互补滤波融合陀螺仪积分与磁力计绝对航向，抑制各自的短板
+
+### 12.2 课程内容
+
+本章演示 QMC6309 磁力计的完整使用流程：初始化、原始数据读取、硬铁/软铁校准、倾斜补偿航向计算，以及通过 USB CDC 控制台交互。掌握本章后，可将磁力计融合进 AHRS，实现绝对航向估计。
+
+### 12.3 基础学习
+
+#### QMC6309 寄存器
+
+| 寄存器 | 地址 | 说明 |
+|--------|------|------|
+| CHIP_ID | 0x00 | 固定值 0x90，用于验证通信 |
+| X_LSB | 0x01 | X 轴数据低字节（共 6 字节 XYZ） |
+| STATUS | 0x09 | bit0=DRDY（数据就绪） |
+| CTRL1 | 0x0A | OSR、工作模式 |
+| CTRL2 | 0x0B | 软复位、ODR、量程 |
+
+初始化流程：软复位 → 验证 CHIP_ID → 配置 CTRL1（OSR）→ 配置 CTRL2（ODR、量程）→ 设置连续测量模式。
+
+#### 硬铁校准
+
+让设备在水平面旋转 360°，记录 X/Y 轴的最大值和最小值：
+
+```c
+hard_iron[0] = (max_x + min_x) / 2.0f;
+hard_iron[1] = (max_y + min_y) / 2.0f;
+```
+
+校准后：`x_cal = x_raw - hard_iron[0]`
+
+#### 软铁校准
+
+XY 轴量程不等时，磁场轨迹为椭圆。用对角缩放矩阵将其拉伸为圆：
+
+```c
+float avg_range = (range_x + range_y) / 2.0f;
+soft_iron[0] = avg_range / range_x;   // X 缩放
+soft_iron[4] = avg_range / range_y;   // Y 缩放
+soft_iron[8] = 1.0f;                  // Z 不变（地面车辆）
+```
+
+#### 倾斜补偿
+
+直接用 atan2(my, mx) 只在水平放置时准确。倾斜时需先将磁场投影到水平面：
+
+```c
+float mx_h = mx * cosf(pitch) + mz * sinf(pitch);
+float my_h = mx * sinf(roll) * sinf(pitch)
+           + my * cosf(roll)
+           - mz * sinf(roll) * cosf(pitch);
+float heading = atan2f(-my_h, mx_h) * 180.0f / M_PI;
+if (heading < 0) heading += 360.0f;
+```
+
+其中 roll/pitch 来自 IMU（第 10 章 Madgwick AHRS）。
+
+#### 互补滤波
+
+磁力计噪声大但无累积误差；陀螺仪短期精准但有漂移。互补滤波取长补短：
+
+```c
+// 静止时 alpha=0.98，运动时 alpha=0.995
+yaw_cf += gyro_z * dt;
+float err = mag_heading - yaw_cf;
+// 角度差归一化到 [-π, π]
+yaw_cf += (1.0f - alpha) * err;
+```
+
+### 12.4 程序学习
+
+#### 初始化
+
+```c
+void qmc6309_init(i2c_master_dev_handle_t dev) {
+    s_dev = dev;
+    memset(s_hard_iron, 0, sizeof(s_hard_iron));
+    memcpy(s_soft_iron, k_identity, sizeof(s_soft_iron));
+
+    // 软复位
+    write_reg(QMC_REG_CTRL2, CTRL2_SOFT_RST);
+    vTaskDelay(pdMS_TO_TICKS(20));
+    write_reg(QMC_REG_CTRL2, 0x00);
+    vTaskDelay(pdMS_TO_TICKS(20));
+
+    // 验证 CHIP_ID
+    uint8_t id = 0;
+    read_reg(QMC_REG_CHIP_ID, &id, 100);
+    if (id != 0x90) printf("WARN: QMC6309 CHIP_ID=0x%02X\n", id);
+
+    // OSR2=4, OSR1=3, 单次模式（后续切换为连续）
+    uint8_t ctrl1 = CTRL1_OSR2(4) | CTRL1_OSR1(3) | CTRL1_MODE(0);
+    write_reg(QMC_REG_CTRL1, ctrl1);
+    // ODR=4 (200Hz), RNG=2 (8G)
+    write_reg(QMC_REG_CTRL2, CTRL2_ODR(4) | CTRL2_RNG(2));
+    // 切换为连续测量模式
+    ctrl1 = (ctrl1 & ~0x03) | CTRL1_MODE(3);
+    write_reg(QMC_REG_CTRL1, ctrl1);
+    vTaskDelay(pdMS_TO_TICKS(100));
+}
+```
+
+#### 读取与校准应用
+
+```c
+bool qmc6309_read(qmc6309_data_t *out) {
+    uint8_t status = 0;
+    read_reg(QMC_REG_STATUS, &status, QMC_READ_I2C_TIMEOUT_MS);
+    if (!(status & STATUS_DRDY)) return false;
+
+    uint8_t data[6];
+    read_burst(QMC_REG_X_LSB, data, 6);
+    float rx = (int16_t)((data[1] << 8) | data[0]) / s_sensitivity;
+    float ry = (int16_t)((data[3] << 8) | data[2]) / s_sensitivity;
+    float rz = (int16_t)((data[5] << 8) | data[4]) / s_sensitivity;
+
+    // 应用硬铁 + 软铁校准
+    float dx = rx - s_hard_iron[0];
+    float dy = ry - s_hard_iron[1];
+    float dz = rz - s_hard_iron[2];
+    out->x = s_soft_iron[0]*dx + s_soft_iron[1]*dy + s_soft_iron[2]*dz;
+    out->y = s_soft_iron[3]*dx + s_soft_iron[4]*dy + s_soft_iron[5]*dz;
+    out->z = s_soft_iron[6]*dx + s_soft_iron[7]*dy + s_soft_iron[8]*dz;
+
+    out->heading = atan2f(out->y, out->x) * 180.0f / M_PI;
+    if (out->heading < 0) out->heading += 360.0f;
+    return true;
+}
+```
+
+#### 校准流程
+
+```c
+void qmc6309_calibrate(uint32_t duration_ms) {
+    // 初始化 min/max
+    for (int i = 0; i < 3; i++) { s_min_val[i] = 1e6f; s_max_val[i] = -1e6f; }
+
+    int64_t start = esp_timer_get_time();
+    while ((esp_timer_get_time() - start) < (int64_t)duration_ms * 1000) {
+        // 读取原始高斯值并更新 min/max
+        // ...
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    // 计算硬铁偏移和软铁缩放
+    for (int i = 0; i < 3; i++)
+        s_hard_iron[i] = (s_max_val[i] + s_min_val[i]) / 2.0f;
+    float avg_xy = ((s_max_val[0]-s_min_val[0]) + (s_max_val[1]-s_min_val[1])) / 2.0f;
+    s_soft_iron[0] = avg_xy / (s_max_val[0] - s_min_val[0]);
+    s_soft_iron[4] = avg_xy / (s_max_val[1] - s_min_val[1]);
+}
+```
+
+#### 主循环
+
+```c
+while (1) {
+    qmc6309_data_t d;
+    if (qmc6309_read(&d)) {
+        printf("hdg=%.1f x=%.4f y=%.4f z=%.4f\n",
+               d.heading, d.x, d.y, d.z);
+    }
+
+    // 非阻塞 USB CDC 命令解析
+    uint8_t byte;
+    if (usb_serial_jtag_read_bytes(&byte, 1, 0) == 1) {
+        // 积累到换行符后处理命令
+        // cal [sec] / heading / help
+    }
+    vTaskDelay(pdMS_TO_TICKS(100));
+}
+```
+
+### 12.5 课程总结
+
+本章掌握了 QMC6309 磁力计的 I2C 驱动编写、硬铁/软铁两步校准流程，以及倾斜补偿航向计算。磁力计提供绝对航向参考，但对电磁干扰敏感；第 11 章完整示例中，通过互补滤波将磁力计与陀螺仪融合，在动态场景下获得稳定的罗盘航向。

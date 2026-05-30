@@ -56,6 +56,7 @@ Progressive ESP-IDF example collection for the **OSRCORE** development board (ES
 | 09 | [09_pid_motor](09_pid_motor/) | PCNT + LEDC | Closed-loop speed control: encoder → PID → ESC |
 | 10 | [10_ahrs](10_ahrs/) | I2C + math | Madgwick 6-DOF AHRS, quaternion → Euler angles |
 | 11 | [11_full_example](11_full_example/) | all | Complete robot: 3-task dual-core, SBUS + serial control |
+| 12 | [12_mag_compass](12_mag_compass/) | I2C master | QMC6309 magnetometer, hard/soft-iron calibration, tilt-compensated heading |
 
 ## Toolchain
 

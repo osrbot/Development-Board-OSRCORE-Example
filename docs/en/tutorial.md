@@ -142,6 +142,8 @@ This chapter covered ESP-IDF installation, the basic `idf.py` workflow, and the 
 
 ## Chapter 1: WS2812B RGB LED (RMT)
 
+> 📂 **Example Code**: [01_blink_led](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/01_blink_led)
+
 ### 1.1 Key Points
 
 - WS2812B single-wire timing: T0H, T0L, T1H, T1L, and reset
@@ -228,6 +230,8 @@ This chapter explained WS2812B timing and the ESP-IDF RMT TX API. The same RMT e
 
 ## Chapter 2: Passive Buzzer (LEDC PWM Tone Control)
 
+> 📂 **Example Code**: [02_buzzer](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/02_buzzer)
+
 ### 2.1 Key Points
 
 - LEDC timer and channel configuration
@@ -304,6 +308,8 @@ This chapter showed how to drive a passive buzzer with LEDC and how to change to
 ---
 
 ## Chapter 3: Servo and ESC Control
+
+> 📂 **Example Code**: [03_pwm_servo](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/03_pwm_servo)
 
 ### 3.1 Key Points
 
@@ -406,6 +412,8 @@ This chapter covered RC PWM timing, LEDC 14-bit duty calculation, and ESC arming
 
 ## Chapter 4: SBUS RC Receiver
 
+> 📂 **Example Code**: [04_sbus_rc](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/04_sbus_rc)
+
 ### 4.1 Key Points
 
 - SBUS frame format: 25 bytes, 100000 baud, 8E2, inverted signal
@@ -496,6 +504,8 @@ This chapter covered SBUS framing, channel unpacking, UART 8E2 configuration, an
 ---
 
 ## Chapter 5: QMI8658 IMU over I2C
+
+> 📂 **Example Code**: [05_imu_i2c](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/05_imu_i2c)
 
 ### 5.1 Key Points
 
@@ -590,6 +600,8 @@ This chapter explained the ESP-IDF I2C master API and how to initialize and read
 
 ## Chapter 6: Quadrature Encoder Speed Measurement
 
+> 📂 **Example Code**: [06_encoder](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/06_encoder)
+
 ### 6.1 Key Points
 
 - Quadrature encoder principle and A/B phase direction detection
@@ -673,6 +685,8 @@ This chapter showed how to use PCNT for encoder counting and how to convert puls
 
 ## Chapter 7: NVS Parameter Persistence
 
+> 📂 **Example Code**: [07_nvs](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/07_nvs)
+
 ### 7.1 Key Points
 
 - ESP-IDF NVS Flash concepts: namespace, key, and value
@@ -750,6 +764,8 @@ NVS makes runtime tuning practical. Instead of hard-coding PID parameters, the f
 
 ## Chapter 8: FreeRTOS Multitasking
 
+> 📂 **Example Code**: [08_freertos](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/08_freertos)
+
 ### 8.1 Key Points
 
 - FreeRTOS task creation and core pinning on ESP32-S3
@@ -826,6 +842,8 @@ FreeRTOS allows the robot firmware to remain responsive and modular. Queues and 
 
 ## Chapter 9: PID Motor Speed Control
 
+> 📂 **Example Code**: [09_pid_motor](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/09_pid_motor)
+
 ### 9.1 Key Points
 
 - Closed-loop control structure: target, feedback, error, and output
@@ -890,6 +908,8 @@ The PID loop connects encoder feedback to ESC output. It is the first step from 
 ---
 
 ## Chapter 10: Madgwick AHRS Attitude Estimation
+
+> 📂 **Example Code**: [10_ahrs](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/10_ahrs)
 
 ### 10.1 Key Points
 
@@ -956,6 +976,8 @@ This chapter introduced IMU fusion with the Madgwick algorithm. The result is a 
 ---
 
 ## Chapter 11: Complete Robot Example
+
+> 📂 **Example Code**: [11_full_example](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/11_full_example)
 
 ### 11.1 Key Points
 
@@ -1046,3 +1068,154 @@ while (1) {
 ### 11.5 Summary
 
 This final chapter integrates LED, buzzer, SBUS, I2C IMU, encoder, NVS, FreeRTOS, PID, AHRS, and PWM output into a complete OSRCORE robot firmware architecture. The project can be used as a base for further robot applications such as autonomous driving, telemetry streaming, and higher-level navigation.
+
+---
+
+## Chapter 12: QMC6309 Magnetometer and Compass Heading
+
+> 📂 **Example Code**: [12_mag_compass](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/12_mag_compass)
+
+### 12.1 Key Points
+
+- QMC6309 3-axis magnetometer principle (Hall effect, I2C, address 0x7C)
+- Hard-iron interference: fixed offset from permanent magnets on the PCB, corrected with min/max calibration
+- Soft-iron interference: ferromagnetic materials distort the field into an ellipse, corrected with a scaling matrix
+- Tilt-compensated heading: project horizontal field components onto the horizontal plane using roll/pitch
+- Complementary filter fusing gyroscope integration and magnetometer absolute heading
+
+### 12.2 Course Content
+
+This chapter demonstrates the complete QMC6309 workflow: initialization, raw data reading, hard/soft iron calibration, tilt-compensated heading calculation, and USB CDC console interaction. After this chapter you can integrate the magnetometer into an AHRS for absolute heading estimation.
+
+### 12.3 Basic Learning
+
+#### QMC6309 Register Map
+
+| Register | Address | Description |
+|----------|---------|-------------|
+| CHIP_ID | 0x00 | Fixed 0x90, used to verify communication |
+| X_LSB | 0x01 | X-axis data LSB (6 bytes total for XYZ) |
+| STATUS | 0x09 | bit0 = DRDY (data ready) |
+| CTRL1 | 0x0A | OSR, operating mode |
+| CTRL2 | 0x0B | Soft reset, ODR, range |
+
+Init sequence: soft reset → verify CHIP_ID → configure CTRL1 (OSR) → configure CTRL2 (ODR, range) → set continuous measurement mode.
+
+#### Hard-Iron Calibration
+
+Rotate the device 360° in the horizontal plane and record min/max for X and Y:
+
+```c
+hard_iron[0] = (max_x + min_x) / 2.0f;
+hard_iron[1] = (max_y + min_y) / 2.0f;
+```
+
+After calibration: `x_cal = x_raw - hard_iron[0]`
+
+#### Soft-Iron Calibration
+
+When X and Y ranges differ, the field trace is an ellipse. A diagonal scaling matrix stretches it back to a circle:
+
+```c
+float avg_range = (range_x + range_y) / 2.0f;
+soft_iron[0] = avg_range / range_x;   // X scale
+soft_iron[4] = avg_range / range_y;   // Y scale
+soft_iron[8] = 1.0f;                  // Z unchanged (ground vehicle)
+```
+
+#### Tilt Compensation
+
+`atan2(my, mx)` is only accurate when the board is level. When tilted, project the field onto the horizontal plane first:
+
+```c
+float mx_h = mx * cosf(pitch) + mz * sinf(pitch);
+float my_h = mx * sinf(roll) * sinf(pitch)
+           + my * cosf(roll)
+           - mz * sinf(roll) * cosf(pitch);
+float heading = atan2f(-my_h, mx_h) * 180.0f / M_PI;
+if (heading < 0) heading += 360.0f;
+```
+
+Roll and pitch come from the IMU (Chapter 10 Madgwick AHRS).
+
+#### Complementary Filter
+
+The magnetometer has noise but no drift; the gyroscope is precise short-term but drifts. A complementary filter combines both:
+
+```c
+// alpha = 0.98 static, 0.995 moving
+yaw_cf += gyro_z * dt;
+float err = mag_heading - yaw_cf;
+// normalize err to [-π, π]
+yaw_cf += (1.0f - alpha) * err;
+```
+
+### 12.4 Program Study
+
+#### Initialization
+
+```c
+void qmc6309_init(i2c_master_dev_handle_t dev) {
+    s_dev = dev;
+    // soft reset
+    write_reg(QMC_REG_CTRL2, CTRL2_SOFT_RST);
+    vTaskDelay(pdMS_TO_TICKS(20));
+    // verify CHIP_ID
+    uint8_t id = 0;
+    read_reg(QMC_REG_CHIP_ID, &id, 100);
+    if (id != 0x90) printf("WARN: QMC6309 CHIP_ID=0x%02X\n", id);
+    // configure ODR=200Hz, range=8G, continuous mode
+    uint8_t ctrl1 = CTRL1_OSR2(4) | CTRL1_OSR1(3) | CTRL1_MODE(0);
+    write_reg(QMC_REG_CTRL1, ctrl1);
+    write_reg(QMC_REG_CTRL2, CTRL2_ODR(4) | CTRL2_RNG(2));
+    ctrl1 = (ctrl1 & ~0x03) | CTRL1_MODE(3);
+    write_reg(QMC_REG_CTRL1, ctrl1);
+    vTaskDelay(pdMS_TO_TICKS(100));
+}
+```
+
+#### Read and Apply Calibration
+
+```c
+bool qmc6309_read(qmc6309_data_t *out) {
+    uint8_t status = 0;
+    read_reg(QMC_REG_STATUS, &status, 2);
+    if (!(status & STATUS_DRDY)) return false;
+
+    uint8_t data[6];
+    read_burst(QMC_REG_X_LSB, data, 6);
+    float rx = (int16_t)((data[1]<<8)|data[0]) / SENSITIVITY_8G;
+    float ry = (int16_t)((data[3]<<8)|data[2]) / SENSITIVITY_8G;
+    float rz = (int16_t)((data[5]<<8)|data[4]) / SENSITIVITY_8G;
+
+    // apply hard-iron + soft-iron
+    float dx = rx - s_hard_iron[0];
+    float dy = ry - s_hard_iron[1];
+    float dz = rz - s_hard_iron[2];
+    out->x = s_soft_iron[0]*dx + s_soft_iron[1]*dy + s_soft_iron[2]*dz;
+    out->y = s_soft_iron[3]*dx + s_soft_iron[4]*dy + s_soft_iron[5]*dz;
+    out->z = s_soft_iron[6]*dx + s_soft_iron[7]*dy + s_soft_iron[8]*dz;
+
+    out->heading = atan2f(out->y, out->x) * 180.0f / M_PI;
+    if (out->heading < 0) out->heading += 360.0f;
+    return true;
+}
+```
+
+#### Main Loop
+
+```c
+while (1) {
+    qmc6309_data_t d;
+    if (qmc6309_read(&d))
+        printf("hdg=%.1f x=%.4f y=%.4f z=%.4f\n", d.heading, d.x, d.y, d.z);
+
+    // non-blocking USB CDC command parsing
+    // cal [sec] / heading / help
+    vTaskDelay(pdMS_TO_TICKS(100));
+}
+```
+
+### 12.5 Chapter Summary
+
+This chapter covered QMC6309 I2C driver implementation, the two-step hard/soft iron calibration workflow, and tilt-compensated heading calculation. The magnetometer provides an absolute heading reference but is sensitive to electromagnetic interference. In the Chapter 11 full example, a complementary filter fuses the magnetometer with the gyroscope to produce a stable compass heading under dynamic conditions.

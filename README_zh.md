@@ -56,6 +56,7 @@
 | 09 | [09_pid_motor](09_pid_motor/) | PCNT + LEDC | 速度闭环：编码器 → PID → 电调 |
 | 10 | [10_ahrs](10_ahrs/) | I2C + math | Madgwick 6-DOF AHRS，四元数 → 欧拉角 |
 | 11 | [11_full_example](11_full_example/) | 全部 | 完整机器人：三任务双核，SBUS + 串口控制 |
+| 12 | [12_mag_compass](12_mag_compass/) | I2C master | QMC6309 磁力计，硬铁/软铁校准，倾斜补偿航向 |
 
 ## 工具链
 
