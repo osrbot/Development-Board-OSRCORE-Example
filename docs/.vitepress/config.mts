@@ -16,7 +16,8 @@ const zhChapters = [
   ['第 8 章：FreeRTOS 多任务', '/chapter-08'],
   ['第 9 章：PID 电机闭环', '/chapter-09'],
   ['第 10 章：Madgwick AHRS', '/chapter-10'],
-  ['第 11 章：完整机器人示例', '/chapter-11']
+  ['第 11 章：QMC6309 磁力计', '/chapter-11'],
+  ['第 12 章：完整机器人示例', '/chapter-12']
 ] as const
 
 const enChapters = [
@@ -31,7 +32,8 @@ const enChapters = [
   ['8. FreeRTOS Tasks', '/en/chapter-08'],
   ['9. PID Speed Loop', '/en/chapter-09'],
   ['10. Madgwick AHRS', '/en/chapter-10'],
-  ['11. Full Robot Example', '/en/chapter-11']
+  ['11. QMC6309 Magnetometer', '/en/chapter-11'],
+  ['12. Full Robot Example', '/en/chapter-12']
 ] as const
 
 export default defineConfig({
