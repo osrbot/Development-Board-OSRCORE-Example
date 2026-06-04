@@ -44,6 +44,7 @@
 #include "qmi8658.h"
 #include "madgwick.h"
 #include "pid.h"
+#include "imu_heater.h"
 
 /* ---- Pin / parameter config ---- */
 #define I2C_SDA             10
@@ -242,7 +243,7 @@ static void set_steering(int us)
 }
 
 /* ---- Buzzer (passive PWM on LEDC_CHANNEL_2) ---- */
-static void buzzer_tone(uint32_t freq_hz, uint32_t duration_ms)
+void buzzer_tone(uint32_t freq_hz, uint32_t duration_ms)
 {
     if (freq_hz == 0) {
         ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 0);
@@ -256,8 +257,18 @@ static void buzzer_tone(uint32_t freq_hz, uint32_t duration_ms)
     ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 0);
 }
 
-/* ---- LED (single WS2812 via GPIO, simple on/off via GPIO level) ---- */
-/* For a real WS2812 you'd use RMT; here we just set the GPIO for blue startup */
+/* ---- LED (single GPIO on LED_PIN) ---- */
+/* This board uses a single LED on GPIO45; there is no RGB WS2812B driver.   */
+/* led_set_color maps: any non-zero channel → LED on, all zero → LED off.    */
+/* The heater milestone colours (green/red) are communicated via buzzer tone  */
+/* and printf; the LED simply stays on whenever heater is active.             */
+void led_set_color(uint8_t r, uint8_t g, uint8_t b)
+{
+    int level = (r || g || b) ? 1 : 0;
+    gpio_set_level(LED_PIN, level);
+    printf("INFO: led color r=%u g=%u b=%u\n", r, g, b);
+}
+
 static void led_set_blue(void)
 {
     gpio_set_level(LED_PIN, 1);
@@ -456,6 +467,8 @@ static void task_imu(void *arg)
             }
 
             portEXIT_CRITICAL(&g_mux);
+
+            imu_heater_update_temp(d.temp);
         }
 
         vTaskDelayUntil(&last, pdMS_TO_TICKS(1));
@@ -862,6 +875,8 @@ void app_main(void)
 
     madgwick_init(&g_ahrs, 0.1f);
 
+    imu_heater_init(56.0f);
+
     /* Init state */
     memset(&g_state, 0, sizeof(g_state));
     g_state.quat[0]           = 1.0f;
@@ -892,7 +907,16 @@ void app_main(void)
     serial_tx_printf("INFO: osrcore ready\n");
     ESP_LOGI(TAG, "osrcore ready");
 
-    xTaskCreatePinnedToCore(task_imu,     "imu",     4096, NULL, 5, NULL, 1);
+    /* Start IMU task first so the heater can receive temperature updates */
+    xTaskCreatePinnedToCore(task_imu, "imu", 4096, NULL, 5, NULL, 1);
+
+    /* Wait until heater reaches warm threshold (38°C) before starting control */
+    serial_tx_printf("INFO: Waiting for IMU heater warm...\n");
+    while (!imu_heater_warm()) {
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+    serial_tx_printf("INFO: IMU heater warm — starting control tasks\n");
+
     xTaskCreatePinnedToCore(task_control, "ctrl",    4096, NULL, 4, NULL, 1);
     xTaskCreatePinnedToCore(task_comm,    "comm",    8192, NULL, 3, NULL, 0);
 

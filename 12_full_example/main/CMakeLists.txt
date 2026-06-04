@@ -4,6 +4,7 @@ idf_component_register(
         "qmi8658.c"
         "madgwick.c"
         "pid.c"
+        "imu_heater.c"
     INCLUDE_DIRS "."
     REQUIRES
         esp_adc
