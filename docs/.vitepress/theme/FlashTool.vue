@@ -342,8 +342,8 @@ async function retry() {
         <div class="flash-hint-boot">
           <span class="flash-hint-boot-icon">💡</span>
           <span>
-            烧录时如芯片无法连接，请<strong>按住 BOOT 键</strong>，再按一下 RESET 键，松开 RESET 后再松开 BOOT——芯片即进入下载模式。
-            串口监视器直接连接正常运行中的开发板即可，无需进入下载模式。
+            烧录需要进入下载模式：<strong>按住 BOOT 键 → 按一下 RESET 键 → 松开 RESET → 松开 BOOT</strong>，再点「连接开发板」。
+            串口监视器无需此操作，直接连接正常运行的开发板即可。
           </span>
         </div>
       </div>
