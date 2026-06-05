@@ -1,0 +1,87 @@
+name: Build Examples
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '[0-9][0-9]_*/**'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '[0-9][0-9]_*/**'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      artifact-name:
+        description: Name of the uploaded firmware artifact
+        value: firmware-bins
+
+jobs:
+  build:
+    name: Build ${{ matrix.example }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example:
+          - 01_blink_led
+          - 02_buzzer
+          - 03_pwm_servo
+          - 04_sbus_rc
+          - 05_imu_i2c
+          - 06_encoder
+          - 07_nvs
+          - 08_freertos
+          - 09_pid_motor
+          - 10_ahrs
+          - 11_mag_compass
+          - 12_full_example
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.example }}
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.4.1
+          target: esp32s3
+          path: ${{ matrix.example }}
+
+      - name: Merge into single flashable binary
+        run: |
+          pip install esptool --quiet
+          python -m esptool \
+            --chip esp32s3 \
+            merge_bin \
+            --output osrcore-${{ matrix.example }}.bin \
+            0x0    ${{ matrix.example }}/build/bootloader/bootloader.bin \
+            0x8000 ${{ matrix.example }}/build/partition_table/partition-table.bin \
+            0x10000 ${{ matrix.example }}/build/${{ matrix.example }}.bin
+
+      - name: Upload merged binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.example }}
+          path: osrcore-${{ matrix.example }}.bin
+          retention-days: 7
+
+  collect:
+    name: Collect all binaries
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bin-*
+          merge-multiple: true
+          path: firmware/
+
+      - name: Upload combined artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-bins
+          path: firmware/
+          retention-days: 7

@@ -35,8 +35,15 @@ function splitByChapter(content, locale) {
   return result
 }
 
-function promoteChapterHeading(markdown, title) {
-  return markdown.replace(/^##\s+[^\n]+/m, `# ${title}`)
+function promoteChapterHeading(markdown, title, bin, locale) {
+  const promoted = markdown.replace(/^##\s+[^\n]+/m, `# ${title}`)
+  if (!bin) return promoted
+  // Inject FlashTool widget after the H1 heading
+  const label = locale === 'zh'
+    ? `在线烧录 — ${bin.replace('osrcore-', '')}`
+    : `Flash to OSRCORE — ${bin.replace('osrcore-', '')}`
+  const tag = `\n<FlashTool example="${bin.replace('osrcore-', '')}" label="${label}" />\n`
+  return promoted.replace(/^(#\s+[^\n]+\n)/m, `$1${tag}`)
 }
 
 function indexPage(locale) {
@@ -85,10 +92,10 @@ for (const chapter of map.chapters) {
   if (!en) missing.push(`en chapter ${chapter.id}`)
 
   if (zh) {
-    await writeFileEnsured(chapter.zh, promoteChapterHeading(zh, chapter.zhTitle))
+    await writeFileEnsured(chapter.zh, promoteChapterHeading(zh, chapter.zhTitle, chapter.bin ?? null, 'zh'))
   }
   if (en) {
-    await writeFileEnsured(chapter.en, promoteChapterHeading(en, chapter.enTitle))
+    await writeFileEnsured(chapter.en, promoteChapterHeading(en, chapter.enTitle, chapter.bin ?? null, 'en'))
   }
 }
 
