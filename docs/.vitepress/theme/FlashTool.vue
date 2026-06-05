@@ -18,7 +18,7 @@ const USB_FILTERS = [
   { usbVendorId: 0x1a86, usbProductId: 0x7523 }, // CH340
 ]
 
-type State = 'idle' | 'connecting' | 'connected' | 'downloading' | 'flashing' | 'done' | 'error'
+type State = 'idle' | 'connecting' | 'connected' | 'downloading' | 'flashing' | 'done' | 'console' | 'disconnected' | 'error'
 
 const state = ref<State>('idle')
 const errorMsg = ref('')
@@ -27,7 +27,7 @@ const progress = ref(0)
 const chipName = ref('')
 const termVisible = ref(false)
 const termRef = ref<HTMLElement | null>(null)
-const consoleRunning = ref(false)
+const consoleOrigin = ref<'flash' | 'direct'>('direct')
 
 let term: any = null
 let fitAddon: any = null
@@ -44,34 +44,45 @@ const statusLabel = computed(() => {
     case 'downloading':  return '下载固件…'
     case 'flashing':     return `烧录中… ${progress.value}%`
     case 'done':         return '烧录完成'
+    case 'console':      return '串口监视中'
+    case 'disconnected': return '设备已断开'
     case 'error':        return '出错'
     default:             return ''
   }
 })
 
+const disconnectHandler = (e: Event) => {
+  const port = (e as any).port as SerialPort
+  if (port !== device) return
+  consoleAbort?.abort()
+  try { consoleReader?.cancel() } catch {}
+  term?.writeln('\r\n\x1b[31m⚠  设备已断开 — 请检查 USB 连接\x1b[0m')
+  openTerm()
+  state.value = 'disconnected'
+}
+
 onMounted(async () => {
   if (typeof navigator === 'undefined') return
   isSupported.value = 'serial' in navigator
-
   if (!isSupported.value) return
+
+  ;(navigator as any).serial.addEventListener('disconnect', disconnectHandler)
 
   const { Terminal } = await import('xterm')
   const { FitAddon } = await import('xterm-addon-fit')
   term = new Terminal({
     cols: 80, rows: 18, fontSize: 12,
     scrollback: 99999,
-    theme: {
-      background: '#0d1117',
-      foreground: '#e6edf3',
-      cursor: '#58a6ff',
-    },
+    theme: { background: '#0d1117', foreground: '#e6edf3', cursor: '#58a6ff' },
   })
   fitAddon = new FitAddon()
   term.loadAddon(fitAddon)
 })
 
 onUnmounted(async () => {
-  await stopConsole()
+  ;(navigator as any).serial?.removeEventListener('disconnect', disconnectHandler)
+  consoleAbort?.abort()
+  try { consoleReader?.cancel() } catch {}
   term?.dispose()
   try { await transport?.disconnect() } catch {}
   if (device) { try { await device.close() } catch {} }
@@ -79,9 +90,7 @@ onUnmounted(async () => {
 
 // Watch example prop changes — reset state when user switches example on hub page
 watch(() => props.example, () => {
-  if (state.value === 'done' || state.value === 'error' || state.value === 'connected') {
-    retry()
-  }
+  if (['done', 'error', 'connected', 'disconnected'].includes(state.value)) retry()
 })
 
 const espLoaderTerminal = {
@@ -103,13 +112,11 @@ function openTerm() {
 
 async function connect() {
   if (!isSupported.value) return
-  if (consoleRunning.value) await stopConsole()
   errorMsg.value = ''
   progress.value = 0
   chipName.value = ''
 
   const { ESPLoader, Transport } = await import('esptool-js')
-
   state.value = 'connecting'
   try {
     device = await (navigator as any).serial.requestPort({ filters: USB_FILTERS })
@@ -154,10 +161,9 @@ async function startFlash() {
       },
     })
 
-    // Reset chip and fully release the port (releases internal reader lock)
+    // Reset chip; transport.disconnect() releases the internal reader lock on device.readable
     await esploader.after()
     try { await transport.disconnect() } catch {}
-
     state.value = 'done'
   } catch (e: any) {
     errorMsg.value = e?.message || String(e)
@@ -165,17 +171,38 @@ async function startFlash() {
   }
 }
 
-async function openConsole() {
-  if (!device || consoleRunning.value) return
+// ---- Console flow ----
 
-  consoleAbort = new AbortController()
-  consoleRunning.value = true
+async function openConsoleFromIdle() {
+  if (!isSupported.value) return
+  errorMsg.value = ''
+  state.value = 'connecting'
+  try {
+    device = await (navigator as any).serial.requestPort({ filters: USB_FILTERS })
+    consoleOrigin.value = 'direct'
+    openTerm()
+    await runConsole()
+  } catch (e: any) {
+    if (e?.name === 'NotFoundError') { state.value = 'idle'; return }
+    errorMsg.value = e?.message || String(e)
+    state.value = 'error'
+  }
+}
+
+async function openConsoleAfterFlash() {
+  if (!device) return
+  consoleOrigin.value = 'flash'
   openTerm()
+  await runConsole()
+}
+
+async function runConsole() {
+  consoleAbort = new AbortController()
+  state.value = 'console'
   term?.writeln('\r\n\x1b[32m--- 串口监视器已启动 115200 baud ---\x1b[0m\r\n')
 
   try {
-    // transport.disconnect() was called after flash; port is closed — reopen directly
-    await device.open({ baudRate: 115200 })
+    await device!.open({ baudRate: 115200 })
     consoleReader = (device as any).readable.getReader()
 
     while (!consoleAbort.signal.aborted) {
@@ -184,27 +211,34 @@ async function openConsole() {
       if (value) term?.write(value)
     }
   } catch (e: any) {
-    if (!consoleAbort?.signal.aborted) {
+    if (!consoleAbort?.signal.aborted && state.value !== 'disconnected') {
       term?.writeln(`\r\n\x1b[31m串口错误: ${e?.message}\x1b[0m`)
     }
   } finally {
     try { consoleReader?.releaseLock() } catch {}
     consoleReader = null
-    consoleRunning.value = false
+    if (device && state.value !== 'disconnected') {
+      try { await device.close() } catch {}
+    }
+    if (state.value === 'console') {
+      state.value = consoleOrigin.value === 'flash' ? 'done' : 'idle'
+      if (consoleOrigin.value !== 'flash') termVisible.value = false
+    }
   }
 }
 
 async function stopConsole() {
-  if (!consoleRunning.value) return
+  if (state.value !== 'console') return
   consoleAbort?.abort()
   try { consoleReader?.cancel() } catch {}
-  // Wait briefly for the read loop to exit
-  await new Promise(r => setTimeout(r, 100))
+  await new Promise(r => setTimeout(r, 150))
   term?.writeln('\r\n\x1b[33m--- 串口监视器已停止 ---\x1b[0m')
 }
 
 async function retry() {
-  await stopConsole()
+  consoleAbort?.abort()
+  try { consoleReader?.cancel() } catch {}
+  await new Promise(r => setTimeout(r, 80))
   state.value = 'idle'
   termVisible.value = false
   progress.value = 0
