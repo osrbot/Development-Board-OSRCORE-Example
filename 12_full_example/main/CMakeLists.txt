@@ -6,13 +6,16 @@ idf_component_register(
         "pid.c"
         "imu_heater.c"
     INCLUDE_DIRS "."
-    REQUIRES
+    PRIV_REQUIRES
         esp_adc
         esp_timer
         esp_system
         nvs_flash
-        driver
-        freertos
         esp_driver_i2c
+        esp_driver_pcnt
+        esp_driver_ledc
+        esp_driver_uart
+        esp_driver_gpio
         esp_driver_usb_serial_jtag
+        freertos
 )
