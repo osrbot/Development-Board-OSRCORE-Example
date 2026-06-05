@@ -1161,6 +1161,8 @@ static void task_control(void *arg)
 - Madgwick 6-DOF 算法原理（梯度下降优化）
 - β 参数对收敛速度与噪声抑制的影响
 - 四元数到欧拉角（Roll/Pitch/Yaw）的转换公式
+- IMU 加热电阻（GPIO46）：通过恒温控制消除温度漂移对陀螺仪偏置的影响
+- 硬件前置条件：加热功能需要 V_IN（9–26V）供电，仅 USB 供电时功率不足
 
 ### 10.2 课程内容
 
@@ -1202,6 +1204,39 @@ Roll  = atan2(2(q0q1 + q2q3), 1 - 2(q1² + q2²))
 Pitch = asin(2(q0q2 - q3q1))
 Yaw   = atan2(2(q0q3 + q1q2), 1 - 2(q2² + q3²))
 ```
+
+#### IMU 加热器工作原理
+
+QMI8658 的陀螺仪零偏随温度变化显著。OSRCORE 板载一颗加热电阻，由 GPIO46 的 MOS 管控制，将 IMU 管芯温度稳定在约 56°C，从根本上消除温漂。
+
+**供电要求**：加热电阻通过板载 TPS54540 降压后的 5V 供电，电源来自 V_IN（9–26V）。仅使用 USB 供电时，5V 轨电流不足，无法达到满功率加热，温控效果不可保证。
+
+**GPIO46 特殊处理**：GPIO46 是 ESP32-S3 的 boot strapping 引脚，`gpio_config()` 会静默跳过输出驱动使能。必须直接写 GPIO 寄存器：
+
+```c
+#include "soc/gpio_reg.h"
+#include "soc/io_mux_reg.h"
+#define HEATER_PIN_BIT (1UL << (46 - 32))
+
+// 初始化：配置为输出
+PIN_FUNC_SELECT(IO_MUX_GPIO46_REG, FUNC_GPIO46_GPIO46);
+REG_WRITE(GPIO_ENABLE1_W1TS_REG, HEATER_PIN_BIT);
+
+// 开启加热
+REG_WRITE(GPIO_OUT1_W1TS_REG, HEATER_PIN_BIT);
+
+// 关闭加热
+REG_WRITE(GPIO_OUT1_W1TC_REG, HEATER_PIN_BIT);
+```
+
+**两阶段控制**：
+1. **预热阶段**：目标温度 56°C，当温度低于 (56 - 8) = 48°C 时全功率加热
+2. **调节阶段**：bang-bang 控制，±1°C 滞回，维持在 56°C 附近
+
+**里程碑**：
+- **38°C warm**：陀螺偏置开始收敛，可以启动 AHRS
+- **54°C stable**：热稳态，偏置最优，建议此时重启一次陀螺校准
+- **56°C target**：bang-bang 调节中心
 
 ### 10.4 程序学习
 
@@ -1252,6 +1287,24 @@ static void task_imu(void *arg)
 }
 ```
 
+#### 启动顺序
+
+加热器需要 IMU 任务持续喂入温度数据，因此必须先启动 IMU 任务，再等待 warm 里程碑：
+
+```c
+imu_heater_init(56.0f);
+
+// 先启动 IMU 任务，让它持续喂温度给加热器
+xTaskCreatePinnedToCore(task_imu, "imu", 4096, NULL, 5, NULL, 1);
+
+// 等待 38°C warm 里程碑
+printf("Waiting for IMU heater warm (38C)...\n");
+while (!imu_heater_warm()) {
+    vTaskDelay(pdMS_TO_TICKS(500));
+}
+printf("Heater warm, starting AHRS\n");
+```
+
 ### 10.5 课程总结
 
 本章掌握了 Madgwick AHRS 算法的原理和实现，学会了四元数姿态表示和欧拉角转换。200 Hz 的更新频率为动态运动提供了足够的时间分辨率，β=0.1 在静态精度和动态响应之间取得了良好平衡。
@@ -1273,6 +1326,7 @@ static void task_imu(void *arg)
 - 速度模式通道（ch[7]）：限速 15% vs 全速
 - RC 超时（200 ms）与串口控制超时（500 ms）安全机制
 - 电池使能 GPIO 初始化（GPIO16 置 LOW）
+- IMU 加热器完整集成：warm/stable/ready 三里程碑，蜂鸣器+LED 反馈
 
 ### 12.2 课程内容
 
@@ -1482,6 +1536,20 @@ void app_main(void)
     // serial_tx 任务（P1）已在 serial_tx_init() 中创建
 }
 ```
+
+#### IMU 加热器集成
+
+完整示例中加热器有三个里程碑，对应不同的系统状态：
+
+| 里程碑 | 温度 | 蜂鸣器 | LED | 含义 |
+|--------|------|--------|-----|------|
+| warm | 38°C | 880Hz 200ms | 绿 | 可以使用，启动控制任务 |
+| stable | 54°C | 1200Hz+600Hz | 红 | 热稳态，偏置最优 |
+| ready | 56°C 斜率稳定 | — | — | bang-bang 维持 |
+
+启动序列：`task_imu` 先启动（喂温度）→ 等 warm（38°C）→ 启动 `task_control` 和 `task_comm`。
+
+蜂鸣器和 LED 颜色切换由 `imu_heater.c` 内部驱动，与任务架构解耦。
 
 ### 12.5 课程总结
 

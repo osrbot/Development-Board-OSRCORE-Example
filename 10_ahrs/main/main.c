@@ -23,6 +23,7 @@
 #include "esp_log.h"
 #include "qmi8658.h"
 #include "madgwick.h"
+#include "imu_heater.h"
 
 #define I2C_SDA     10
 #define I2C_SCL     11
@@ -40,6 +41,7 @@ static void task_imu(void *arg)
 
     while (1) {
         if (qmi8658_read(&d)) {
+            imu_heater_update_temp(d.temp);
             /* Gyro values are already bias-corrected by the driver */
             madgwick_update_imu(&g_ahrs,
                                 d.gyroX, d.gyroY, d.gyroZ,
@@ -82,7 +84,16 @@ void app_main(void)
     qmi8658_init(g_imu_dev);
     qmi8658_calibrate_bias();
     madgwick_init(&g_ahrs, 0.1f);
+    imu_heater_init(56.0f);
+
+    /* start IMU task first so it feeds temp to the heater */
+    xTaskCreatePinnedToCore(task_imu, "imu", 4096, NULL, 5, NULL, 1);
+
+    printf("Waiting for IMU heater warm (38C)...\n");
+    while (!imu_heater_warm()) {
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+    printf("Heater warm, starting AHRS\n");
 
     ESP_LOGI(TAG, "AHRS running (6-DOF Madgwick, beta=0.1)");
-    xTaskCreatePinnedToCore(task_imu, "imu", 4096, NULL, 5, NULL, 1);
 }
