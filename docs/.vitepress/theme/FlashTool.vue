@@ -3,8 +3,9 @@ import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { withBase } from 'vitepress'
 
 const props = defineProps<{
-  example: string  // e.g. "01_blink_led"
-  binUrl: string   // URL from manifest (root-relative or absolute)
+  example: string
+  binUrl?: string   // remote URL (manifest examples)
+  binData?: string  // pre-read binary string (custom local file)
   label?: string
 }>()
 
@@ -124,6 +125,15 @@ async function connect() {
     esploader = new ESPLoader({ transport, baudrate: 460800, terminal: espLoaderTerminal })
     openTerm()
     chipName.value = await esploader.main()
+
+    // Chip whitelist: only ESP32-S3 is supported (OSRCORE hardware)
+    if (!chipName.value.startsWith('ESP32-S3')) {
+      errorMsg.value = `仅支持 OSRCORE（ESP32-S3）开发板，检测到：${chipName.value}`
+      try { await transport.disconnect() } catch {}
+      state.value = 'error'
+      return
+    }
+
     state.value = 'connected'
   } catch (e: any) {
     if (e?.name === 'NotFoundError') { state.value = 'idle'; return }
@@ -138,19 +148,28 @@ async function startFlash() {
   progress.value = 0
 
   try {
-    state.value = 'downloading'
-    const resp = await fetch(withBase(props.binUrl))
-    if (!resp.ok) throw new Error(`无法下载固件: HTTP ${resp.status}`)
+    let data: string
 
-    const blob = await resp.blob()
-    const data = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = e => resolve(e.target!.result as string)
-      reader.onerror = () => reject(new Error('读取固件失败'))
-      reader.readAsBinaryString(blob)
-    })
+    if (props.binData) {
+      // Custom local file — already read by FlashHub before passing in
+      data = props.binData
+      state.value = 'flashing'
+    } else if (props.binUrl) {
+      state.value = 'downloading'
+      const resp = await fetch(withBase(props.binUrl))
+      if (!resp.ok) throw new Error(`无法下载固件: HTTP ${resp.status}`)
+      const blob = await resp.blob()
+      data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = e => resolve(e.target!.result as string)
+        reader.onerror = () => reject(new Error('读取固件失败'))
+        reader.readAsBinaryString(blob)
+      })
+      state.value = 'flashing'
+    } else {
+      throw new Error('未指定固件来源')
+    }
 
-    state.value = 'flashing'
     await esploader.writeFlash({
       fileArray: [{ data, address: 0 }],
       flashSize: 'keep',

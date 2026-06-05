@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useData, withBase } from 'vitepress'
+import { withBase } from 'vitepress'
 import FlashTool from './FlashTool.vue'
 
 const props = defineProps<{ locale?: string }>()
@@ -19,13 +19,25 @@ interface Manifest {
   examples: ManifestEntry[]
 }
 
+const CUSTOM_ID = '__custom__'
+
 const manifest = ref<Manifest | null>(null)
 const manifestError = ref('')
 const selected = ref('')
 
+// Custom firmware state
+const customBinData = ref<string | null>(null)
+const customFileName = ref('')
+const customFileSize = ref(0)
+const isDragOver = ref(false)
+
+const isCustom = computed(() => selected.value === CUSTOM_ID)
+
 const selectedEntry = computed(() =>
   manifest.value?.examples.find(e => e.id === selected.value) ?? null
 )
+
+const customReady = computed(() => isCustom.value && customBinData.value !== null)
 
 onMounted(async () => {
   try {
@@ -38,6 +50,32 @@ onMounted(async () => {
     manifestError.value = e?.message ?? String(e)
   }
 })
+
+function readBinFile(file: File) {
+  if (!file.name.endsWith('.bin')) return
+  customFileName.value = file.name
+  customFileSize.value = file.size
+  const reader = new FileReader()
+  reader.onload = e => { customBinData.value = e.target!.result as string }
+  reader.readAsBinaryString(file)
+}
+
+function onFileInput(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (file) readBinFile(file)
+}
+
+function onDrop(e: DragEvent) {
+  isDragOver.value = false
+  const file = e.dataTransfer?.files?.[0]
+  if (file) readBinFile(file)
+}
+
+function formatSize(bytes: number) {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${(bytes / 1024).toFixed(0)} KB`
+}
 </script>
 
 <template>
@@ -67,15 +105,66 @@ onMounted(async () => {
             <option v-for="ex in manifest.examples" :key="ex.id" :value="ex.id">
               {{ ex.label }}
             </option>
+            <option disabled>──────────</option>
+            <option :value="CUSTOM_ID">
+              {{ isEn ? '⬆ Custom firmware…' : '⬆ 自定义固件…' }}
+            </option>
           </select>
         </div>
 
+        <!-- Custom firmware file picker -->
+        <div v-if="isCustom" class="flash-hub-custom">
+          <div
+            class="flash-hub-dropzone"
+            :class="{ 'is-over': isDragOver, 'has-file': customBinData }"
+            @dragover.prevent="isDragOver = true"
+            @dragleave="isDragOver = false"
+            @drop.prevent="onDrop"
+            @click="($refs.fileInput as HTMLInputElement).click()"
+          >
+            <input
+              ref="fileInput"
+              type="file"
+              accept=".bin"
+              style="display:none"
+              @change="onFileInput"
+            />
+            <template v-if="customBinData">
+              <span class="flash-hub-dropzone-icon">✓</span>
+              <span class="flash-hub-dropzone-name">{{ customFileName }}</span>
+              <span class="flash-hub-dropzone-size">{{ formatSize(customFileSize) }}</span>
+              <span class="flash-hub-dropzone-change">{{ isEn ? 'click to change' : '点击更换' }}</span>
+            </template>
+            <template v-else>
+              <span class="flash-hub-dropzone-icon">📂</span>
+              <span>{{ isEn ? 'Drop .bin file here or click to select' : '拖拽 .bin 文件到此处，或点击选择' }}</span>
+            </template>
+          </div>
+          <div class="flash-hub-custom-warning">
+            <span class="flash-hub-warning-icon">⚠</span>
+            <span>{{ isEn
+              ? 'Only OSRCORE (ESP32-S3) boards are supported. The tool will abort if a different chip is detected.'
+              : '仅支持 OSRCORE（ESP32-S3）开发板。连接后检测到其他芯片型号将自动中止，不会写入任何数据。' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Flash tool for manifest examples -->
         <FlashTool
           v-if="selectedEntry"
           :key="selected"
           :example="selected"
           :bin-url="selectedEntry.bin"
           :label="selectedEntry.label"
+        />
+
+        <!-- Flash tool for custom firmware -->
+        <FlashTool
+          v-else-if="customReady"
+          :key="customFileName"
+          :example="CUSTOM_ID"
+          :bin-data="customBinData!"
+          :label="customFileName"
         />
       </template>
 
@@ -140,6 +229,77 @@ onMounted(async () => {
   outline: none;
 }
 .flash-hub-select:focus { border-color: var(--vp-c-brand-1); }
+
+/* Custom firmware section */
+.flash-hub-custom {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flash-hub-dropzone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border: 2px dashed var(--vp-c-divider);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--vp-c-text-2);
+  transition: border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+.flash-hub-dropzone:hover,
+.flash-hub-dropzone.is-over {
+  border-color: var(--vp-c-brand-1);
+  background: rgba(34,197,94,0.04);
+}
+.flash-hub-dropzone.has-file {
+  border-style: solid;
+  border-color: rgba(34,197,94,0.4);
+  background: rgba(34,197,94,0.04);
+}
+
+.flash-hub-dropzone-icon { font-size: 18px; flex-shrink: 0; }
+
+.flash-hub-dropzone-name {
+  font-family: var(--vp-font-family-mono);
+  font-size: 13px;
+  color: var(--vp-c-text-1);
+  font-weight: 500;
+}
+
+.flash-hub-dropzone-size {
+  font-size: 12px;
+  color: var(--vp-c-text-3);
+}
+
+.flash-hub-dropzone-change {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--vp-c-text-3);
+}
+
+.flash-hub-custom-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  background: rgba(239,68,68,0.06);
+  border: 1px solid rgba(239,68,68,0.2);
+  font-size: 12px;
+  color: var(--vp-c-text-2);
+  line-height: 1.5;
+}
+
+.flash-hub-warning-icon {
+  color: #ef4444;
+  flex-shrink: 0;
+  font-size: 13px;
+}
 
 .flash-hub-notice {
   display: flex;
