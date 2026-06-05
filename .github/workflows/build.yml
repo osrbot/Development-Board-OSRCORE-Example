@@ -45,7 +45,7 @@ jobs:
       - name: Build ${{ matrix.example }}
         uses: espressif/esp-idf-ci-action@v1
         with:
-          esp_idf_version: v5.4.1
+          esp_idf_version: v6.0.1
           target: esp32s3
           path: ${{ matrix.example }}
 
@@ -85,3 +85,73 @@ jobs:
           name: firmware-bins
           path: firmware/
           retention-days: 7
+
+  publish-firmware:
+    name: Publish firmware to gh-pages
+    needs: build
+    runs-on: ubuntu-latest
+    # Only run on direct push to main, not on PRs or workflow_call
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - name: Download all bin-* artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bin-*
+          merge-multiple: true
+          path: bins/
+
+      - name: Generate manifest.json
+        run: |
+          SHA7="${GITHUB_SHA:0:7}"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          cat > manifest.json <<EOF
+          {
+            "version": "git-${SHA7}",
+            "date": "${DATE}",
+            "examples": [
+              { "id": "01_blink_led",    "label": "Ch 01 — WS2812B RGB LED",         "bin": "/firmware/git-${SHA7}/osrcore-01_blink_led.bin" },
+              { "id": "02_buzzer",       "label": "Ch 02 — Passive Buzzer",           "bin": "/firmware/git-${SHA7}/osrcore-02_buzzer.bin" },
+              { "id": "03_pwm_servo",    "label": "Ch 03 — PWM Servo & ESC",          "bin": "/firmware/git-${SHA7}/osrcore-03_pwm_servo.bin" },
+              { "id": "04_sbus_rc",      "label": "Ch 04 — SBUS RC Receiver",         "bin": "/firmware/git-${SHA7}/osrcore-04_sbus_rc.bin" },
+              { "id": "05_imu_i2c",      "label": "Ch 05 — QMI8658 IMU",              "bin": "/firmware/git-${SHA7}/osrcore-05_imu_i2c.bin" },
+              { "id": "06_encoder",      "label": "Ch 06 — Quadrature Encoder",       "bin": "/firmware/git-${SHA7}/osrcore-06_encoder.bin" },
+              { "id": "07_nvs",          "label": "Ch 07 — NVS Persistence",          "bin": "/firmware/git-${SHA7}/osrcore-07_nvs.bin" },
+              { "id": "08_freertos",     "label": "Ch 08 — FreeRTOS Tasks",           "bin": "/firmware/git-${SHA7}/osrcore-08_freertos.bin" },
+              { "id": "09_pid_motor",    "label": "Ch 09 — PID Speed Loop",           "bin": "/firmware/git-${SHA7}/osrcore-09_pid_motor.bin" },
+              { "id": "10_ahrs",         "label": "Ch 10 — Madgwick AHRS",            "bin": "/firmware/git-${SHA7}/osrcore-10_ahrs.bin" },
+              { "id": "11_mag_compass",  "label": "Ch 11 — QMC6309 Magnetometer",     "bin": "/firmware/git-${SHA7}/osrcore-11_mag_compass.bin" },
+              { "id": "12_full_example", "label": "Ch 12 — Full Robot Example",       "bin": "/firmware/git-${SHA7}/osrcore-12_full_example.bin" }
+            ]
+          }
+          EOF
+
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+          token: ${{ github.token }}
+
+      - name: Copy bins and manifest into gh-pages
+        run: |
+          SHA7="${GITHUB_SHA:0:7}"
+          DEST="gh-pages/firmware/git-${SHA7}"
+          mkdir -p "$DEST"
+          cp bins/*.bin "$DEST/"
+          # versioned manifest
+          cp manifest.json "$DEST/manifest.json"
+          # stable pointer
+          cp manifest.json gh-pages/firmware/manifest.json
+
+      - name: Commit and push to gh-pages
+        run: |
+          SHA7="${GITHUB_SHA:0:7}"
+          cd gh-pages
+          git config user.name "kitso666"
+          git config user.email "kitso@osrbot.com"
+          git add firmware/
+          git commit -m "firmware: publish git-${SHA7} bins and update manifest" || echo "Nothing to commit"
+          git push

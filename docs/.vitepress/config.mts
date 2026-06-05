@@ -71,6 +71,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '教程', link: '/chapters' },
+          { text: '在线烧录', link: '/flash' },
           { text: '示例仓库', link: repo }
         ],
         sidebar: [
@@ -78,7 +79,8 @@ export default defineConfig({
             text: 'OSRCORE 教程',
             items: [
               { text: '首页', link: '/' },
-              { text: '章节索引', link: '/chapters' }
+              { text: '章节索引', link: '/chapters' },
+              { text: '在线烧录', link: '/flash' }
             ]
           },
           {
@@ -146,6 +148,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: 'Guide', link: '/en/chapters' },
+          { text: 'Flash', link: '/en/flash' },
           { text: 'Examples', link: repo }
         ],
         sidebar: [
@@ -153,7 +156,8 @@ export default defineConfig({
             text: 'OSRCORE Guide',
             items: [
               { text: 'Overview', link: '/en/' },
-              { text: 'Chapter Index', link: '/en/chapters' }
+              { text: 'Chapter Index', link: '/en/chapters' },
+              { text: 'Flash Firmware', link: '/en/flash' }
             ]
           },
           {

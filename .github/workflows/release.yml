@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 jobs:
   build:
@@ -29,11 +30,20 @@ jobs:
 
       - name: Package all.zip
         run: |
-          cd firmware
-          echo "OSRCORE firmware — ${GITHUB_REF_NAME}" > README.txt
-          echo "" >> README.txt
-          echo "Flash any .bin file at address 0x0:" >> README.txt
-          echo "  esptool.py --chip esp32s3 write_flash 0x0 osrcore-<example>.bin" >> README.txt
+          mkdir -p zip_staging
+          for bin in firmware/osrcore-*.bin; do
+            name=$(basename "$bin")
+            # extract dir name by stripping leading "osrcore-" and trailing ".bin"
+            dir="${name#osrcore-}"
+            dir="${dir%.bin}"
+            mkdir -p "zip_staging/${dir}"
+            cp "$bin" "zip_staging/${dir}/${name}"
+          done
+          echo "OSRCORE firmware — ${GITHUB_REF_NAME}" > zip_staging/README.txt
+          echo "" >> zip_staging/README.txt
+          echo "Flash any .bin file at address 0x0:" >> zip_staging/README.txt
+          echo "  esptool.py --chip esp32s3 write_flash 0x0 <subdir>/osrcore-<example>.bin" >> zip_staging/README.txt
+          cd zip_staging
           zip -r ../all.zip . -x "*.DS_Store"
           cd ..
 
@@ -73,3 +83,52 @@ jobs:
             all.zip
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
+
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+          token: ${{ github.token }}
+
+      - name: Copy release bins and manifest into gh-pages
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          DEST="gh-pages/firmware/${TAG}"
+          mkdir -p "$DEST"
+          cp firmware/*.bin "$DEST/"
+          cat > manifest.json <<EOF
+          {
+            "version": "${TAG}",
+            "date": "${DATE}",
+            "examples": [
+              { "id": "01_blink_led",    "label": "Ch 01 — WS2812B RGB LED",         "bin": "/firmware/${TAG}/osrcore-01_blink_led.bin" },
+              { "id": "02_buzzer",       "label": "Ch 02 — Passive Buzzer",           "bin": "/firmware/${TAG}/osrcore-02_buzzer.bin" },
+              { "id": "03_pwm_servo",    "label": "Ch 03 — PWM Servo & ESC",          "bin": "/firmware/${TAG}/osrcore-03_pwm_servo.bin" },
+              { "id": "04_sbus_rc",      "label": "Ch 04 — SBUS RC Receiver",         "bin": "/firmware/${TAG}/osrcore-04_sbus_rc.bin" },
+              { "id": "05_imu_i2c",      "label": "Ch 05 — QMI8658 IMU",              "bin": "/firmware/${TAG}/osrcore-05_imu_i2c.bin" },
+              { "id": "06_encoder",      "label": "Ch 06 — Quadrature Encoder",       "bin": "/firmware/${TAG}/osrcore-06_encoder.bin" },
+              { "id": "07_nvs",          "label": "Ch 07 — NVS Persistence",          "bin": "/firmware/${TAG}/osrcore-07_nvs.bin" },
+              { "id": "08_freertos",     "label": "Ch 08 — FreeRTOS Tasks",           "bin": "/firmware/${TAG}/osrcore-08_freertos.bin" },
+              { "id": "09_pid_motor",    "label": "Ch 09 — PID Speed Loop",           "bin": "/firmware/${TAG}/osrcore-09_pid_motor.bin" },
+              { "id": "10_ahrs",         "label": "Ch 10 — Madgwick AHRS",            "bin": "/firmware/${TAG}/osrcore-10_ahrs.bin" },
+              { "id": "11_mag_compass",  "label": "Ch 11 — QMC6309 Magnetometer",     "bin": "/firmware/${TAG}/osrcore-11_mag_compass.bin" },
+              { "id": "12_full_example", "label": "Ch 12 — Full Robot Example",       "bin": "/firmware/${TAG}/osrcore-12_full_example.bin" }
+            ]
+          }
+          EOF
+          # versioned manifest alongside the bins
+          cp manifest.json "$DEST/manifest.json"
+          # stable pointer at the root firmware path
+          cp manifest.json gh-pages/firmware/manifest.json
+
+      - name: Commit and push to gh-pages
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          cd gh-pages
+          git config user.name "kitso666"
+          git config user.email "kitso@osrbot.com"
+          git add firmware/
+          git commit -m "firmware: publish release ${TAG} bins and update manifest" || echo "Nothing to commit"
+          git push

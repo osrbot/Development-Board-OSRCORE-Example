@@ -12,5 +12,10 @@
   },
   "devDependencies": {
     "vitepress": "^1.6.4"
+  },
+  "dependencies": {
+    "esptool-js": "^0.5.4",
+    "xterm": "^4.19.0",
+    "xterm-addon-fit": "^0.5.0"
   }
 }

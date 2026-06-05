@@ -3,11 +3,9 @@ import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 
 const props = defineProps<{
   example: string  // e.g. "01_blink_led"
-  label?: string   // optional display label override
+  binUrl: string   // URL from manifest (root-relative or absolute)
+  label?: string
 }>()
-
-const BASE_URL =
-  'https://github.com/osrbot/Development-Board-OSRCORE-Example/releases/latest/download/'
 
 // USB filters for ESP32-S3 (USB-JTAG/CDC)
 const USB_FILTERS = [
@@ -34,10 +32,6 @@ let fitAddon: any = null
 let transport: any = null
 let esploader: any = null
 let device: SerialPort | null = null
-
-const binUrl = computed(() =>
-  `${BASE_URL}osrcore-${props.example}.bin`
-)
 
 const statusLabel = computed(() => {
   switch (state.value) {
@@ -127,7 +121,7 @@ async function flash() {
 
     // Download firmware
     state.value = 'downloading'
-    const resp = await fetch(binUrl.value)
+    const resp = await fetch(props.binUrl)
     if (!resp.ok) throw new Error(`无法下载固件: HTTP ${resp.status}`)
 
     const blob = await resp.blob()
