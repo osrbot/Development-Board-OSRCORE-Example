@@ -18,21 +18,24 @@ const USB_FILTERS = [
   { usbVendorId: 0x1a86, usbProductId: 0x7523 }, // CH340
 ]
 
-type State = 'idle' | 'connecting' | 'downloading' | 'flashing' | 'done' | 'error'
+type State = 'idle' | 'connecting' | 'downloading' | 'flashing' | 'done' | 'console' | 'error'
 
 const state = ref<State>('idle')
 const errorMsg = ref('')
 const isSupported = ref(false)
-const progress = ref(0)         // 0-100 during flashing
+const progress = ref(0)
 const chipName = ref('')
 const termVisible = ref(false)
 const termRef = ref<HTMLElement | null>(null)
+const consoleRunning = ref(false)
 
 let term: any = null
 let fitAddon: any = null
 let transport: any = null
 let esploader: any = null
 let device: SerialPort | null = null
+let consoleReader: ReadableStreamDefaultReader | null = null
+let consoleAbort: AbortController | null = null
 
 const statusLabel = computed(() => {
   switch (state.value) {
@@ -67,8 +70,10 @@ onMounted(async () => {
 })
 
 onUnmounted(async () => {
+  await stopConsole()
   term?.dispose()
   try { await transport?.disconnect() } catch {}
+  if (device) { try { await device.close() } catch {} }
 })
 
 // Watch example prop changes — reset state when user switches example on hub page
@@ -100,6 +105,9 @@ function openTerm() {
 
 async function flash() {
   if (!isSupported.value) return
+  if (consoleRunning.value) {
+    await stopConsole()
+  }
   errorMsg.value = ''
   progress.value = 0
   chipName.value = ''
@@ -145,10 +153,11 @@ async function flash() {
       },
     })
 
+    // Let esploader reset the chip and release the port properly
+    await esploader.after()
     state.value = 'done'
   } catch (e: any) {
     if (e?.name === 'NotFoundError') {
-      // user cancelled port picker
       state.value = 'idle'
       return
     }
@@ -158,30 +167,55 @@ async function flash() {
 }
 
 async function openConsole() {
-  if (!transport) return
+  if (!device || consoleRunning.value) return
+
+  consoleAbort = new AbortController()
+  consoleRunning.value = true
+  openTerm()
+  term?.writeln('\r\n\x1b[32m--- 串口监视器已启动 115200 baud ---\x1b[0m\r\n')
+  term?.writeln('\x1b[33m按"停止监视器"关闭\x1b[0m\r\n')
+
   try {
-    await transport.disconnect()
-    await transport.connect(115200)
-    await transport.setDTR(false)
-    await new Promise(r => setTimeout(r, 100))
-    await transport.setDTR(true)
-    term?.writeln('\r\n\x1b[32m--- Serial monitor started (115200) ---\x1b[0m\r\n')
-    openTerm()
-    const loop = transport.rawRead()
-    for await (const { value, done } of { [Symbol.asyncIterator]: () => loop }) {
-      if (done || !value) break
-      term?.write(value)
+    // Port was released by esploader.after(); open it fresh for console use
+    if ((device as any).readable === null) {
+      await device.open({ baudRate: 115200 })
+    }
+    consoleReader = (device as any).readable.getReader()
+
+    while (!consoleAbort.signal.aborted) {
+      const { value, done } = await consoleReader.read()
+      if (done) break
+      if (value) term?.write(value)
     }
   } catch (e: any) {
-    term?.writeln(`\x1b[31mConsole error: ${e?.message}\x1b[0m`)
+    if (!consoleAbort?.signal.aborted) {
+      term?.writeln(`\r\n\x1b[31m串口错误: ${e?.message}\x1b[0m`)
+    }
+  } finally {
+    try { consoleReader?.releaseLock() } catch {}
+    consoleReader = null
+    consoleRunning.value = false
   }
 }
 
+async function stopConsole() {
+  if (!consoleRunning.value) return
+  consoleAbort?.abort()
+  try { consoleReader?.cancel() } catch {}
+  // Wait briefly for the read loop to exit
+  await new Promise(r => setTimeout(r, 100))
+  term?.writeln('\r\n\x1b[33m--- 串口监视器已停止 ---\x1b[0m')
+}
+
 async function retry() {
+  await stopConsole()
   state.value = 'idle'
   termVisible.value = false
   progress.value = 0
   try { await transport?.disconnect() } catch {}
+  if (device) {
+    try { await device.close() } catch {}
+  }
   transport = null
   esploader = null
   device = null
@@ -229,8 +263,21 @@ async function retry() {
         <!-- Done -->
         <div v-if="state === 'done'" class="flash-done-row">
           <span class="flash-done-badge">✓ 烧录成功</span>
-          <button class="flash-btn flash-btn-secondary" @click="openConsole">打开串口监视器</button>
-          <button class="flash-btn flash-btn-ghost" @click="retry">重新烧录</button>
+          <button
+            v-if="!consoleRunning"
+            class="flash-btn flash-btn-secondary"
+            @click="openConsole"
+          >打开串口监视器</button>
+          <button
+            v-else
+            class="flash-btn flash-btn-stop"
+            @click="stopConsole"
+          >停止监视器</button>
+          <button
+            class="flash-btn flash-btn-ghost"
+            :disabled="consoleRunning"
+            @click="retry"
+          >重新烧录</button>
         </div>
 
         <!-- Error -->
@@ -248,7 +295,13 @@ async function retry() {
 
       <!-- Hint -->
       <div v-if="isSupported && state === 'idle'" class="flash-hint">
-        连接前请确保开发板已通过 USB 接入电脑，且 V_IN 已接 9–26 V 电源。
+        <div>连接前请确保开发板已通过 USB 接入电脑，且 V_IN 已接 9–26 V 电源。</div>
+        <div class="flash-hint-boot">
+          <span class="flash-hint-boot-icon">💡</span>
+          <span>
+            如芯片无法连接，请<strong>按住 BOOT 键</strong>，再按一下 RESET 键，松开 RESET 后再松开 BOOT——芯片即进入下载模式。
+          </span>
+        </div>
       </div>
     </div>
   </ClientOnly>
@@ -409,11 +462,35 @@ async function retry() {
   background: #0d1117;
 }
 
+.flash-btn-stop {
+  background: rgba(239,68,68,0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239,68,68,0.3);
+}
+
 .flash-hint {
   margin-top: 10px;
   font-size: 12px;
   color: var(--vp-c-text-3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
+
+.flash-hint-boot {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: rgba(250,204,21,0.07);
+  border: 1px solid rgba(250,204,21,0.2);
+  color: var(--vp-c-text-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.flash-hint-boot-icon { flex-shrink: 0; }
 
 .flash-unsupported {
   font-size: 13px;
