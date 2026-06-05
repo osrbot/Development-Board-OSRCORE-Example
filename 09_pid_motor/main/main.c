@@ -60,7 +60,8 @@ static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 /* ---- Encoder ---- */
 static void encoder_init(void)
 {
-    pcnt_unit_config_t uc = { .low_limit = -32768, .high_limit = 32767, .accum_count = 1 };
+    pcnt_unit_config_t uc = { .low_limit = -32768, .high_limit = 32767 };
+    uc.flags.accum_count = 1;
     pcnt_new_unit(&uc, &s_pcnt);
 
     pcnt_chan_config_t cc = { .edge_gpio_num = EA, .level_gpio_num = EB };
@@ -70,7 +71,8 @@ static void encoder_init(void)
                                      PCNT_CHANNEL_EDGE_ACTION_HOLD);
     pcnt_channel_set_level_action(ch, PCNT_CHANNEL_LEVEL_ACTION_KEEP,
                                       PCNT_CHANNEL_LEVEL_ACTION_INVERSE);
-
+    pcnt_unit_add_watch_point(s_pcnt,  32767);
+    pcnt_unit_add_watch_point(s_pcnt, -32768);
     pcnt_unit_enable(s_pcnt);
     pcnt_unit_clear_count(s_pcnt);
     pcnt_unit_start(s_pcnt);
