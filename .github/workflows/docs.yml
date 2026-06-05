@@ -14,19 +14,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout main
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -35,10 +33,6 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: docs/package.json
-
-      - name: Setup Pages
-        if: github.event_name != 'pull_request'
-        uses: actions/configure-pages@v5
 
       - name: Install dependencies
         working-directory: docs
@@ -52,20 +46,23 @@ jobs:
         working-directory: docs
         run: npm run build
 
-      - name: Upload artifact
+      - name: Deploy docs to gh-pages (preserve firmware/)
         if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/.vitepress/dist
+        run: |
+          git config user.name "kitso666"
+          git config user.email "kitso@osrbot.com"
 
-  deploy:
-    if: github.event_name != 'pull_request'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          # Checkout gh-pages into a subdirectory
+          git fetch origin gh-pages
+          git worktree add /tmp/gh-pages origin/gh-pages
+
+          # Sync docs dist into gh-pages root, keeping firmware/ untouched
+          rsync -av --delete \
+            --exclude='firmware/' \
+            --exclude='.git' \
+            docs/.vitepress/dist/ /tmp/gh-pages/
+
+          cd /tmp/gh-pages
+          git add -A
+          git commit -m "docs: deploy VitePress site from ${GITHUB_SHA::7}" || echo "Nothing to commit"
+          git push origin HEAD:gh-pages
