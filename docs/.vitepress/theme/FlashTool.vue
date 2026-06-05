@@ -226,8 +226,11 @@ async function retry() {
         <span class="flash-title">
           {{ props.label ?? `在线烧录 — ${props.example}` }}
         </span>
-        <span v-if="chipName && state === 'done'" class="flash-chip-badge">{{ chipName }}</span>
-        <span v-if="state === 'downloading' || state === 'flashing' || state === 'done' || state === 'error'" class="flash-status-text">{{ statusLabel }}</span>
+        <span v-if="chipName && (state === 'done' || state === 'console')" class="flash-chip-badge">{{ chipName }}</span>
+        <span
+          v-if="['downloading','flashing','done','console','disconnected','error'].includes(state)"
+          class="flash-status-text"
+        >{{ statusLabel }}</span>
       </div>
 
       <!-- Browser not supported -->
@@ -237,14 +240,11 @@ async function retry() {
 
       <!-- Controls -->
       <div v-else class="flash-controls">
-        <!-- Idle -->
-        <button
-          v-if="state === 'idle'"
-          class="flash-btn flash-btn-primary"
-          @click="connect"
-        >
-          连接开发板
-        </button>
+        <!-- Idle: two entry points -->
+        <template v-if="state === 'idle'">
+          <button class="flash-btn flash-btn-primary" @click="connect">连接开发板</button>
+          <button class="flash-btn flash-btn-secondary" @click="openConsoleFromIdle">串口监视器</button>
+        </template>
 
         <!-- Connecting -->
         <div v-if="state === 'connecting'" class="flash-progress-row">
@@ -252,7 +252,7 @@ async function retry() {
           <span class="flash-progress-label">连接中…</span>
         </div>
 
-        <!-- Connected — manual confirm before flash -->
+        <!-- Connected — confirm before flash -->
         <div v-if="state === 'connected'" class="flash-connected-row">
           <span class="flash-connected-badge">● 已连接</span>
           <span class="flash-chip-inline">{{ chipName }}</span>
@@ -269,24 +269,24 @@ async function retry() {
           </div>
         </div>
 
-        <!-- Done -->
+        <!-- Done: offer console or reflash -->
         <div v-if="state === 'done'" class="flash-done-row">
           <span class="flash-done-badge">✓ 烧录成功</span>
-          <button
-            v-if="!consoleRunning"
-            class="flash-btn flash-btn-secondary"
-            @click="openConsole"
-          >打开串口监视器</button>
-          <button
-            v-else
-            class="flash-btn flash-btn-stop"
-            @click="stopConsole"
-          >停止监视器</button>
-          <button
-            class="flash-btn flash-btn-ghost"
-            :disabled="consoleRunning"
-            @click="retry"
-          >重新烧录</button>
+          <button class="flash-btn flash-btn-secondary" @click="openConsoleAfterFlash">打开串口监视器</button>
+          <button class="flash-btn flash-btn-ghost" @click="retry">重新烧录</button>
+        </div>
+
+        <!-- Console running -->
+        <div v-if="state === 'console'" class="flash-console-row">
+          <span class="flash-console-badge">● 监视中 115200</span>
+          <button class="flash-btn flash-btn-stop" @click="stopConsole">停止监视器</button>
+          <button v-if="consoleOrigin === 'flash'" class="flash-btn flash-btn-ghost" disabled>重新烧录</button>
+        </div>
+
+        <!-- Disconnected -->
+        <div v-if="state === 'disconnected'" class="flash-disconnected-row">
+          <span class="flash-disconnected-badge">⚠ 设备已断开</span>
+          <button class="flash-btn flash-btn-ghost" @click="retry">返回</button>
         </div>
 
         <!-- Error -->
@@ -297,18 +297,19 @@ async function retry() {
         </div>
       </div>
 
-      <!-- xterm terminal (visible after connect) -->
+      <!-- xterm terminal -->
       <div v-show="termVisible" class="flash-term-wrap">
         <div ref="termRef" class="flash-term" />
       </div>
 
-      <!-- Hint -->
+      <!-- Hint (idle only) -->
       <div v-if="isSupported && state === 'idle'" class="flash-hint">
         <div>连接前请确保开发板已通过 USB 接入电脑，且 V_IN 已接 9–26 V 电源。</div>
         <div class="flash-hint-boot">
           <span class="flash-hint-boot-icon">💡</span>
           <span>
-            如芯片无法连接，请<strong>按住 BOOT 键</strong>，再按一下 RESET 键，松开 RESET 后再松开 BOOT——芯片即进入下载模式。
+            烧录时如芯片无法连接，请<strong>按住 BOOT 键</strong>，再按一下 RESET 键，松开 RESET 后再松开 BOOT——芯片即进入下载模式。
+            串口监视器直接连接正常运行中的开发板即可，无需进入下载模式。
           </span>
         </div>
       </div>
@@ -492,6 +493,33 @@ async function retry() {
   border: 1px solid rgba(34,197,94,0.25);
   border-radius: 6px;
   padding: 2px 8px;
+}
+
+.flash-console-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.flash-console-badge {
+  color: #22c55e;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--vp-font-family-mono);
+}
+
+.flash-disconnected-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.flash-disconnected-badge {
+  color: #f59e0b;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 .flash-btn-stop {
