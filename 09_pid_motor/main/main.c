@@ -24,7 +24,7 @@
 #include "driver/pulse_cnt.h"
 #include "driver/ledc.h"
 #include "driver/usb_serial_jtag.h"
-#include "esp_vfs_usb_serial_jtag.h"
+#include "driver/usb_serial_jtag_vfs.h"
 #include "esp_log.h"
 #include "pid.h"
 
@@ -49,7 +49,7 @@
 #define THROTTLE_NEUTRAL 1500
 #define THROTTLE_MIN     1000
 #define THROTTLE_MAX     2000
-#define US_TO_DUTY(us)  ((us) * 80)
+#define US_TO_DUTY(us)  ((uint32_t)((us) / 20000.0f * 16383))
 
 static const char *TAG = "pid_motor";
 
@@ -170,7 +170,7 @@ void app_main(void)
 {
     usb_serial_jtag_driver_config_t usb_cfg = { .rx_buffer_size = 256, .tx_buffer_size = 256 };
     usb_serial_jtag_driver_install(&usb_cfg);
-    esp_vfs_usb_serial_jtag_use_driver();
+    usb_serial_jtag_vfs_use_driver();
 
     encoder_init();
     esc_init();

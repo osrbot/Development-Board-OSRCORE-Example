@@ -27,7 +27,7 @@
 #include "nvs.h"
 #include "esp_log.h"
 #include "driver/usb_serial_jtag.h"
-#include "esp_vfs_usb_serial_jtag.h"
+#include "driver/usb_serial_jtag_vfs.h"
 
 static const char *TAG = "nvs_example";
 
@@ -412,7 +412,7 @@ void app_main(void)
         .tx_buffer_size = 256,
     };
     usb_serial_jtag_driver_install(&usb_cfg);
-    esp_vfs_usb_serial_jtag_use_driver();
+    usb_serial_jtag_vfs_use_driver();
 
     /* NVS flash init — erase on version mismatch */
     esp_err_t ret = nvs_flash_init();

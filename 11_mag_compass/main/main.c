@@ -13,7 +13,7 @@
 #include "freertos/task.h"
 #include "driver/i2c_master.h"
 #include "driver/gpio.h"
-#include "esp_vfs_usb_serial_jtag.h"
+#include "driver/usb_serial_jtag_vfs.h"
 #include "driver/usb_serial_jtag.h"
 #include "esp_log.h"
 #include "qmc6309.h"
@@ -132,7 +132,7 @@ void app_main(void)
         .tx_buffer_size = 256,
     };
     ESP_ERROR_CHECK(usb_serial_jtag_driver_install(&usb_cfg));
-    esp_vfs_usb_serial_jtag_use_driver();
+    usb_serial_jtag_vfs_use_driver();
 
     /* I2C bus */
     i2c_master_bus_config_t bus_cfg = {
