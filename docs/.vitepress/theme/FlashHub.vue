@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useData, withBase } from 'vitepress'
 import FlashTool from './FlashTool.vue'
 
 const props = defineProps<{ locale?: string }>()
@@ -28,7 +29,7 @@ const selectedEntry = computed(() =>
 
 onMounted(async () => {
   try {
-    const res = await fetch('/firmware/manifest.json')
+    const res = await fetch(withBase('/firmware/manifest.json'))
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data: Manifest = await res.json()
     manifest.value = data

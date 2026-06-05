@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { withBase } from 'vitepress'
 
 const props = defineProps<{
   example: string  // e.g. "01_blink_led"
@@ -121,7 +122,7 @@ async function flash() {
 
     // Download firmware
     state.value = 'downloading'
-    const resp = await fetch(props.binUrl)
+    const resp = await fetch(withBase(props.binUrl))
     if (!resp.ok) throw new Error(`无法下载固件: HTTP ${resp.status}`)
 
     const blob = await resp.blob()
