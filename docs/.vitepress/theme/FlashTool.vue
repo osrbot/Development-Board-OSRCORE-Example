@@ -18,7 +18,7 @@ const USB_FILTERS = [
   { usbVendorId: 0x1a86, usbProductId: 0x7523 }, // CH340
 ]
 
-type State = 'idle' | 'connecting' | 'downloading' | 'flashing' | 'done' | 'console' | 'error'
+type State = 'idle' | 'connecting' | 'connected' | 'downloading' | 'flashing' | 'done' | 'error'
 
 const state = ref<State>('idle')
 const errorMsg = ref('')
@@ -40,6 +40,7 @@ let consoleAbort: AbortController | null = null
 const statusLabel = computed(() => {
   switch (state.value) {
     case 'connecting':   return '连接中…'
+    case 'connected':    return `已识别：${chipName.value}`
     case 'downloading':  return '下载固件…'
     case 'flashing':     return `烧录中… ${progress.value}%`
     case 'done':         return '烧录完成'
@@ -78,11 +79,8 @@ onUnmounted(async () => {
 
 // Watch example prop changes — reset state when user switches example on hub page
 watch(() => props.example, () => {
-  if (state.value === 'done' || state.value === 'error') {
-    state.value = 'idle'
-    termVisible.value = false
-    progress.value = 0
-    chipName.value = ''
+  if (state.value === 'done' || state.value === 'error' || state.value === 'connected') {
+    retry()
   }
 })
 
@@ -103,11 +101,9 @@ function openTerm() {
   setTimeout(() => fitAddon?.fit(), 50)
 }
 
-async function flash() {
+async function connect() {
   if (!isSupported.value) return
-  if (consoleRunning.value) {
-    await stopConsole()
-  }
+  if (consoleRunning.value) await stopConsole()
   errorMsg.value = ''
   progress.value = 0
   chipName.value = ''
@@ -118,17 +114,23 @@ async function flash() {
   try {
     device = await (navigator as any).serial.requestPort({ filters: USB_FILTERS })
     transport = new Transport(device)
-
-    esploader = new ESPLoader({
-      transport,
-      baudrate: 460800,
-      terminal: espLoaderTerminal,
-    })
-
+    esploader = new ESPLoader({ transport, baudrate: 460800, terminal: espLoaderTerminal })
     openTerm()
     chipName.value = await esploader.main()
+    state.value = 'connected'
+  } catch (e: any) {
+    if (e?.name === 'NotFoundError') { state.value = 'idle'; return }
+    errorMsg.value = e?.message || String(e)
+    state.value = 'error'
+  }
+}
 
-    // Download firmware
+async function startFlash() {
+  if (state.value !== 'connected' || !esploader) return
+  errorMsg.value = ''
+  progress.value = 0
+
+  try {
     state.value = 'downloading'
     const resp = await fetch(withBase(props.binUrl))
     if (!resp.ok) throw new Error(`无法下载固件: HTTP ${resp.status}`)
@@ -141,26 +143,23 @@ async function flash() {
       reader.readAsBinaryString(blob)
     })
 
-    // Flash
     state.value = 'flashing'
     await esploader.writeFlash({
       fileArray: [{ data, address: 0 }],
       flashSize: 'keep',
       eraseAll: true,
       compress: true,
-      reportProgress(fileIndex: number, written: number, total: number) {
+      reportProgress(_: number, written: number, total: number) {
         progress.value = Math.round((written / total) * 100)
       },
     })
 
-    // Let esploader reset the chip and release the port properly
+    // Reset chip and fully release the port (releases internal reader lock)
     await esploader.after()
+    try { await transport.disconnect() } catch {}
+
     state.value = 'done'
   } catch (e: any) {
-    if (e?.name === 'NotFoundError') {
-      state.value = 'idle'
-      return
-    }
     errorMsg.value = e?.message || String(e)
     state.value = 'error'
   }
@@ -173,13 +172,10 @@ async function openConsole() {
   consoleRunning.value = true
   openTerm()
   term?.writeln('\r\n\x1b[32m--- 串口监视器已启动 115200 baud ---\x1b[0m\r\n')
-  term?.writeln('\x1b[33m按"停止监视器"关闭\x1b[0m\r\n')
 
   try {
-    // Port was released by esploader.after(); open it fresh for console use
-    if ((device as any).readable === null) {
-      await device.open({ baudRate: 115200 })
-    }
+    // transport.disconnect() was called after flash; port is closed — reopen directly
+    await device.open({ baudRate: 115200 })
     consoleReader = (device as any).readable.getReader()
 
     while (!consoleAbort.signal.aborted) {
@@ -212,10 +208,9 @@ async function retry() {
   state.value = 'idle'
   termVisible.value = false
   progress.value = 0
+  chipName.value = ''
   try { await transport?.disconnect() } catch {}
-  if (device) {
-    try { await device.close() } catch {}
-  }
+  if (device) { try { await device.close() } catch {} }
   transport = null
   esploader = null
   device = null
@@ -231,8 +226,8 @@ async function retry() {
         <span class="flash-title">
           {{ props.label ?? `在线烧录 — ${props.example}` }}
         </span>
-        <span v-if="chipName" class="flash-chip-badge">{{ chipName }}</span>
-        <span v-if="state !== 'idle'" class="flash-status-text">{{ statusLabel }}</span>
+        <span v-if="chipName && state === 'done'" class="flash-chip-badge">{{ chipName }}</span>
+        <span v-if="state === 'downloading' || state === 'flashing' || state === 'done' || state === 'error'" class="flash-status-text">{{ statusLabel }}</span>
       </div>
 
       <!-- Browser not supported -->
@@ -246,13 +241,27 @@ async function retry() {
         <button
           v-if="state === 'idle'"
           class="flash-btn flash-btn-primary"
-          @click="flash"
+          @click="connect"
         >
-          连接并烧录
+          连接开发板
         </button>
 
-        <!-- Connecting / downloading / flashing -->
-        <div v-if="state === 'connecting' || state === 'downloading' || state === 'flashing'" class="flash-progress-row">
+        <!-- Connecting -->
+        <div v-if="state === 'connecting'" class="flash-progress-row">
+          <div class="flash-spinner" />
+          <span class="flash-progress-label">连接中…</span>
+        </div>
+
+        <!-- Connected — manual confirm before flash -->
+        <div v-if="state === 'connected'" class="flash-connected-row">
+          <span class="flash-connected-badge">● 已连接</span>
+          <span class="flash-chip-inline">{{ chipName }}</span>
+          <button class="flash-btn flash-btn-primary" @click="startFlash">开始烧录</button>
+          <button class="flash-btn flash-btn-ghost" @click="retry">取消</button>
+        </div>
+
+        <!-- Downloading / flashing -->
+        <div v-if="state === 'downloading' || state === 'flashing'" class="flash-progress-row">
           <div class="flash-spinner" />
           <span class="flash-progress-label">{{ statusLabel }}</span>
           <div v-if="state === 'flashing'" class="flash-progress-bar-wrap">
@@ -460,6 +469,29 @@ async function retry() {
 .flash-term {
   height: 280px;
   background: #0d1117;
+}
+
+.flash-connected-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.flash-connected-badge {
+  color: #22c55e;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.flash-chip-inline {
+  font-family: var(--vp-font-family-mono);
+  font-size: 13px;
+  color: var(--vp-c-brand-1);
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.25);
+  border-radius: 6px;
+  padding: 2px 8px;
 }
 
 .flash-btn-stop {
