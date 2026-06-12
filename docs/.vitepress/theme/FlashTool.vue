@@ -40,6 +40,11 @@ const quickSends = ref<string[]>(['', '', '', '', '', ''])
 const editingQuick = ref(-1)  // index being edited, -1 = none
 const editingValue = ref('')
 
+// Timed send
+const timedEnabled = ref(false)
+const timedInterval = ref(1000)  // ms
+let timedTimer: ReturnType<typeof setInterval> | null = null
+
 let term: any = null
 let fitAddon: any = null
 let transport: any = null
@@ -65,6 +70,7 @@ const statusLabel = computed(() => {
 const disconnectHandler = (e: Event) => {
   const port = (e as any).port as SerialPort
   if (port !== device) return
+  stopTimed()
   consoleAbort?.abort()
   try { consoleReader?.cancel() } catch {}
   term?.writeln('\r\n\x1b[31m⚠  设备已断开 — 请检查 USB 连接\x1b[0m')
@@ -101,6 +107,7 @@ onMounted(async () => {
 
 onUnmounted(async () => {
   ;(navigator as any).serial?.removeEventListener('disconnect', disconnectHandler)
+  stopTimed()
   consoleAbort?.abort()
   try { consoleReader?.cancel() } catch {}
   term?.dispose()
@@ -267,6 +274,7 @@ async function runConsole() {
 
 async function stopConsole() {
   if (state.value !== 'console') return
+  stopTimed()
   consoleAbort?.abort()
   try { consoleReader?.cancel() } catch {}
   await new Promise(r => setTimeout(r, 150))
@@ -294,6 +302,25 @@ async function sendData() {
   sendInput.value = ''
 }
 
+function toggleTimed() {
+  if (timedEnabled.value) {
+    stopTimed()
+  } else {
+    if (!sendInput.value) {
+      term?.writeln('\x1b[33m定时发送需要先在输入框填入内容\x1b[0m')
+      return
+    }
+    const ms = Math.max(50, timedInterval.value || 1000)
+    timedTimer = setInterval(() => { writeToPort(sendInput.value) }, ms)
+    timedEnabled.value = true
+  }
+}
+
+function stopTimed() {
+  if (timedTimer) { clearInterval(timedTimer); timedTimer = null }
+  timedEnabled.value = false
+}
+
 async function sendQuick(i: number) {
   const text = quickSends.value[i]
   if (text) await writeToPort(text)
@@ -318,6 +345,7 @@ function cancelEditQuick() {
 }
 
 async function retry() {
+  stopTimed()
   consoleAbort?.abort()
   try { consoleReader?.cancel() } catch {}
   await new Promise(r => setTimeout(r, 80))
@@ -431,6 +459,26 @@ async function retry() {
             <input type="checkbox" v-model="addCRLF" /> CR+LF
           </label>
           <button class="flash-btn flash-btn-primary console-send-btn" @click="sendData">发送</button>
+        </div>
+
+        <!-- Timed send -->
+        <div class="console-timed-row">
+          <span class="console-quick-label">定时：</span>
+          <input
+            v-model.number="timedInterval"
+            type="number"
+            min="50"
+            step="50"
+            class="console-timed-input"
+            :disabled="timedEnabled"
+          />
+          <span class="console-timed-unit">ms</span>
+          <button
+            class="console-timed-btn"
+            :class="{ 'is-active': timedEnabled }"
+            @click="toggleTimed"
+          >{{ timedEnabled ? '停止定时' : '开始定时' }}</button>
+          <span v-if="timedEnabled" class="console-timed-hint">循环发送输入框内容</span>
         </div>
 
         <!-- Quick send -->
@@ -672,6 +720,56 @@ async function retry() {
 .console-send-btn {
   padding: 7px 16px;
   font-size: 13px;
+}
+
+/* Timed send */
+.console-timed-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.console-timed-input {
+  width: 70px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--vp-font-family-mono);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 5px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  outline: none;
+}
+.console-timed-input:focus { border-color: var(--vp-c-brand-1); }
+.console-timed-input:disabled { opacity: 0.5; }
+
+.console-timed-unit {
+  font-size: 12px;
+  color: var(--vp-c-text-3);
+}
+
+.console-timed-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 5px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.console-timed-btn:hover { border-color: var(--vp-c-brand-1); }
+.console-timed-btn.is-active {
+  background: rgba(239,68,68,0.12);
+  color: #ef4444;
+  border-color: rgba(239,68,68,0.3);
+}
+
+.console-timed-hint {
+  font-size: 11px;
+  color: var(--vp-c-text-3);
 }
 
 /* Quick send buttons */
