@@ -34,6 +34,12 @@ const consoleOrigin = ref<'flash' | 'direct'>('direct')
 const sendInput = ref('')
 const addCRLF = ref(true)
 
+// 6 quick-send slots, persisted to localStorage
+const QUICK_KEY = 'osrcore-flash-quicksend'
+const quickSends = ref<string[]>(['', '', '', '', '', ''])
+const editingQuick = ref(-1)  // index being edited, -1 = none
+const editingValue = ref('')
+
 let term: any = null
 let fitAddon: any = null
 let transport: any = null
@@ -72,6 +78,15 @@ onMounted(async () => {
   if (!isSupported.value) return
 
   ;(navigator as any).serial.addEventListener('disconnect', disconnectHandler)
+
+  // Load quick-send from localStorage
+  try {
+    const saved = localStorage.getItem(QUICK_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed) && parsed.length === 6) quickSends.value = parsed
+    }
+  } catch {}
 
   const { Terminal } = await import('xterm')
   const { FitAddon } = await import('xterm-addon-fit')
@@ -258,21 +273,48 @@ async function stopConsole() {
   term?.writeln('\r\n\x1b[33m--- 串口监视器已停止 ---\x1b[0m')
 }
 
-async function sendData() {
-  if (!device || state.value !== 'console' || !sendInput.value) return
+async function writeToPort(text: string) {
+  if (!device || state.value !== 'console' || !text) return
   try {
     const writer = (device as any).writable.getWriter()
     const encoder = new TextEncoder()
-    let data = sendInput.value
+    let data = text
     if (addCRLF.value) data += '\r\n'
     await writer.write(encoder.encode(data))
     writer.releaseLock()
-    // Echo to terminal
-    term?.writeln(`\x1b[36m→ ${sendInput.value}\x1b[0m`)
-    sendInput.value = ''
+    term?.writeln(`\x1b[36m→ ${text}\x1b[0m`)
   } catch (e: any) {
     term?.writeln(`\x1b[31m发送失败: ${e?.message}\x1b[0m`)
   }
+}
+
+async function sendData() {
+  if (!sendInput.value) return
+  await writeToPort(sendInput.value)
+  sendInput.value = ''
+}
+
+async function sendQuick(i: number) {
+  const text = quickSends.value[i]
+  if (text) await writeToPort(text)
+}
+
+function startEditQuick(i: number) {
+  editingQuick.value = i
+  editingValue.value = quickSends.value[i]
+}
+
+function saveEditQuick() {
+  if (editingQuick.value < 0) return
+  quickSends.value[editingQuick.value] = editingValue.value
+  localStorage.setItem(QUICK_KEY, JSON.stringify(quickSends.value))
+  editingQuick.value = -1
+  editingValue.value = ''
+}
+
+function cancelEditQuick() {
+  editingQuick.value = -1
+  editingValue.value = ''
 }
 
 async function retry() {
@@ -389,6 +431,32 @@ async function retry() {
             <input type="checkbox" v-model="addCRLF" /> CR+LF
           </label>
           <button class="flash-btn flash-btn-primary console-send-btn" @click="sendData">发送</button>
+        </div>
+
+        <!-- Quick send -->
+        <div class="console-quick-row">
+          <span class="console-quick-label">快捷：</span>
+          <template v-for="(qs, i) in quickSends" :key="i">
+            <button
+              v-if="editingQuick !== i"
+              class="console-quick-btn"
+              :class="{ 'is-empty': !qs }"
+              :title="qs || '右键编辑'"
+              @click="qs ? sendQuick(i) : startEditQuick(i)"
+              @contextmenu.prevent="startEditQuick(i)"
+            >{{ qs || `${i + 1}` }}</button>
+            <div v-else class="console-quick-edit">
+              <input
+                v-model="editingValue"
+                class="console-quick-edit-input"
+                placeholder="指令内容"
+                @keydown.enter="saveEditQuick"
+                @keydown.escape="cancelEditQuick"
+              />
+              <button class="console-quick-edit-ok" @click="saveEditQuick">✓</button>
+              <button class="console-quick-edit-cancel" @click="cancelEditQuick">✗</button>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -605,6 +673,71 @@ async function retry() {
   padding: 7px 16px;
   font-size: 13px;
 }
+
+/* Quick send buttons */
+.console-quick-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.console-quick-label {
+  font-size: 12px;
+  color: var(--vp-c-text-3);
+  white-space: nowrap;
+}
+
+.console-quick-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: var(--vp-font-family-mono);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 5px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: border-color 0.15s;
+}
+.console-quick-btn:hover { border-color: var(--vp-c-brand-1); }
+.console-quick-btn.is-empty {
+  color: var(--vp-c-text-3);
+  border-style: dashed;
+}
+
+.console-quick-edit {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.console-quick-edit-input {
+  width: 90px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-family: var(--vp-font-family-mono);
+  border: 1px solid var(--vp-c-brand-1);
+  border-radius: 4px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  outline: none;
+}
+
+.console-quick-edit-ok,
+.console-quick-edit-cancel {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+}
+.console-quick-edit-ok { color: #22c55e; }
+.console-quick-edit-cancel { color: #ef4444; }
 
 .flash-connected-row {
   display: flex;
