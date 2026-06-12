@@ -45,6 +45,25 @@ const timedEnabled = ref(false)
 const timedInterval = ref(1000)  // ms
 let timedTimer: ReturnType<typeof setInterval> | null = null
 
+// Filter: comma-separated line prefixes to hide
+const FILTER_KEY = 'osrcore-flash-filter'
+const filterText = ref('')
+const filterPrefixes = computed(() =>
+  filterText.value.split(',').map(s => s.trim()).filter(Boolean)
+)
+
+// Auto-reply rules: when a line starts with trigger, send reply
+const AUTOREPLY_KEY = 'osrcore-flash-autoreply'
+interface AutoReplyRule { trigger: string; reply: string }
+const autoReplyRules = ref<AutoReplyRule[]>([])
+
+// Line-buffered processing is only needed when filter or auto-reply is active
+const lineProcessing = computed(() =>
+  filterPrefixes.value.length > 0 || autoReplyRules.value.length > 0
+)
+let lineBuffer = ''
+const lineDecoder = new TextDecoder()
+
 let term: any = null
 let fitAddon: any = null
 let transport: any = null
@@ -91,6 +110,17 @@ onMounted(async () => {
     if (saved) {
       const parsed = JSON.parse(saved)
       if (Array.isArray(parsed) && parsed.length === 6) quickSends.value = parsed
+    }
+  } catch {}
+
+  // Load filter + auto-reply rules
+  try {
+    const f = localStorage.getItem(FILTER_KEY)
+    if (f !== null) filterText.value = f
+    const ar = localStorage.getItem(AUTOREPLY_KEY)
+    if (ar) {
+      const parsed = JSON.parse(ar)
+      if (Array.isArray(parsed)) autoReplyRules.value = parsed
     }
   } catch {}
 
@@ -244,6 +274,7 @@ async function openConsoleAfterFlash() {
 async function runConsole() {
   consoleAbort = new AbortController()
   state.value = 'console'
+  lineBuffer = ''
   term?.writeln('\r\n\x1b[32m--- 串口监视器已启动 115200 baud ---\x1b[0m\r\n')
 
   try {
@@ -253,7 +284,12 @@ async function runConsole() {
     while (!consoleAbort.signal.aborted) {
       const { value, done } = await consoleReader.read()
       if (done) break
-      if (value) term?.write(value)
+      if (!value) continue
+      if (lineProcessing.value) {
+        processIncoming(value)
+      } else {
+        term?.write(value)
+      }
     }
   } catch (e: any) {
     if (!consoleAbort?.signal.aborted && state.value !== 'disconnected') {
@@ -294,6 +330,56 @@ async function writeToPort(text: string) {
   } catch (e: any) {
     term?.writeln(`\x1b[31m发送失败: ${e?.message}\x1b[0m`)
   }
+}
+
+// Raw write without CR+LF logic / echo — used by auto-reply
+async function writeRaw(text: string) {
+  if (!device || state.value !== 'console') return
+  try {
+    const writer = (device as any).writable.getWriter()
+    await writer.write(new TextEncoder().encode(text))
+    writer.releaseLock()
+  } catch {}
+}
+
+// Line-buffered incoming processing: filter + auto-reply
+function processIncoming(chunk: Uint8Array) {
+  lineBuffer += lineDecoder.decode(chunk, { stream: true })
+  const lines = lineBuffer.split(/\r?\n/)
+  lineBuffer = lines.pop() ?? ''  // keep trailing partial line
+
+  for (const line of lines) {
+    const hidden = filterPrefixes.value.some(p => line.startsWith(p))
+    if (!hidden) term?.writeln(line)
+
+    // Auto-reply: first matching rule wins
+    for (const rule of autoReplyRules.value) {
+      if (rule.trigger && line.startsWith(rule.trigger)) {
+        const reply = rule.reply.replace(/\\r/g, '\r').replace(/\\n/g, '\n')
+        writeRaw(reply)
+        term?.writeln(`\x1b[35m↩ auto: ${rule.reply}\x1b[0m`)
+        break
+      }
+    }
+  }
+}
+
+function addAutoReply() {
+  autoReplyRules.value.push({ trigger: '', reply: '' })
+  persistAutoReply()
+}
+
+function removeAutoReply(i: number) {
+  autoReplyRules.value.splice(i, 1)
+  persistAutoReply()
+}
+
+function persistAutoReply() {
+  localStorage.setItem(AUTOREPLY_KEY, JSON.stringify(autoReplyRules.value))
+}
+
+function persistFilter() {
+  localStorage.setItem(FILTER_KEY, filterText.value)
 }
 
 async function sendData() {
@@ -505,6 +591,46 @@ async function retry() {
               <button class="console-quick-edit-cancel" @click="cancelEditQuick">✗</button>
             </div>
           </template>
+        </div>
+
+        <!-- Filter -->
+        <div class="console-filter-row">
+          <span class="console-quick-label">过滤：</span>
+          <input
+            v-model="filterText"
+            class="console-filter-input"
+            placeholder="隐藏以此开头的行，逗号分隔，如 DEBUG,INFO"
+            @change="persistFilter"
+          />
+        </div>
+
+        <!-- Auto-reply -->
+        <div class="console-autoreply">
+          <div class="console-autoreply-head">
+            <span class="console-quick-label">自动回复：</span>
+            <button class="console-ar-add" @click="addAutoReply">+ 添加规则</button>
+          </div>
+          <div
+            v-for="(rule, i) in autoReplyRules"
+            :key="i"
+            class="console-ar-rule"
+          >
+            <span class="console-ar-when">收到</span>
+            <input
+              v-model="rule.trigger"
+              class="console-ar-input"
+              placeholder="开头字符"
+              @change="persistAutoReply"
+            />
+            <span class="console-ar-then">→ 回复</span>
+            <input
+              v-model="rule.reply"
+              class="console-ar-input"
+              placeholder="回复内容（\r \n 可用）"
+              @change="persistAutoReply"
+            />
+            <button class="console-ar-del" @click="removeAutoReply(i)">✗</button>
+          </div>
         </div>
       </div>
 
@@ -836,6 +962,89 @@ async function retry() {
 }
 .console-quick-edit-ok { color: #22c55e; }
 .console-quick-edit-cancel { color: #ef4444; }
+
+/* Filter */
+.console-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.console-filter-input {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--vp-font-family-mono);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 5px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  outline: none;
+}
+.console-filter-input:focus { border-color: var(--vp-c-brand-1); }
+
+/* Auto-reply */
+.console-autoreply {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--vp-c-divider);
+}
+
+.console-autoreply-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.console-ar-add {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 5px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-brand-1);
+  cursor: pointer;
+}
+.console-ar-add:hover { border-color: var(--vp-c-brand-1); }
+
+.console-ar-rule {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+
+.console-ar-when,
+.console-ar-then {
+  font-size: 12px;
+  color: var(--vp-c-text-3);
+  white-space: nowrap;
+}
+
+.console-ar-input {
+  width: 120px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--vp-font-family-mono);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 5px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  outline: none;
+}
+.console-ar-input:focus { border-color: var(--vp-c-brand-1); }
+
+.console-ar-del {
+  border: none;
+  background: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+}
 
 .flash-connected-row {
   display: flex;
