@@ -30,6 +30,10 @@ const termVisible = ref(false)
 const termRef = ref<HTMLElement | null>(null)
 const consoleOrigin = ref<'flash' | 'direct'>('direct')
 
+// Console control panel
+const sendInput = ref('')
+const addCRLF = ref(true)
+
 let term: any = null
 let fitAddon: any = null
 let transport: any = null
@@ -254,6 +258,23 @@ async function stopConsole() {
   term?.writeln('\r\n\x1b[33m--- 串口监视器已停止 ---\x1b[0m')
 }
 
+async function sendData() {
+  if (!device || state.value !== 'console' || !sendInput.value) return
+  try {
+    const writer = (device as any).writable.getWriter()
+    const encoder = new TextEncoder()
+    let data = sendInput.value
+    if (addCRLF.value) data += '\r\n'
+    await writer.write(encoder.encode(data))
+    writer.releaseLock()
+    // Echo to terminal
+    term?.writeln(`\x1b[36m→ ${sendInput.value}\x1b[0m`)
+    sendInput.value = ''
+  } catch (e: any) {
+    term?.writeln(`\x1b[31m发送失败: ${e?.message}\x1b[0m`)
+  }
+}
+
 async function retry() {
   consoleAbort?.abort()
   try { consoleReader?.cancel() } catch {}
@@ -353,6 +374,22 @@ async function retry() {
       <!-- xterm terminal -->
       <div v-show="termVisible" class="flash-term-wrap">
         <div ref="termRef" class="flash-term" />
+      </div>
+
+      <!-- Console control panel (visible when in console state) -->
+      <div v-if="state === 'console'" class="console-panel">
+        <div class="console-send-row">
+          <input
+            v-model="sendInput"
+            class="console-send-input"
+            placeholder="输入发送内容…"
+            @keydown.enter="sendData"
+          />
+          <label class="console-crlf">
+            <input type="checkbox" v-model="addCRLF" /> CR+LF
+          </label>
+          <button class="flash-btn flash-btn-primary console-send-btn" @click="sendData">发送</button>
+        </div>
       </div>
 
       <!-- Hint (idle only) -->
@@ -523,6 +560,50 @@ async function retry() {
 .flash-term {
   height: 280px;
   background: #0d1117;
+}
+
+/* Console control panel */
+.console-panel {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+}
+
+.console-send-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.console-send-input {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font-size: 13px;
+  outline: none;
+  font-family: var(--vp-font-family-mono);
+}
+.console-send-input:focus { border-color: var(--vp-c-brand-1); }
+
+.console-crlf {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--vp-c-text-2);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.console-send-btn {
+  padding: 7px 16px;
+  font-size: 13px;
 }
 
 .flash-connected-row {
