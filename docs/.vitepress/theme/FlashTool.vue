@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
-import { withBase } from 'vitepress'
+import { withBase, useData } from 'vitepress'
 
 const props = defineProps<{
   example: string
@@ -8,6 +8,129 @@ const props = defineProps<{
   binData?: string  // pre-read binary string (custom local file)
   label?: string
 }>()
+
+// i18n — derive locale from VitePress so the tool matches the page language
+const { lang } = useData()
+const isEn = computed(() => lang.value.toLowerCase().startsWith('en'))
+
+const STRINGS = {
+  zh: {
+    title: (ex: string) => `在线烧录 — ${ex}`,
+    connecting: '连接中…',
+    detected: (c: string) => `已识别：${c}`,
+    downloading: '下载固件…',
+    flashing: (p: number) => `烧录中… ${p}%`,
+    done: '烧录完成',
+    monitoring: '串口监视中',
+    disconnected: '设备已断开',
+    error: '出错',
+    termDisconnect: '⚠  设备已断开 — 请检查 USB 连接',
+    monitorStarted: '--- 串口监视器已启动 115200 baud ---',
+    monitorStopped: '--- 串口监视器已停止 ---',
+    serialError: (m: string) => `串口错误: ${m}`,
+    chipUnsupported: (c: string) => `仅支持 OSRCORE（ESP32-S3）开发板，检测到：${c}`,
+    dlFail: (s: number) => `无法下载固件: HTTP ${s}`,
+    readFail: '读取固件失败',
+    noSource: '未指定固件来源',
+    sendFail: (m: string) => `发送失败: ${m}`,
+    timedNeedInput: '定时发送需要先在输入框填入内容',
+    unsupported: '当前浏览器不支持 Web Serial API。请使用 Chrome 或 Edge 打开此页面。',
+    connectBtn: '连接开发板',
+    monitorBtn: '串口监视器',
+    connected: '● 已连接',
+    startFlash: '开始烧录',
+    cancel: '取消',
+    flashOk: '✓ 烧录成功',
+    openMonitor: '打开串口监视器',
+    reflash: '重新烧录',
+    monitoringBadge: '● 监视中 115200',
+    stopMonitor: '停止监视器',
+    devDisconnected: '⚠ 设备已断开',
+    back: '返回',
+    errBadge: '✗ 错误',
+    retry: '重试',
+    sendPlaceholder: '输入发送内容…',
+    send: '发送',
+    timedLabel: '定时：',
+    stopTimed: '停止定时',
+    startTimed: '开始定时',
+    timedHint: '循环发送输入框内容',
+    quickLabel: '快捷：',
+    quickEditTitle: '右键编辑',
+    quickEditPlaceholder: '指令内容',
+    filterLabel: '过滤：',
+    filterPlaceholder: '隐藏以此开头的行，逗号分隔，如 DEBUG,INFO',
+    autoReplyLabel: '自动回复：',
+    addRule: '+ 添加规则',
+    arWhen: '收到',
+    arTrigger: '开头字符',
+    arThen: '→ 回复',
+    arReply: '回复内容（\\r \\n 可用）',
+    hintPower: '连接前请确保开发板已通过 USB 接入电脑，且 V_IN 已接 9–26 V 电源。',
+    hintBoot: '烧录需要进入下载模式：',
+    hintBootSteps: '按住 BOOT 键 → 按一下 RESET 键 → 松开 RESET → 松开 BOOT',
+    hintBootAfter: '，再点「连接开发板」。串口监视器无需此操作，直接连接正常运行的开发板即可。',
+  },
+  en: {
+    title: (ex: string) => `Online Flash — ${ex}`,
+    connecting: 'Connecting…',
+    detected: (c: string) => `Detected: ${c}`,
+    downloading: 'Downloading firmware…',
+    flashing: (p: number) => `Flashing… ${p}%`,
+    done: 'Flash complete',
+    monitoring: 'Monitoring serial',
+    disconnected: 'Device disconnected',
+    error: 'Error',
+    termDisconnect: '⚠  Device disconnected — check the USB connection',
+    monitorStarted: '--- Serial monitor started @ 115200 baud ---',
+    monitorStopped: '--- Serial monitor stopped ---',
+    serialError: (m: string) => `Serial error: ${m}`,
+    chipUnsupported: (c: string) => `Only OSRCORE (ESP32-S3) boards are supported. Detected: ${c}`,
+    dlFail: (s: number) => `Failed to download firmware: HTTP ${s}`,
+    readFail: 'Failed to read firmware',
+    noSource: 'No firmware source specified',
+    sendFail: (m: string) => `Send failed: ${m}`,
+    timedNeedInput: 'Timed send needs text in the input box first',
+    unsupported: 'This browser does not support the Web Serial API. Please open this page in Chrome or Edge.',
+    connectBtn: 'Connect Board',
+    monitorBtn: 'Serial Monitor',
+    connected: '● Connected',
+    startFlash: 'Start Flash',
+    cancel: 'Cancel',
+    flashOk: '✓ Flash successful',
+    openMonitor: 'Open Serial Monitor',
+    reflash: 'Reflash',
+    monitoringBadge: '● Monitoring 115200',
+    stopMonitor: 'Stop Monitor',
+    devDisconnected: '⚠ Device disconnected',
+    back: 'Back',
+    errBadge: '✗ Error',
+    retry: 'Retry',
+    sendPlaceholder: 'Type to send…',
+    send: 'Send',
+    timedLabel: 'Timed:',
+    stopTimed: 'Stop',
+    startTimed: 'Start',
+    timedHint: 'Repeatedly sends the input box content',
+    quickLabel: 'Quick:',
+    quickEditTitle: 'right-click to edit',
+    quickEditPlaceholder: 'command',
+    filterLabel: 'Filter:',
+    filterPlaceholder: 'Hide lines starting with…, comma-separated, e.g. DEBUG,INFO',
+    autoReplyLabel: 'Auto-reply:',
+    addRule: '+ Add rule',
+    arWhen: 'On',
+    arTrigger: 'prefix',
+    arThen: '→ reply',
+    arReply: 'reply (\\r \\n supported)',
+    hintPower: 'Before connecting, make sure the board is connected via USB and V_IN is powered with 9–26 V.',
+    hintBoot: 'Flashing requires download mode: ',
+    hintBootSteps: 'hold BOOT → press RESET once → release RESET → release BOOT',
+    hintBootAfter: ', then click “Connect Board”. The serial monitor needs none of this — just connect to a running board.',
+  },
+} as const
+
+const t = computed(() => (isEn.value ? STRINGS.en : STRINGS.zh))
 
 // USB filters for ESP32-S3 (USB-JTAG/CDC)
 const USB_FILTERS = [
@@ -74,14 +197,14 @@ let consoleAbort: AbortController | null = null
 
 const statusLabel = computed(() => {
   switch (state.value) {
-    case 'connecting':   return '连接中…'
-    case 'connected':    return `已识别：${chipName.value}`
-    case 'downloading':  return '下载固件…'
-    case 'flashing':     return `烧录中… ${progress.value}%`
-    case 'done':         return '烧录完成'
-    case 'console':      return '串口监视中'
-    case 'disconnected': return '设备已断开'
-    case 'error':        return '出错'
+    case 'connecting':   return t.value.connecting
+    case 'connected':    return t.value.detected(chipName.value)
+    case 'downloading':  return t.value.downloading
+    case 'flashing':     return t.value.flashing(progress.value)
+    case 'done':         return t.value.done
+    case 'console':      return t.value.monitoring
+    case 'disconnected': return t.value.disconnected
+    case 'error':        return t.value.error
     default:             return ''
   }
 })
@@ -92,7 +215,7 @@ const disconnectHandler = (e: Event) => {
   stopTimed()
   consoleAbort?.abort()
   try { consoleReader?.cancel() } catch {}
-  term?.writeln('\r\n\x1b[31m⚠  设备已断开 — 请检查 USB 连接\x1b[0m')
+  term?.writeln(`\r\n\x1b[31m${t.value.termDisconnect}\x1b[0m`)
   openTerm()
   state.value = 'disconnected'
 }
@@ -184,7 +307,7 @@ async function connect() {
 
     // Chip whitelist: only ESP32-S3 is supported (OSRCORE hardware)
     if (!chipName.value.startsWith('ESP32-S3')) {
-      errorMsg.value = `仅支持 OSRCORE（ESP32-S3）开发板，检测到：${chipName.value}`
+      errorMsg.value = t.value.chipUnsupported(chipName.value)
       try { await transport.disconnect() } catch {}
       state.value = 'error'
       return
@@ -213,17 +336,17 @@ async function startFlash() {
     } else if (props.binUrl) {
       state.value = 'downloading'
       const resp = await fetch(withBase(props.binUrl))
-      if (!resp.ok) throw new Error(`无法下载固件: HTTP ${resp.status}`)
+      if (!resp.ok) throw new Error(t.value.dlFail(resp.status))
       const blob = await resp.blob()
       data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = e => resolve(e.target!.result as string)
-        reader.onerror = () => reject(new Error('读取固件失败'))
+        reader.onerror = () => reject(new Error(t.value.readFail))
         reader.readAsBinaryString(blob)
       })
       state.value = 'flashing'
     } else {
-      throw new Error('未指定固件来源')
+      throw new Error(t.value.noSource)
     }
 
     await esploader.writeFlash({
@@ -275,7 +398,7 @@ async function runConsole() {
   consoleAbort = new AbortController()
   state.value = 'console'
   lineBuffer = ''
-  term?.writeln('\r\n\x1b[32m--- 串口监视器已启动 115200 baud ---\x1b[0m\r\n')
+  term?.writeln(`\r\n\x1b[32m${t.value.monitorStarted}\x1b[0m\r\n`)
 
   try {
     await device!.open({ baudRate: 115200 })
@@ -293,7 +416,7 @@ async function runConsole() {
     }
   } catch (e: any) {
     if (!consoleAbort?.signal.aborted && state.value !== 'disconnected') {
-      term?.writeln(`\r\n\x1b[31m串口错误: ${e?.message}\x1b[0m`)
+      term?.writeln(`\r\n\x1b[31m${t.value.serialError(e?.message)}\x1b[0m`)
     }
   } finally {
     try { consoleReader?.releaseLock() } catch {}
@@ -314,7 +437,7 @@ async function stopConsole() {
   consoleAbort?.abort()
   try { consoleReader?.cancel() } catch {}
   await new Promise(r => setTimeout(r, 150))
-  term?.writeln('\r\n\x1b[33m--- 串口监视器已停止 ---\x1b[0m')
+  term?.writeln(`\r\n\x1b[33m${t.value.monitorStopped}\x1b[0m`)
 }
 
 async function writeToPort(text: string) {
@@ -328,7 +451,7 @@ async function writeToPort(text: string) {
     writer.releaseLock()
     term?.writeln(`\x1b[36m→ ${text}\x1b[0m`)
   } catch (e: any) {
-    term?.writeln(`\x1b[31m发送失败: ${e?.message}\x1b[0m`)
+    term?.writeln(`\x1b[31m${t.value.sendFail(e?.message)}\x1b[0m`)
   }
 }
 
@@ -393,7 +516,7 @@ function toggleTimed() {
     stopTimed()
   } else {
     if (!sendInput.value) {
-      term?.writeln('\x1b[33m定时发送需要先在输入框填入内容\x1b[0m')
+      term?.writeln(`\x1b[33m${t.value.timedNeedInput}\x1b[0m`)
       return
     }
     const ms = Math.max(50, timedInterval.value || 1000)
@@ -454,7 +577,7 @@ async function retry() {
       <div class="flash-header">
         <span class="flash-icon">⚡</span>
         <span class="flash-title">
-          {{ props.label ?? `在线烧录 — ${props.example}` }}
+          {{ props.label ?? t.title(props.example) }}
         </span>
         <span v-if="chipName && (state === 'done' || state === 'console')" class="flash-chip-badge">{{ chipName }}</span>
         <span
@@ -465,29 +588,29 @@ async function retry() {
 
       <!-- Browser not supported -->
       <div v-if="!isSupported" class="flash-unsupported">
-        当前浏览器不支持 Web Serial API。请使用 Chrome 或 Edge 打开此页面。
+        {{ t.unsupported }}
       </div>
 
       <!-- Controls -->
       <div v-else class="flash-controls">
         <!-- Idle: two entry points -->
         <template v-if="state === 'idle'">
-          <button class="flash-btn flash-btn-primary" @click="connect">连接开发板</button>
-          <button class="flash-btn flash-btn-secondary" @click="openConsoleFromIdle">串口监视器</button>
+          <button class="flash-btn flash-btn-primary" @click="connect">{{ t.connectBtn }}</button>
+          <button class="flash-btn flash-btn-secondary" @click="openConsoleFromIdle">{{ t.monitorBtn }}</button>
         </template>
 
         <!-- Connecting -->
         <div v-if="state === 'connecting'" class="flash-progress-row">
           <div class="flash-spinner" />
-          <span class="flash-progress-label">连接中…</span>
+          <span class="flash-progress-label">{{ t.connecting }}</span>
         </div>
 
         <!-- Connected — confirm before flash -->
         <div v-if="state === 'connected'" class="flash-connected-row">
-          <span class="flash-connected-badge">● 已连接</span>
+          <span class="flash-connected-badge">{{ t.connected }}</span>
           <span class="flash-chip-inline">{{ chipName }}</span>
-          <button class="flash-btn flash-btn-primary" @click="startFlash">开始烧录</button>
-          <button class="flash-btn flash-btn-ghost" @click="retry">取消</button>
+          <button class="flash-btn flash-btn-primary" @click="startFlash">{{ t.startFlash }}</button>
+          <button class="flash-btn flash-btn-ghost" @click="retry">{{ t.cancel }}</button>
         </div>
 
         <!-- Downloading / flashing -->
@@ -501,29 +624,29 @@ async function retry() {
 
         <!-- Done: offer console or reflash -->
         <div v-if="state === 'done'" class="flash-done-row">
-          <span class="flash-done-badge">✓ 烧录成功</span>
-          <button class="flash-btn flash-btn-secondary" @click="openConsoleAfterFlash">打开串口监视器</button>
-          <button class="flash-btn flash-btn-ghost" @click="retry">重新烧录</button>
+          <span class="flash-done-badge">{{ t.flashOk }}</span>
+          <button class="flash-btn flash-btn-secondary" @click="openConsoleAfterFlash">{{ t.openMonitor }}</button>
+          <button class="flash-btn flash-btn-ghost" @click="retry">{{ t.reflash }}</button>
         </div>
 
         <!-- Console running -->
         <div v-if="state === 'console'" class="flash-console-row">
-          <span class="flash-console-badge">● 监视中 115200</span>
-          <button class="flash-btn flash-btn-stop" @click="stopConsole">停止监视器</button>
-          <button v-if="consoleOrigin === 'flash'" class="flash-btn flash-btn-ghost" disabled>重新烧录</button>
+          <span class="flash-console-badge">{{ t.monitoringBadge }}</span>
+          <button class="flash-btn flash-btn-stop" @click="stopConsole">{{ t.stopMonitor }}</button>
+          <button v-if="consoleOrigin === 'flash'" class="flash-btn flash-btn-ghost" disabled>{{ t.reflash }}</button>
         </div>
 
         <!-- Disconnected -->
         <div v-if="state === 'disconnected'" class="flash-disconnected-row">
-          <span class="flash-disconnected-badge">⚠ 设备已断开</span>
-          <button class="flash-btn flash-btn-ghost" @click="retry">返回</button>
+          <span class="flash-disconnected-badge">{{ t.devDisconnected }}</span>
+          <button class="flash-btn flash-btn-ghost" @click="retry">{{ t.back }}</button>
         </div>
 
         <!-- Error -->
         <div v-if="state === 'error'" class="flash-error-row">
-          <span class="flash-error-badge">✗ 错误</span>
+          <span class="flash-error-badge">{{ t.errBadge }}</span>
           <span class="flash-error-msg">{{ errorMsg }}</span>
-          <button class="flash-btn flash-btn-ghost" @click="retry">重试</button>
+          <button class="flash-btn flash-btn-ghost" @click="retry">{{ t.retry }}</button>
         </div>
       </div>
 
@@ -538,18 +661,18 @@ async function retry() {
           <input
             v-model="sendInput"
             class="console-send-input"
-            placeholder="输入发送内容…"
+            :placeholder="t.sendPlaceholder"
             @keydown.enter="sendData"
           />
           <label class="console-crlf">
             <input type="checkbox" v-model="addCRLF" /> CR+LF
           </label>
-          <button class="flash-btn flash-btn-primary console-send-btn" @click="sendData">发送</button>
+          <button class="flash-btn flash-btn-primary console-send-btn" @click="sendData">{{ t.send }}</button>
         </div>
 
         <!-- Timed send -->
         <div class="console-timed-row">
-          <span class="console-quick-label">定时：</span>
+          <span class="console-quick-label">{{ t.timedLabel }}</span>
           <input
             v-model.number="timedInterval"
             type="number"
@@ -563,19 +686,19 @@ async function retry() {
             class="console-timed-btn"
             :class="{ 'is-active': timedEnabled }"
             @click="toggleTimed"
-          >{{ timedEnabled ? '停止定时' : '开始定时' }}</button>
-          <span v-if="timedEnabled" class="console-timed-hint">循环发送输入框内容</span>
+          >{{ timedEnabled ? t.stopTimed : t.startTimed }}</button>
+          <span v-if="timedEnabled" class="console-timed-hint">{{ t.timedHint }}</span>
         </div>
 
         <!-- Quick send -->
         <div class="console-quick-row">
-          <span class="console-quick-label">快捷：</span>
+          <span class="console-quick-label">{{ t.quickLabel }}</span>
           <template v-for="(qs, i) in quickSends" :key="i">
             <button
               v-if="editingQuick !== i"
               class="console-quick-btn"
               :class="{ 'is-empty': !qs }"
-              :title="qs || '右键编辑'"
+              :title="qs || t.quickEditTitle"
               @click="qs ? sendQuick(i) : startEditQuick(i)"
               @contextmenu.prevent="startEditQuick(i)"
             >{{ qs || `${i + 1}` }}</button>
@@ -583,7 +706,7 @@ async function retry() {
               <input
                 v-model="editingValue"
                 class="console-quick-edit-input"
-                placeholder="指令内容"
+                :placeholder="t.quickEditPlaceholder"
                 @keydown.enter="saveEditQuick"
                 @keydown.escape="cancelEditQuick"
               />
@@ -595,11 +718,11 @@ async function retry() {
 
         <!-- Filter -->
         <div class="console-filter-row">
-          <span class="console-quick-label">过滤：</span>
+          <span class="console-quick-label">{{ t.filterLabel }}</span>
           <input
             v-model="filterText"
             class="console-filter-input"
-            placeholder="隐藏以此开头的行，逗号分隔，如 DEBUG,INFO"
+            :placeholder="t.filterPlaceholder"
             @change="persistFilter"
           />
         </div>
@@ -607,26 +730,26 @@ async function retry() {
         <!-- Auto-reply -->
         <div class="console-autoreply">
           <div class="console-autoreply-head">
-            <span class="console-quick-label">自动回复：</span>
-            <button class="console-ar-add" @click="addAutoReply">+ 添加规则</button>
+            <span class="console-quick-label">{{ t.autoReplyLabel }}</span>
+            <button class="console-ar-add" @click="addAutoReply">{{ t.addRule }}</button>
           </div>
           <div
             v-for="(rule, i) in autoReplyRules"
             :key="i"
             class="console-ar-rule"
           >
-            <span class="console-ar-when">收到</span>
+            <span class="console-ar-when">{{ t.arWhen }}</span>
             <input
               v-model="rule.trigger"
               class="console-ar-input"
-              placeholder="开头字符"
+              :placeholder="t.arTrigger"
               @change="persistAutoReply"
             />
-            <span class="console-ar-then">→ 回复</span>
+            <span class="console-ar-then">{{ t.arThen }}</span>
             <input
               v-model="rule.reply"
               class="console-ar-input"
-              placeholder="回复内容（\r \n 可用）"
+              :placeholder="t.arReply"
               @change="persistAutoReply"
             />
             <button class="console-ar-del" @click="removeAutoReply(i)">✗</button>
@@ -636,12 +759,11 @@ async function retry() {
 
       <!-- Hint (idle only) -->
       <div v-if="isSupported && state === 'idle'" class="flash-hint">
-        <div>连接前请确保开发板已通过 USB 接入电脑，且 V_IN 已接 9–26 V 电源。</div>
+        <div>{{ t.hintPower }}</div>
         <div class="flash-hint-boot">
           <span class="flash-hint-boot-icon">💡</span>
           <span>
-            烧录需要进入下载模式：<strong>按住 BOOT 键 → 按一下 RESET 键 → 松开 RESET → 松开 BOOT</strong>，再点「连接开发板」。
-            串口监视器无需此操作，直接连接正常运行的开发板即可。
+            {{ t.hintBoot }}<strong>{{ t.hintBootSteps }}</strong>{{ t.hintBootAfter }}
           </span>
         </div>
       </div>
