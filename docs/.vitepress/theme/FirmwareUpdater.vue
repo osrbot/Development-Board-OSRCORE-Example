@@ -30,6 +30,7 @@ const useRemote = ref(true)
 const forceLowVoltage = ref(false)
 const appUrl = ref(RELEASE_BASE + DEFAULT_APP)
 const fullUrl = ref(RELEASE_BASE + DEFAULT_FULL)
+const firmwareChoice = ref('default')
 const localApp = ref<ArrayBuffer | null>(null)
 const localFull = ref<ArrayBuffer | null>(null)
 const localAppName = ref('')
@@ -55,6 +56,39 @@ const urlHelp = computed(() => {
   }
   return t('默认使用当前线上全量恢复固件。恢复刷机需要设备进入 BOOT。也可以填写 https://.../*.bin 或 /firmware/*.bin。', 'Default: current online full flash firmware. Recovery requires BOOT mode. You may also enter https://.../*.bin or /firmware/*.bin.')
 })
+const firmwareOptions = computed(() => mode.value === 'ota' ? [
+  {
+    value: 'default',
+    label: t('当前线上 App 固件', 'Current online app firmware'),
+    url: RELEASE_BASE + DEFAULT_APP,
+  },
+  {
+    value: 'factory_app',
+    label: t('出厂诊断 App 固件', 'Factory diagnostic app firmware'),
+    url: RELEASE_BASE + DEFAULT_APP,
+  },
+  {
+    value: 'custom',
+    label: t('自定义 URL', 'Custom URL'),
+    url: '',
+  },
+] : [
+  {
+    value: 'default',
+    label: t('当前线上全量恢复固件', 'Current online full flash firmware'),
+    url: RELEASE_BASE + DEFAULT_FULL,
+  },
+  {
+    value: 'factory_full',
+    label: t('出厂诊断全量恢复固件', 'Factory diagnostic full flash firmware'),
+    url: RELEASE_BASE + DEFAULT_FULL,
+  },
+  {
+    value: 'custom',
+    label: t('自定义 URL', 'Custom URL'),
+    url: '',
+  },
+])
 const actionText = computed(() => {
   if (mode.value === 'ota') return isEn.value ? 'Update app without BOOT' : '普通升级：不进 BOOT，只更新 app'
   return isEn.value ? 'Recovery full flash' : '恢复刷机：进 BOOT，全量恢复'
@@ -74,6 +108,20 @@ function reset(clearLog = false) {
   progress.value = 0
   errorMsg.value = ''
   if (clearLog) logLines.value = []
+}
+
+function selectFirmwareUrl() {
+  const item = firmwareOptions.value.find(opt => opt.value === firmwareChoice.value)
+  if (!item || item.value === 'custom') return
+  if (mode.value === 'ota') appUrl.value = item.url
+  else fullUrl.value = item.url
+}
+
+function switchMode(next: Mode) {
+  mode.value = next
+  firmwareChoice.value = 'default'
+  selectFirmwareUrl()
+  reset()
 }
 
 async function readFile(file: File, target: 'app' | 'full') {
@@ -327,10 +375,10 @@ onUnmounted(closePort)
   <ClientOnly>
     <div class="fw-updater">
       <div class="mode-row">
-        <button :class="{ active: mode === 'ota' }" @click="mode = 'ota'; reset()">
+        <button :class="{ active: mode === 'ota' }" @click="switchMode('ota')">
           {{ t('普通升级', 'App update') }}
         </button>
-        <button :class="{ active: mode === 'recovery' }" @click="mode = 'recovery'; reset()">
+        <button :class="{ active: mode === 'recovery' }" @click="switchMode('recovery')">
           {{ t('恢复刷机', 'Recovery flash') }}
         </button>
       </div>
@@ -348,6 +396,15 @@ onUnmounted(closePort)
       <div class="source-row">
         <label><input type="radio" :checked="useRemote" @change="useRemote = true"> {{ t('使用远端固件 URL', 'Use remote firmware URL') }}</label>
         <label><input type="radio" :checked="!useRemote" @change="useRemote = false"> {{ t('选择本地 .bin 文件', 'Select local .bin file') }}</label>
+      </div>
+
+      <div v-if="useRemote" class="field">
+        <label>{{ t('固件选择', 'Firmware') }}</label>
+        <select v-model="firmwareChoice" @change="selectFirmwareUrl">
+          <option v-for="item in firmwareOptions" :key="item.value" :value="item.value">
+            {{ item.label }}
+          </option>
+        </select>
       </div>
 
       <div v-if="useRemote" class="field">
@@ -459,7 +516,7 @@ button:disabled {
   align-items: center;
   margin: 12px 0;
 }
-.field input, .manual input {
+.field input, .field select, .manual input {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--vp-c-divider);
