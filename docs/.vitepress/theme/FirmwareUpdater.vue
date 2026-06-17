@@ -11,6 +11,7 @@ type State = 'idle' | 'connecting' | 'connected' | 'running' | 'done' | 'error'
 const RELEASE_BASE = '/firmware/'
 const DEFAULT_APP = 'osrbot_ESP32S3_IDF_App.bin'
 const DEFAULT_FULL = 'osrbot_ESP32S3_IDF_FullFlash.bin'
+const POST_FLASH_RELOAD_DELAY_MS = 1000
 const CUSTOM_ID = 'custom'
 const FACTORY_FULL_ID = 'factory_full'
 
@@ -56,6 +57,7 @@ let readAbort = false
 let lineBuffer = ''
 let waiters: Array<(line: string) => boolean> = []
 let sawRomBoot = false
+let reloadTimer: ReturnType<typeof setTimeout> | null = null
 
 const isSupported = computed(() => typeof navigator !== 'undefined' && 'serial' in navigator)
 const isSerialOpen = computed(() => !!port)
@@ -110,11 +112,11 @@ function log(line: string) {
   if (logLines.value.length > 400) logLines.value.shift()
 }
 
-function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
 function reset(clearLog = false) {
+  if (reloadTimer) {
+    clearTimeout(reloadTimer)
+    reloadTimer = null
+  }
   state.value = 'idle'
   progress.value = 0
   errorMsg.value = ''
@@ -237,6 +239,22 @@ async function closePort() {
   waiters = []
 }
 
+async function finishFlashAndReload(doneMessage: string) {
+  state.value = 'done'
+  progress.value = 100
+  log(doneMessage)
+  log(t(
+    '烧录完成，正在关闭串口连接；页面将在 1 秒后刷新。刷新后请重新选择串口，再打开串口监视器。',
+    'Flashing complete. Closing the serial connection; this page will reload in 1 second. Select the serial port again after reload, then open the monitor.'
+  ))
+  await closePort()
+  selectedPort.value = null
+  selectedPortLabel.value = ''
+  reloadTimer = setTimeout(() => {
+    window.location.reload()
+  }, POST_FLASH_RELOAD_DELAY_MS)
+}
+
 async function disconnectSerial() {
   await closePort()
   state.value = 'idle'
@@ -273,21 +291,6 @@ async function openSerial(baudRate = 460800, requestIfMissing = true) {
   state.value = 'connected'
   log(t(`串口已连接：${selectedPortLabel.value || describePort(port!)}`, `Serial connected: ${selectedPortLabel.value || describePort(port!)}`))
   readLoop()
-}
-
-async function refreshSelectedPortAfterReset(timeoutMs = 5000) {
-  const start = Date.now()
-  while (Date.now() - start < timeoutMs) {
-    const ports: SerialPort[] = await (navigator as any).serial.getPorts()
-    const next = ports.find(isEspUsbJtagPort) || ports[0]
-    if (next) {
-      selectedPort.value = next
-      selectedPortLabel.value = describePort(next)
-      return true
-    }
-    await sleep(250)
-  }
-  return false
 }
 
 async function connectMonitor() {
@@ -413,10 +416,9 @@ async function runOta() {
     }
 
     await sendFw('fw end', 8000)
-    state.value = 'done'
-    log(t('升级完成，设备正在重启。', 'Update complete. Device is rebooting.'))
+    await finishFlashAndReload(t('升级完成，设备正在重启。', 'Update complete. Device is rebooting.'))
   } finally {
-    await closePort()
+    if (state.value !== 'done') await closePort()
   }
 }
 
@@ -430,6 +432,19 @@ async function getSelectedExampleFullImage() {
   const full = selectedExampleFullUrl()
   if (!full) throw new Error(t('未找到当前例程的 full flash 固件。', 'Full flash image for the selected example was not found.'))
   return await fetchBinary(full)
+}
+
+async function tryExtraUsbJtagReset(transport: any, UsbJtagSerialResetCtor: any, device: SerialPort) {
+  if (!isEspUsbJtagPort(device)) return
+  try {
+    log(t('再次尝试 USB-JTAG 硬复位...', 'Trying an extra USB-JTAG hard reset...'))
+    await new UsbJtagSerialResetCtor(transport).reset()
+  } catch (e: any) {
+    log(t(
+      `额外 USB-JTAG 复位失败，页面仍会刷新；如无输出请手动按 RST。${e?.message || e}`,
+      `Extra USB-JTAG reset failed; the page will still reload. Press RST if there is no output. ${e?.message || e}`
+    ))
+  }
 }
 
 async function runFullFlash(data: ArrayBuffer, startMessage: string, doneMessage: string) {
@@ -467,14 +482,11 @@ async function runFullFlash(data: ArrayBuffer, startMessage: string, doneMessage
       },
     })
     await loader.after()
+    await tryExtraUsbJtagReset(transport, UsbJtagSerialReset, device)
   } finally {
     try { await transport.disconnect() } catch {}
   }
-  log(t('等待设备重启并重新枚举串口...', 'Waiting for the device to reboot and re-enumerate...'))
-  await sleep(1200)
-  const found = await refreshSelectedPortAfterReset()
-  state.value = 'done'
-  log(found ? doneMessage : t('烧录完成，但未检测到设备重新枚举；如无输出请按 RST 后再连接串口监视器。', 'Flashing complete, but the device was not detected after reboot. Press RST if no monitor output appears.'))
+  await finishFlashAndReload(doneMessage)
 }
 
 async function runRecovery() {
@@ -517,7 +529,10 @@ async function sendManualCommand() {
   commandInput.value = ''
 }
 
-onUnmounted(closePort)
+onUnmounted(() => {
+  if (reloadTimer) clearTimeout(reloadTimer)
+  closePort()
+})
 </script>
 
 <template>
