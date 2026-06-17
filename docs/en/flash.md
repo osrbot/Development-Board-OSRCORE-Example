@@ -1,13 +1,12 @@
 ---
-title: Flash Firmware
-description: Flash OSRCORE example firmware directly in your browser — no tools required.
+title: Firmware Flashing
+description: Flash OSRCORE example or factory restore firmware directly in your browser.
 ---
 
-# Flash Firmware
+# Firmware Flashing
 
-> Requires Chrome or Edge (Web Serial API).  
-> Before flashing, make sure the board is connected via USB and V_IN is powered with 9–26 V.
+> This legacy entry now uses the unified firmware flashing tool. Chrome or Edge is required because this page uses the Web Serial API.
 
-Select an example below, click **Connect Board** then **Start Flash**; or click **Serial Monitor** to connect to a board already running firmware.
+App update can select the current repository examples directly. Factory restore uses the built-in full flash image.
 
-<FlashHub locale="en" />
+<FirmwareUpdater locale="en" />

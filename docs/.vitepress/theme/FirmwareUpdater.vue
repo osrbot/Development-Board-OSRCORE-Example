@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { withBase } from 'vitepress'
 
 const props = defineProps<{ locale?: string }>()
@@ -11,6 +11,14 @@ type State = 'idle' | 'connecting' | 'connected' | 'running' | 'done' | 'error'
 const RELEASE_BASE = '/firmware/'
 const DEFAULT_APP = 'osrbot_ESP32S3_IDF_App.bin'
 const DEFAULT_FULL = 'osrbot_ESP32S3_IDF_FullFlash.bin'
+const CUSTOM_ID = 'custom'
+const FACTORY_FULL_ID = 'factory_full'
+
+interface ManifestEntry {
+  id: string
+  label: string
+  bin: string
+}
 
 const USB_FILTERS = [
   { usbVendorId: 0x303a, usbProductId: 0x1001 },
@@ -30,7 +38,9 @@ const useRemote = ref(true)
 const forceLowVoltage = ref(false)
 const appUrl = ref(RELEASE_BASE + DEFAULT_APP)
 const fullUrl = ref(RELEASE_BASE + DEFAULT_FULL)
-const firmwareChoice = ref('default')
+const firmwareChoice = ref('')
+const manifestExamples = ref<ManifestEntry[]>([])
+const manifestError = ref('')
 const localApp = ref<ArrayBuffer | null>(null)
 const localFull = ref<ArrayBuffer | null>(null)
 const localAppName = ref('')
@@ -49,49 +59,45 @@ let waiters: Array<(line: string) => boolean> = []
 const isSupported = computed(() => typeof navigator !== 'undefined' && 'serial' in navigator)
 const isSerialOpen = computed(() => !!port)
 const selectedFileName = computed(() => mode.value === 'ota' ? localAppName.value : localFullName.value)
-const defaultUrl = computed(() => mode.value === 'ota' ? RELEASE_BASE + DEFAULT_APP : RELEASE_BASE + DEFAULT_FULL)
+const isFirmwareLoading = computed(() => useRemote.value && mode.value === 'ota' && firmwareChoice.value === 'loading')
 const urlHelp = computed(() => {
   if (mode.value === 'ota') {
-    return t('默认使用当前线上 app 固件。也可以填写 https://.../*.bin 或 /firmware/*.bin。', 'Default: current online app firmware. You may also enter https://.../*.bin or /firmware/*.bin.')
+    return t('自定义 URL 必须填写完整 https:// 地址。', 'Custom URL must be a full https:// address.')
   }
-  return t('默认使用当前线上全量恢复固件。恢复刷机需要设备进入 BOOT。也可以填写 https://.../*.bin 或 /firmware/*.bin。', 'Default: current online full flash firmware. Recovery requires BOOT mode. You may also enter https://.../*.bin or /firmware/*.bin.')
+  return t('恢复出厂使用站内 full flash 固件，不需要填写链接。', 'Factory restore uses the built-in full flash image; no URL is required.')
 })
-const firmwareOptions = computed(() => mode.value === 'ota' ? [
+const firmwareOptions = computed(() => {
+  if (mode.value === 'ota') {
+    const options = manifestExamples.value.map(ex => ({
+      value: `example:${ex.id}`,
+      label: ex.label,
+      url: appBinFromFull(ex.bin),
+    }))
+    if (!options.length) {
+      options.push({
+        value: 'loading',
+        label: manifestError.value ? t('例程清单加载失败', 'Failed to load example list') : t('正在加载当前仓库例程...', 'Loading repository examples...'),
+        url: '',
+      })
+    }
+    options.push({
+      value: CUSTOM_ID,
+      label: t('自定义 HTTPS URL', 'Custom HTTPS URL'),
+      url: '',
+    })
+    return options
+  }
+  return [
   {
-    value: 'default',
-    label: t('当前线上 App 固件', 'Current online app firmware'),
-    url: RELEASE_BASE + DEFAULT_APP,
-  },
-  {
-    value: 'factory_app',
-    label: t('出厂诊断 App 固件', 'Factory diagnostic app firmware'),
-    url: RELEASE_BASE + DEFAULT_APP,
-  },
-  {
-    value: 'custom',
-    label: t('自定义 URL', 'Custom URL'),
-    url: '',
-  },
-] : [
-  {
-    value: 'default',
-    label: t('当前线上全量恢复固件', 'Current online full flash firmware'),
+    value: FACTORY_FULL_ID,
+    label: t('恢复出厂固件', 'Factory restore firmware'),
     url: RELEASE_BASE + DEFAULT_FULL,
   },
-  {
-    value: 'factory_full',
-    label: t('出厂诊断全量恢复固件', 'Factory diagnostic full flash firmware'),
-    url: RELEASE_BASE + DEFAULT_FULL,
-  },
-  {
-    value: 'custom',
-    label: t('自定义 URL', 'Custom URL'),
-    url: '',
-  },
-])
+]
+})
 const actionText = computed(() => {
   if (mode.value === 'ota') return isEn.value ? 'Update app without BOOT' : '普通升级：不进 BOOT，只更新 app'
-  return isEn.value ? 'Recovery full flash' : '恢复刷机：进 BOOT，全量恢复'
+  return isEn.value ? 'Factory restore full flash' : '恢复出厂：进 BOOT，全量恢复'
 })
 
 function t(zh: string, en: string) {
@@ -110,19 +116,44 @@ function reset(clearLog = false) {
   if (clearLog) logLines.value = []
 }
 
+function appBinFromFull(bin: string) {
+  if (/-full\.bin$/i.test(bin)) return bin.replace(/-full\.bin$/i, '-app.bin')
+  return bin
+}
+
+function setDefaultFirmwareChoice() {
+  if (mode.value === 'ota') {
+    firmwareChoice.value = manifestExamples.value[0] ? `example:${manifestExamples.value[0].id}` : 'loading'
+  } else {
+    firmwareChoice.value = FACTORY_FULL_ID
+  }
+  selectFirmwareUrl()
+}
+
 function selectFirmwareUrl() {
   const item = firmwareOptions.value.find(opt => opt.value === firmwareChoice.value)
-  if (!item || item.value === 'custom') return
+  if (!item || item.value === CUSTOM_ID || item.value === 'loading') return
   if (mode.value === 'ota') appUrl.value = item.url
   else fullUrl.value = item.url
 }
 
 function switchMode(next: Mode) {
   mode.value = next
-  firmwareChoice.value = 'default'
-  selectFirmwareUrl()
+  setDefaultFirmwareChoice()
   reset()
 }
+
+onMounted(async () => {
+  try {
+    const res = await fetch(withBase('/firmware/manifest.json'))
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    manifestExamples.value = Array.isArray(data.examples) ? data.examples : []
+  } catch (e: any) {
+    manifestError.value = e?.message || String(e)
+  }
+  setDefaultFirmwareChoice()
+})
 
 async function readFile(file: File, target: 'app' | 'full') {
   const data = await file.arrayBuffer()
@@ -149,7 +180,13 @@ async function fetchBinary(url: string) {
 
 async function getImageData() {
   if (mode.value === 'ota') {
-    if (useRemote.value) return await fetchBinary(appUrl.value)
+    if (useRemote.value) {
+      if (firmwareChoice.value === 'loading') throw new Error(t('例程固件清单还没有加载完成', 'Example firmware list is still loading'))
+      if (firmwareChoice.value === CUSTOM_ID && !/^https:\/\//.test(appUrl.value)) {
+        throw new Error(t('自定义 URL 必须是完整 https:// 地址', 'Custom URL must be a full https:// address'))
+      }
+      return await fetchBinary(appUrl.value)
+    }
     if (!localApp.value) throw new Error(t('请选择 app bin 文件', 'Select an app bin file'))
     return localApp.value
   }
@@ -187,6 +224,12 @@ async function closePort() {
   waiters = []
 }
 
+async function disconnectSerial() {
+  await closePort()
+  state.value = 'idle'
+  log(t('串口已断开。', 'Serial disconnected.'))
+}
+
 function describePort(p: SerialPort) {
   const info = (p as any).getInfo?.() ?? {}
   const vid = info.usbVendorId !== undefined ? `VID ${info.usbVendorId.toString(16).padStart(4, '0')}` : ''
@@ -212,6 +255,17 @@ async function openSerial(baudRate = 460800, requestIfMissing = true) {
   state.value = 'connected'
   log(t(`串口已连接：${selectedPortLabel.value || describePort(port!)}`, `Serial connected: ${selectedPortLabel.value || describePort(port!)}`))
   readLoop()
+}
+
+async function connectMonitor() {
+  errorMsg.value = ''
+  try {
+    await openSerial(460800, false)
+  } catch (e: any) {
+    errorMsg.value = e?.message || String(e)
+    state.value = 'error'
+    log(`ERROR: ${errorMsg.value}`)
+  }
 }
 
 async function readLoop() {
@@ -303,7 +357,7 @@ async function runOta() {
 async function runRecovery() {
   reset(true)
   state.value = 'connecting'
-  log(t('恢复刷机需要设备处于 BOOT 下载模式。', 'Recovery flashing requires BOOT download mode.'))
+  log(t('恢复出厂需要设备处于 BOOT 下载模式。', 'Factory restore requires BOOT download mode.'))
   const data = await getImageData()
   const { ESPLoader, Transport } = await import('esptool-js')
   if (port) await closePort()
@@ -332,7 +386,7 @@ async function runRecovery() {
     })
     await loader.after()
     state.value = 'done'
-    log(t('恢复刷机完成，设备正在重启。', 'Recovery flash complete. Device is rebooting.'))
+    log(t('恢复出厂完成，设备正在重启。', 'Factory restore complete. Device is rebooting.'))
   } finally {
     try { await transport.disconnect() } catch {}
   }
@@ -379,7 +433,7 @@ onUnmounted(closePort)
           {{ t('普通升级', 'App update') }}
         </button>
         <button :class="{ active: mode === 'recovery' }" @click="switchMode('recovery')">
-          {{ t('恢复刷机', 'Recovery flash') }}
+          {{ t('恢复出厂', 'Factory restore') }}
         </button>
       </div>
 
@@ -389,32 +443,35 @@ onUnmounted(closePort)
           {{ t('用于已经运行新固件的设备，只更新 app 分区。设备正常开机后直接连接，不需要按 BOOT。', 'For devices already running the new firmware. It updates the app partition only and does not require BOOT mode.') }}
         </p>
         <p v-else>
-          {{ t('用于第一次刷机、恢复出厂或固件无法启动。请先让设备进入 BOOT 下载模式，再开始全量刷机。', 'For first flash, factory recovery, or broken firmware. Put the device into BOOT download mode before flashing.') }}
+          {{ t('用于第一次刷机、恢复出厂或固件无法启动。请先让设备进入 BOOT 下载模式，再开始烧录 full flash。', 'For first flash, factory restore, or broken firmware. Put the device into BOOT download mode before flashing the full image.') }}
         </p>
       </div>
 
       <div class="source-row">
-        <label><input type="radio" :checked="useRemote" @change="useRemote = true"> {{ t('使用远端固件 URL', 'Use remote firmware URL') }}</label>
+        <label><input type="radio" :checked="useRemote" @change="useRemote = true"> {{ t('使用远端固件', 'Use remote firmware') }}</label>
         <label><input type="radio" :checked="!useRemote" @change="useRemote = false"> {{ t('选择本地 .bin 文件', 'Select local .bin file') }}</label>
       </div>
 
       <div v-if="useRemote" class="field">
-        <label>{{ t('固件选择', 'Firmware') }}</label>
+        <label>{{ mode === 'ota' ? t('当前仓库例程', 'Repository example') : t('恢复出厂固件', 'Factory firmware') }}</label>
         <select v-model="firmwareChoice" @change="selectFirmwareUrl">
           <option v-for="item in firmwareOptions" :key="item.value" :value="item.value">
             {{ item.label }}
           </option>
         </select>
+        <div v-if="manifestError" class="hint error-text">
+          {{ t(`例程清单加载失败：${manifestError}`, `Failed to load example list: ${manifestError}`) }}
+        </div>
       </div>
 
-      <div v-if="useRemote" class="field">
-        <label>{{ mode === 'ota' ? 'App URL' : 'Full flash URL' }}</label>
+      <div v-if="useRemote && firmwareChoice === CUSTOM_ID" class="field">
+        <label>{{ t('自定义 App URL', 'Custom app URL') }}</label>
         <input v-if="mode === 'ota'" v-model="appUrl" />
         <input v-else v-model="fullUrl" />
         <div class="hint">{{ urlHelp }}</div>
       </div>
 
-      <div v-else class="field">
+      <div v-if="!useRemote" class="field">
         <label>{{ mode === 'ota' ? t('App bin 文件', 'App bin file') : t('Full flash bin 文件', 'Full flash bin file') }}</label>
         <input v-if="mode === 'ota'" type="file" accept=".bin" @change="onFile($event, 'app')" />
         <input v-else type="file" accept=".bin" @change="onFile($event, 'full')" />
@@ -434,14 +491,14 @@ onUnmounted(closePort)
         <button class="secondary" :disabled="state === 'running' || !isSupported" @click="selectSerialPort">
           {{ selectedPort ? t('重新选择串口', 'Select another port') : t('选择串口', 'Select serial port') }}
         </button>
-        <button class="secondary" :disabled="state === 'running' || !isSupported || isSerialOpen" @click="openSerial(460800)">
+        <button class="secondary" :disabled="state === 'running' || !isSupported || isSerialOpen || !selectedPort" @click="connectMonitor">
           {{ t('连接串口监视器', 'Connect monitor') }}
         </button>
-        <button class="secondary" :disabled="state === 'running' || !isSerialOpen" @click="closePort">
+        <button class="secondary" :disabled="state === 'running' || !isSerialOpen" @click="disconnectSerial">
           {{ t('断开', 'Disconnect') }}
         </button>
-        <button class="primary" :disabled="state === 'connecting' || state === 'running' || !isSupported" @click="start">
-          {{ state === 'running' || state === 'connecting' ? t('执行中...', 'Running...') : t('开始', 'Start') }}
+        <button class="primary" :disabled="state === 'connecting' || state === 'running' || !isSupported || isFirmwareLoading" @click="start">
+          {{ state === 'running' || state === 'connecting' ? t('执行中...', 'Running...') : t('开始烧录', 'Start flashing') }}
         </button>
         <button class="secondary" @click="reset(true)">{{ t('清空日志', 'Clear log') }}</button>
       </div>
@@ -531,6 +588,9 @@ button:disabled {
 }
 .hint {
   grid-column: 2;
+}
+.error-text {
+  color: #dc2626;
 }
 .file-name {
   grid-column: 2;

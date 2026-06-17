@@ -1,23 +1,20 @@
 ---
-title: Firmware Updater
-description: Update OSRBOT firmware in the browser with app OTA or BOOT recovery flashing.
+title: Firmware Flashing
+description: Flash OSRBOT firmware in the browser with app update or BOOT factory restore.
 ---
 
-# Firmware Updater
+# Firmware Flashing
 
 > Chrome or Edge is required because this page uses the Web Serial API.
 
-This page provides two update paths:
+This page provides two flashing paths:
 
-- **App update**: the device boots normally and only the app partition is updated. BOOT mode is not required.
-- **Recovery flash**: first flash, factory restore, or broken firmware recovery. BOOT download mode is required and a full flash image is written.
+- **App update**: the device boots normally and only the app partition is updated. BOOT mode is not required. Remote firmware can be selected from the current repository examples; custom URLs must be full HTTPS addresses.
+- **Factory restore**: first flash, factory restore, or broken firmware recovery. BOOT download mode is required and the built-in full flash image is written.
 
-Remote firmware URL accepts two formats:
+Local `.bin` files are still supported for internal testing or temporary firmware validation.
 
-- Site-relative path, for example `/firmware/osrbot_ESP32S3_IDF_App.bin`
-- Full HTTPS URL, for example `https://example.com/firmware.bin`
-
-Recommended factory test after flashing the diagnostic firmware:
+Recommended test after flashing an example firmware:
 
 1. Open the serial monitor, send `diag`, and check SN, flash, heap, I2C, IMU, magnetometer, and SBUS status.
 2. Send `imu` and `mag`, then gently rotate the board and confirm raw data changes.
