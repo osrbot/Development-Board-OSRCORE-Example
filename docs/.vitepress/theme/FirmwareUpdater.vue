@@ -96,7 +96,7 @@ const firmwareOptions = computed(() => {
 ]
 })
 const actionText = computed(() => {
-  if (mode.value === 'ota') return isEn.value ? 'Update app without BOOT' : '普通升级：不进 BOOT，只更新 app'
+  if (mode.value === 'ota') return isEn.value ? 'No-BOOT app update' : '免 BOOT 更新：设备正常运行时只更新 app'
   return isEn.value ? 'Factory restore full flash' : '恢复出厂：进 BOOT，全量恢复'
 })
 
@@ -302,6 +302,14 @@ function waitForFw(timeoutMs = 5000) {
       reject(new Error(t('等待固件响应超时', 'Timeout waiting for firmware response')))
     }, timeoutMs)
     const waiter = (line: string) => {
+      if (/^ERROR\b.*unknown command/i.test(line)) {
+        clearTimeout(timer)
+        reject(new Error(t(
+          '当前设备固件不支持免 BOOT 更新协议。请切换到“恢复出厂”，让设备进入 BOOT 下载模式后再烧录。',
+          'The current device firmware does not support the no-BOOT update protocol. Switch to Factory restore, put the device into BOOT download mode, and flash again.'
+        )))
+        return true
+      }
       if (!line.startsWith('OK fw') && !line.startsWith('ERROR fw')) return false
       clearTimeout(timer)
       if (line.startsWith('ERROR fw')) reject(new Error(line))
@@ -321,7 +329,7 @@ async function sendFw(line: string, timeoutMs = 5000) {
 async function runOta() {
   reset(true)
   state.value = 'connecting'
-  log(t('连接运行中的设备，普通升级不需要进入 BOOT。', 'Connecting to a running device. BOOT mode is not required for app OTA.'))
+  log(t('连接运行中的设备，免 BOOT 更新需要当前固件支持 fw 协议。', 'Connecting to a running device. No-BOOT update requires the current firmware to support the fw protocol.'))
   const data = await getImageData()
   const bytes = new Uint8Array(data)
   const digest = await sha256(data)
@@ -333,7 +341,11 @@ async function runOta() {
   try {
     await writeLine('stream off')
     await new Promise(r => setTimeout(r, 200))
-    try { await sendFw('fw abort', 1000) } catch {}
+    try {
+      await sendFw('fw abort', 1000)
+    } catch (e: any) {
+      if (/不支持免 BOOT 更新协议|does not support the no-BOOT update protocol/.test(e?.message || '')) throw e
+    }
 
     const force = forceLowVoltage.value ? ' force' : ''
     await sendFw(`fw begin ${bytes.length} ${digest}${force}`)
@@ -430,7 +442,7 @@ onUnmounted(closePort)
     <div class="fw-updater">
       <div class="mode-row">
         <button :class="{ active: mode === 'ota' }" @click="switchMode('ota')">
-          {{ t('普通升级', 'App update') }}
+          {{ t('免 BOOT 更新', 'No-BOOT update') }}
         </button>
         <button :class="{ active: mode === 'recovery' }" @click="switchMode('recovery')">
           {{ t('恢复出厂', 'Factory restore') }}
@@ -440,7 +452,7 @@ onUnmounted(closePort)
       <div class="explain">
         <strong>{{ actionText }}</strong>
         <p v-if="mode === 'ota'">
-          {{ t('用于已经运行新固件的设备，只更新 app 分区。设备正常开机后直接连接，不需要按 BOOT。', 'For devices already running the new firmware. It updates the app partition only and does not require BOOT mode.') }}
+          {{ t('用于已经运行支持 fw 协议固件的设备，只更新 app 分区。普通例程或出厂测试固件如果不支持 fw 协议，请改用恢复出厂。', 'For devices already running firmware with the fw protocol. It updates only the app partition. If an example or factory-test firmware does not support fw, use Factory restore instead.') }}
         </p>
         <p v-else>
           {{ t('用于第一次刷机、恢复出厂或固件无法启动。请先让设备进入 BOOT 下载模式，再开始烧录 full flash。', 'For first flash, factory restore, or broken firmware. Put the device into BOOT download mode before flashing the full image.') }}
@@ -504,7 +516,7 @@ onUnmounted(closePort)
       </div>
 
       <div class="port-state">
-        {{ selectedPort ? t(`串口：${selectedPortLabel}`, `Port: ${selectedPortLabel}`) : t('未选择串口。普通升级和串口监视器需要先选择串口；恢复刷机也可以先选择，开始时会复用。', 'No serial port selected. App update and monitor require a selected port; recovery can also reuse it.') }}
+        {{ selectedPort ? t(`串口：${selectedPortLabel}`, `Port: ${selectedPortLabel}`) : t('未选择串口。免 BOOT 更新和串口监视器需要先选择串口；恢复出厂也可以先选择，开始时会复用。', 'No serial port selected. No-BOOT update and monitor require a selected port; factory restore can also reuse it.') }}
       </div>
 
       <div v-if="state === 'running' || state === 'done'" class="progress-wrap">

@@ -1,6 +1,6 @@
 ---
 title: Firmware Flashing
-description: Flash OSRBOT firmware in the browser with app update or BOOT factory restore.
+description: Flash OSRBOT firmware in the browser with no-BOOT app update or BOOT factory restore.
 ---
 
 # Firmware Flashing
@@ -9,7 +9,7 @@ description: Flash OSRBOT firmware in the browser with app update or BOOT factor
 
 This page provides two flashing paths:
 
-- **App update**: the device boots normally and only the app partition is updated. BOOT mode is not required. Remote firmware can be selected from the current repository examples; custom URLs must be full HTTPS addresses.
+- **No-BOOT app update**: the device boots normally and only the app partition is updated. BOOT mode is not required, but the currently running firmware must support the `fw` update protocol. Remote firmware can be selected from the current repository examples; custom URLs must be full HTTPS addresses.
 - **Factory restore**: first flash, factory restore, or broken firmware recovery. BOOT download mode is required and the built-in full flash image is written.
 
 Local `.bin` files are still supported for internal testing or temporary firmware validation.

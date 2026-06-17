@@ -7,6 +7,6 @@ description: Flash OSRCORE example or factory restore firmware directly in your 
 
 > This legacy entry now uses the unified firmware flashing tool. Chrome or Edge is required because this page uses the Web Serial API.
 
-App update can select the current repository examples directly. Factory restore uses the built-in full flash image.
+No-BOOT app update can select the current repository examples directly. Factory restore uses the built-in full flash image.
 
 <FirmwareUpdater locale="en" />
