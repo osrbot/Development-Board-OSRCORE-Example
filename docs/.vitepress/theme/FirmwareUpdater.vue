@@ -110,6 +110,10 @@ function log(line: string) {
   if (logLines.value.length > 400) logLines.value.shift()
 }
 
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 function reset(clearLog = false) {
   state.value = 'idle'
   progress.value = 0
@@ -229,6 +233,7 @@ async function closePort() {
   reader = null
   writer = null
   port = null
+  lineBuffer = ''
   waiters = []
 }
 
@@ -243,6 +248,11 @@ function describePort(p: SerialPort) {
   const vid = info.usbVendorId !== undefined ? `VID ${info.usbVendorId.toString(16).padStart(4, '0')}` : ''
   const pid = info.usbProductId !== undefined ? `PID ${info.usbProductId.toString(16).padStart(4, '0')}` : ''
   return [vid, pid].filter(Boolean).join(' / ') || t('已选择串口', 'Serial port selected')
+}
+
+function isEspUsbJtagPort(p: SerialPort) {
+  const info = (p as any).getInfo?.() ?? {}
+  return info.usbVendorId === 0x303a && info.usbProductId === 0x1001
 }
 
 async function selectSerialPort() {
@@ -263,6 +273,21 @@ async function openSerial(baudRate = 460800, requestIfMissing = true) {
   state.value = 'connected'
   log(t(`串口已连接：${selectedPortLabel.value || describePort(port!)}`, `Serial connected: ${selectedPortLabel.value || describePort(port!)}`))
   readLoop()
+}
+
+async function refreshSelectedPortAfterReset(timeoutMs = 5000) {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    const ports: SerialPort[] = await (navigator as any).serial.getPorts()
+    const next = ports.find(isEspUsbJtagPort) || ports[0]
+    if (next) {
+      selectedPort.value = next
+      selectedPortLabel.value = describePort(next)
+      return true
+    }
+    await sleep(250)
+  }
+  return false
 }
 
 async function connectMonitor() {
@@ -410,7 +435,7 @@ async function getSelectedExampleFullImage() {
 async function runFullFlash(data: ArrayBuffer, startMessage: string, doneMessage: string) {
   state.value = 'connecting'
   log(startMessage)
-  const { ESPLoader, Transport } = await import('esptool-js')
+  const { ESPLoader, Transport, UsbJtagSerialReset } = await import('esptool-js')
   if (port) await closePort()
   if (!selectedPort.value) await selectSerialPort()
   const device = selectedPort.value!
@@ -422,7 +447,13 @@ async function runFullFlash(data: ArrayBuffer, startMessage: string, doneMessage
   }
 
   try {
-    const loader = new ESPLoader({ transport, baudrate: 460800, terminal })
+    const options: any = { transport, baudrate: 460800, terminal }
+    if (isEspUsbJtagPort(device)) {
+      options.resetConstructors = {
+        hardReset: (resetTransport: any) => new UsbJtagSerialReset(resetTransport),
+      }
+    }
+    const loader = new ESPLoader(options)
     const chip = await loader.main()
     if (!String(chip).startsWith('ESP32-S3')) throw new Error(`Unsupported chip: ${chip}`)
     state.value = 'running'
@@ -436,11 +467,14 @@ async function runFullFlash(data: ArrayBuffer, startMessage: string, doneMessage
       },
     })
     await loader.after()
-    state.value = 'done'
-    log(doneMessage)
   } finally {
     try { await transport.disconnect() } catch {}
   }
+  log(t('等待设备重启并重新枚举串口...', 'Waiting for the device to reboot and re-enumerate...'))
+  await sleep(1200)
+  const found = await refreshSelectedPortAfterReset()
+  state.value = 'done'
+  log(found ? doneMessage : t('烧录完成，但未检测到设备重新枚举；如无输出请按 RST 后再连接串口监视器。', 'Flashing complete, but the device was not detected after reboot. Press RST if no monitor output appears.'))
 }
 
 async function runRecovery() {
@@ -670,7 +704,9 @@ button:disabled {
   border-radius: 4px;
   background: var(--vp-c-divider);
   overflow: hidden;
-  margin: 14px 0;
+  margin: 14px 0 10px;
+  position: relative;
+  z-index: 0;
 }
 .progress-bar {
   height: 100%;
@@ -689,8 +725,9 @@ button:disabled {
   flex: 1;
 }
 .log {
-  min-height: 220px;
-  max-height: 420px;
+  height: 360px;
+  min-height: 360px;
+  max-height: 360px;
   overflow: auto;
   margin: 12px 0 0;
   padding: 12px;
@@ -699,6 +736,7 @@ button:disabled {
   color: #e6edf3;
   font-size: 12px;
   white-space: pre-wrap;
+  box-sizing: border-box;
 }
 @media (max-width: 640px) {
   .field {

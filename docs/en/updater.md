@@ -16,7 +16,7 @@ All current repository examples include the `fw` update protocol. After one fact
 
 Local `.bin` files are still supported for internal testing or temporary firmware validation.
 
-Recommended test after flashing an example firmware:
+::: details Recommended test after flashing an example firmware
 
 1. Open the serial monitor, send `diag`, and check SN, flash, heap, I2C, IMU, magnetometer, and SBUS status.
 2. Send `imu` and `mag`, then gently rotate the board and confirm raw data changes.
@@ -25,5 +25,7 @@ Recommended test after flashing an example firmware:
 5. Lift the vehicle, then send `servo left`, `servo center`, and `servo right`.
 6. Lift the vehicle, then send `motor fwd`, `motor rev`, and `motor stop`.
 7. Lift the vehicle, send `drive on`, use CH0/CH2 for limited low-speed RC testing, then send `drive off`.
+
+:::
 
 <FirmwareUpdater locale="en" />
