@@ -38,6 +38,7 @@ jobs:
           - 10_ahrs
           - 11_mag_compass
           - 12_full_example
+          - 13_factory_demo
 
     steps:
       - uses: actions/checkout@v4
@@ -49,22 +50,35 @@ jobs:
           target: esp32s3
           path: ${{ matrix.example }}
 
+      - name: Collect app image
+        run: |
+          cp ${{ matrix.example }}/build/${{ matrix.example }}.bin osrcore-${{ matrix.example }}-app.bin
+
       - name: Merge into single flashable binary
         run: |
           pip install esptool --quiet
           python -m esptool \
             --chip esp32s3 \
             merge_bin \
-            --output osrcore-${{ matrix.example }}.bin \
+            --output osrcore-${{ matrix.example }}-full.bin \
             0x0    ${{ matrix.example }}/build/bootloader/bootloader.bin \
             0x8000 ${{ matrix.example }}/build/partition_table/partition-table.bin \
             0x10000 ${{ matrix.example }}/build/${{ matrix.example }}.bin
+
+          if [ "${{ matrix.example }}" = "13_factory_demo" ]; then
+            cp osrcore-${{ matrix.example }}-app.bin osrbot_ESP32S3_IDF_App.bin
+            cp osrcore-${{ matrix.example }}-full.bin osrbot_ESP32S3_IDF_FullFlash.bin
+          fi
 
       - name: Upload merged binary
         uses: actions/upload-artifact@v4
         with:
           name: bin-${{ matrix.example }}
-          path: osrcore-${{ matrix.example }}.bin
+          path: |
+            osrcore-${{ matrix.example }}-app.bin
+            osrcore-${{ matrix.example }}-full.bin
+            osrbot_ESP32S3_IDF_App.bin
+            osrbot_ESP32S3_IDF_FullFlash.bin
           retention-days: 7
 
   collect:
@@ -112,18 +126,19 @@ jobs:
             "version": "git-${SHA7}",
             "date": "${DATE}",
             "examples": [
-              { "id": "01_blink_led",    "label": "Ch 01 — WS2812B RGB LED",         "bin": "/firmware/git-${SHA7}/osrcore-01_blink_led.bin" },
-              { "id": "02_buzzer",       "label": "Ch 02 — Passive Buzzer",           "bin": "/firmware/git-${SHA7}/osrcore-02_buzzer.bin" },
-              { "id": "03_pwm_servo",    "label": "Ch 03 — PWM Servo & ESC",          "bin": "/firmware/git-${SHA7}/osrcore-03_pwm_servo.bin" },
-              { "id": "04_sbus_rc",      "label": "Ch 04 — SBUS RC Receiver",         "bin": "/firmware/git-${SHA7}/osrcore-04_sbus_rc.bin" },
-              { "id": "05_imu_i2c",      "label": "Ch 05 — QMI8658 IMU",              "bin": "/firmware/git-${SHA7}/osrcore-05_imu_i2c.bin" },
-              { "id": "06_encoder",      "label": "Ch 06 — Quadrature Encoder",       "bin": "/firmware/git-${SHA7}/osrcore-06_encoder.bin" },
-              { "id": "07_nvs",          "label": "Ch 07 — NVS Persistence",          "bin": "/firmware/git-${SHA7}/osrcore-07_nvs.bin" },
-              { "id": "08_freertos",     "label": "Ch 08 — FreeRTOS Tasks",           "bin": "/firmware/git-${SHA7}/osrcore-08_freertos.bin" },
-              { "id": "09_pid_motor",    "label": "Ch 09 — PID Speed Loop",           "bin": "/firmware/git-${SHA7}/osrcore-09_pid_motor.bin" },
-              { "id": "10_ahrs",         "label": "Ch 10 — Madgwick AHRS",            "bin": "/firmware/git-${SHA7}/osrcore-10_ahrs.bin" },
-              { "id": "11_mag_compass",  "label": "Ch 11 — QMC6309 Magnetometer",     "bin": "/firmware/git-${SHA7}/osrcore-11_mag_compass.bin" },
-              { "id": "12_full_example", "label": "Ch 12 — Full Robot Example",       "bin": "/firmware/git-${SHA7}/osrcore-12_full_example.bin" }
+              { "id": "01_blink_led",    "label": "Ch 01 — WS2812B RGB LED",         "bin": "/firmware/git-${SHA7}/osrcore-01_blink_led-full.bin" },
+              { "id": "02_buzzer",       "label": "Ch 02 — Passive Buzzer",           "bin": "/firmware/git-${SHA7}/osrcore-02_buzzer-full.bin" },
+              { "id": "03_pwm_servo",    "label": "Ch 03 — PWM Servo & ESC",          "bin": "/firmware/git-${SHA7}/osrcore-03_pwm_servo-full.bin" },
+              { "id": "04_sbus_rc",      "label": "Ch 04 — SBUS RC Receiver",         "bin": "/firmware/git-${SHA7}/osrcore-04_sbus_rc-full.bin" },
+              { "id": "05_imu_i2c",      "label": "Ch 05 — QMI8658 IMU",              "bin": "/firmware/git-${SHA7}/osrcore-05_imu_i2c-full.bin" },
+              { "id": "06_encoder",      "label": "Ch 06 — Quadrature Encoder",       "bin": "/firmware/git-${SHA7}/osrcore-06_encoder-full.bin" },
+              { "id": "07_nvs",          "label": "Ch 07 — NVS Persistence",          "bin": "/firmware/git-${SHA7}/osrcore-07_nvs-full.bin" },
+              { "id": "08_freertos",     "label": "Ch 08 — FreeRTOS Tasks",           "bin": "/firmware/git-${SHA7}/osrcore-08_freertos-full.bin" },
+              { "id": "09_pid_motor",    "label": "Ch 09 — PID Speed Loop",           "bin": "/firmware/git-${SHA7}/osrcore-09_pid_motor-full.bin" },
+              { "id": "10_ahrs",         "label": "Ch 10 — Madgwick AHRS",            "bin": "/firmware/git-${SHA7}/osrcore-10_ahrs-full.bin" },
+              { "id": "11_mag_compass",  "label": "Ch 11 — QMC6309 Magnetometer",     "bin": "/firmware/git-${SHA7}/osrcore-11_mag_compass-full.bin" },
+              { "id": "12_full_example", "label": "Ch 12 — Full Robot Example",       "bin": "/firmware/git-${SHA7}/osrcore-12_full_example-full.bin" },
+              { "id": "13_factory_demo", "label": "Ch 13 — Factory Demo",             "bin": "/firmware/git-${SHA7}/osrcore-13_factory_demo-full.bin" }
             ]
           }
           EOF
@@ -141,6 +156,8 @@ jobs:
           DEST="gh-pages/firmware/git-${SHA7}"
           mkdir -p "$DEST"
           cp bins/*.bin "$DEST/"
+          cp bins/osrbot_ESP32S3_IDF_App.bin gh-pages/firmware/osrbot_ESP32S3_IDF_App.bin
+          cp bins/osrbot_ESP32S3_IDF_FullFlash.bin gh-pages/firmware/osrbot_ESP32S3_IDF_FullFlash.bin
           # versioned manifest
           cp manifest.json "$DEST/manifest.json"
           # stable pointer

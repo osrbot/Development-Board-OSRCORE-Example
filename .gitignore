@@ -1,4 +1,12 @@
 build/
+node_modules/
+docs/node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/chapter-*.md
+docs/chapters.md
+docs/en/chapter-*.md
+docs/en/chapters.md
 sdkconfig
 .cache/
 *.bin
