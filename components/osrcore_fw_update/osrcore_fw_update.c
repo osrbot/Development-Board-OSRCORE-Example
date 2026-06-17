@@ -82,12 +82,13 @@ static bool valid_sha_hex(const char *sha)
 
 static void handle_fw_begin(const char *line)
 {
-    size_t size = 0;
+    unsigned long size_ul = 0;
     char sha[FW_SHA_HEX_LEN + 1] = {0};
-    if (sscanf(line, "fw begin %zu %64s", &size, sha) != 2 || size == 0 || !valid_sha_hex(sha)) {
+    if (sscanf(line, "fw begin %lu %64s", &size_ul, sha) != 2 || size_ul == 0 || !valid_sha_hex(sha)) {
         printf("ERROR fw begin invalid\n");
         return;
     }
+    size_t size = (size_t)size_ul;
 
     fw_abort();
 
