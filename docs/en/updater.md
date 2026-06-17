@@ -9,7 +9,7 @@ description: Flash OSRBOT firmware in the browser with online app flashing or fa
 
 This page provides two flashing paths:
 
-- **Flashing**: the device boots normally and only the app partition is updated. The currently running firmware must support the `fw` update protocol. Remote firmware can be selected from the current repository examples; custom URLs must be full HTTPS addresses.
+- **Flashing**: when the device is running normally, the app partition is updated through the `fw` protocol first. If the device is already in ESP-ROM download mode, the selected example full flash image is written automatically. Remote firmware can be selected from the current repository examples; custom URLs must be full HTTPS addresses.
 - **Factory restore**: first flash, factory restore, or broken firmware recovery. BOOT download mode is required and the built-in full flash image is written.
 
 All current repository examples include the `fw` update protocol. After one factory restore, later switching between these examples can use Flashing directly.

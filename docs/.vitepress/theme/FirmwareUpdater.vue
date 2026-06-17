@@ -55,6 +55,7 @@ let writer: WritableStreamDefaultWriter<Uint8Array> | null = null
 let readAbort = false
 let lineBuffer = ''
 let waiters: Array<(line: string) => boolean> = []
+let sawRomBoot = false
 
 const isSupported = computed(() => typeof navigator !== 'undefined' && 'serial' in navigator)
 const isSerialOpen = computed(() => !!port)
@@ -113,6 +114,7 @@ function reset(clearLog = false) {
   state.value = 'idle'
   progress.value = 0
   errorMsg.value = ''
+  sawRomBoot = false
   if (clearLog) logLines.value = []
 }
 
@@ -135,6 +137,12 @@ function selectFirmwareUrl() {
   if (!item || item.value === CUSTOM_ID || item.value === 'loading') return
   if (mode.value === 'ota') appUrl.value = item.url
   else fullUrl.value = item.url
+}
+
+function selectedExampleFullUrl() {
+  if (!firmwareChoice.value.startsWith('example:')) return ''
+  const id = firmwareChoice.value.slice('example:'.length)
+  return manifestExamples.value.find(ex => ex.id === id)?.bin || ''
 }
 
 function switchMode(next: Mode) {
@@ -280,6 +288,7 @@ async function readLoop() {
       for (const line of lines) {
         const clean = line.trim()
         if (!clean) continue
+        if (/^ESP-ROM:/i.test(clean)) sawRomBoot = true
         log(clean)
         waiters = waiters.filter(fn => !fn(clean))
       }
@@ -304,10 +313,10 @@ function waitForFw(timeoutMs = 5000) {
     const waiter = (line: string) => {
       if (/^ERROR\b.*unknown command/i.test(line)) {
         clearTimeout(timer)
-        reject(new Error(t(
+        reject(Object.assign(new Error(t(
           '当前设备固件不支持在线烧录协议。请切换到“恢复出厂”，让设备进入 BOOT 下载模式后再烧录。',
           'The current device firmware does not support the online flashing protocol. Switch to Factory restore, put the device into BOOT download mode, and flash again.'
-        )))
+        )), { code: 'FW_UNSUPPORTED' }))
         return true
       }
       if (!line.startsWith('OK fw') && !line.startsWith('ERROR fw')) return false
@@ -329,7 +338,7 @@ async function sendFw(line: string, timeoutMs = 5000) {
 async function runOta() {
   reset(true)
   state.value = 'connecting'
-  log(t('连接运行中的设备，在线烧录需要当前固件支持 fw 协议。', 'Connecting to a running device. Flashing requires the current firmware to support the fw protocol.'))
+  log(t('连接设备：优先使用 fw 协议更新 app；如果检测到 ESP-ROM 下载模式，将自动刷写所选例程 full flash。', 'Connecting to the device: use the fw protocol for app update first; if ESP-ROM download mode is detected, automatically flash the selected example full image.'))
   const data = await getImageData()
   const bytes = new Uint8Array(data)
   const digest = await sha256(data)
@@ -344,7 +353,16 @@ async function runOta() {
     try {
       await sendFw('fw abort', 1000)
     } catch (e: any) {
-      if (/不支持在线烧录协议|does not support the online flashing protocol/.test(e?.message || '')) throw e
+      if (e?.code === 'FW_UNSUPPORTED') {
+        if (sawRomBoot) {
+          const fullData = await getSelectedExampleFullImage()
+          log(t('检测到设备已在 ESP-ROM 下载模式，自动改用 full flash 烧录当前选择的例程。', 'ESP-ROM download mode detected; switching automatically to full flash for the selected example.'))
+          await closePort()
+          await runFullFlash(fullData, t('正在全量烧录所选例程。', 'Flashing the selected example full image.'), t('烧录完成，设备正在重启。', 'Flashing complete. Device is rebooting.'))
+          return
+        }
+        throw e
+      }
     }
 
     const force = forceLowVoltage.value ? ' force' : ''
@@ -366,11 +384,21 @@ async function runOta() {
   }
 }
 
-async function runRecovery() {
-  reset(true)
+async function getSelectedExampleFullImage() {
+  if (!useRemote.value) {
+    throw new Error(t('本地 app 文件没有对应 full flash 镜像，无法自动从 ESP-ROM 模式烧录。请切换到“恢复出厂”并选择 full flash bin。', 'A local app file has no matching full flash image, so it cannot be flashed automatically from ESP-ROM mode. Switch to Factory restore and select a full flash bin.'))
+  }
+  if (firmwareChoice.value === CUSTOM_ID) {
+    throw new Error(t('自定义 App URL 没有对应 full flash 镜像，无法自动从 ESP-ROM 模式烧录。请切换到“恢复出厂”。', 'A custom app URL has no matching full flash image, so it cannot be flashed automatically from ESP-ROM mode. Switch to Factory restore.'))
+  }
+  const full = selectedExampleFullUrl()
+  if (!full) throw new Error(t('未找到当前例程的 full flash 固件。', 'Full flash image for the selected example was not found.'))
+  return await fetchBinary(full)
+}
+
+async function runFullFlash(data: ArrayBuffer, startMessage: string, doneMessage: string) {
   state.value = 'connecting'
-  log(t('恢复出厂需要设备处于 BOOT 下载模式。', 'Factory restore requires BOOT download mode.'))
-  const data = await getImageData()
+  log(startMessage)
   const { ESPLoader, Transport } = await import('esptool-js')
   if (port) await closePort()
   if (!selectedPort.value) await selectSerialPort()
@@ -398,10 +426,20 @@ async function runRecovery() {
     })
     await loader.after()
     state.value = 'done'
-    log(t('恢复出厂完成，设备正在重启。', 'Factory restore complete. Device is rebooting.'))
+    log(doneMessage)
   } finally {
     try { await transport.disconnect() } catch {}
   }
+}
+
+async function runRecovery() {
+  reset(true)
+  const data = await getImageData()
+  await runFullFlash(
+    data,
+    t('恢复出厂需要设备处于 BOOT 下载模式。', 'Factory restore requires BOOT download mode.'),
+    t('恢复出厂完成，设备正在重启。', 'Factory restore complete. Device is rebooting.')
+  )
 }
 
 function arrayBufferToBinaryString(buffer: ArrayBuffer) {
@@ -452,7 +490,7 @@ onUnmounted(closePort)
       <div class="explain">
         <strong>{{ actionText }}</strong>
         <p v-if="mode === 'ota'">
-          {{ t('用于已经运行支持 fw 协议固件的设备，只更新 app 分区。普通例程或出厂测试固件如果不支持 fw 协议，请改用恢复出厂。', 'For devices already running firmware with the fw protocol. It updates only the app partition. If an example or factory-test firmware does not support fw, use Factory restore instead.') }}
+          {{ t('设备正常运行时优先通过 fw 协议只更新 app 分区；如果设备已在 ESP-ROM 下载模式，会自动刷写当前选择例程的 full flash。', 'When the device is running normally, this updates only the app partition through the fw protocol. If the device is already in ESP-ROM download mode, it automatically flashes the selected example full image.') }}
         </p>
         <p v-else>
           {{ t('用于第一次刷机、恢复出厂或固件无法启动。请先让设备进入 BOOT 下载模式，再开始烧录 full flash。', 'For first flash, factory restore, or broken firmware. Put the device into BOOT download mode before flashing the full image.') }}
