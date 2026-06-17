@@ -45,6 +45,7 @@
 #include "madgwick.h"
 #include "pid.h"
 #include "imu_heater.h"
+#include "osrcore_fw_update.h"
 
 /* ---- Pin / parameter config ---- */
 #define I2C_SDA             10
@@ -563,6 +564,8 @@ static void task_control(void *arg)
 /* ---- Serial command processing ---- */
 static void process_serial_cmd(const char *line)
 {
+    if (osrcore_fw_handle_line(line)) return;
+
     float v, s;
     float val;
 
@@ -685,7 +688,7 @@ static void task_comm(void *arg)
     uint8_t  sbus_buf[SBUS_FRAME];
     uint16_t rc_ch[16];
     bool     lost_frame, failsafe_flag;
-    char     line_buf[128];
+    char     line_buf[384];
     int      line_len = 0;
     bool     rc_initialized = false;
     unsigned long last_rc_ok_ms = 0;

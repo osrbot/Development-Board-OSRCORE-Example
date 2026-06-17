@@ -24,6 +24,7 @@
 #include "qmi8658.h"
 #include "madgwick.h"
 #include "imu_heater.h"
+#include "osrcore_fw_update.h"
 
 #define I2C_SDA     10
 #define I2C_SCL     11
@@ -63,6 +64,8 @@ static void task_imu(void *arg)
 
 void app_main(void)
 {
+    osrcore_fw_update_start();
+
     i2c_master_bus_config_t bus_cfg = {
         .i2c_port      = I2C_NUM_0,
         .sda_io_num    = I2C_SDA,

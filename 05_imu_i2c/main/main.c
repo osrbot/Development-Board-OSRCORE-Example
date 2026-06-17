@@ -11,6 +11,7 @@
 #include "freertos/task.h"
 #include "driver/i2c_master.h"
 #include "esp_log.h"
+#include "osrcore_fw_update.h"
 #include "qmi8658.h"
 
 #define I2C_SDA      10
@@ -22,6 +23,8 @@ static const char *TAG = "imu";
 
 void app_main(void)
 {
+    osrcore_fw_update_start();
+
     /* Initialize I2C bus */
     i2c_master_bus_config_t bus_cfg = {
         .i2c_port      = I2C_NUM_0,

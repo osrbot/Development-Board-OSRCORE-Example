@@ -18,6 +18,7 @@
 #include "freertos/task.h"
 #include "driver/pulse_cnt.h"
 #include "esp_log.h"
+#include "osrcore_fw_update.h"
 
 #define EA              3
 #define EB              9
@@ -73,6 +74,7 @@ static int32_t encoder_get_count(void)
 void app_main(void)
 {
     encoder_init();
+    osrcore_fw_update_start();
     ESP_LOGI(TAG, "Encoder ready EA=GPIO%d EB=GPIO%d", EA, EB);
 
     int32_t last = encoder_get_count();

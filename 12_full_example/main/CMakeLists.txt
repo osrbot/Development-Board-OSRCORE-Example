@@ -18,4 +18,5 @@ idf_component_register(
         esp_driver_gpio
         esp_driver_usb_serial_jtag
         freertos
+        osrcore_fw_update
 )

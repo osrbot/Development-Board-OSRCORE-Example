@@ -96,7 +96,7 @@ const firmwareOptions = computed(() => {
 ]
 })
 const actionText = computed(() => {
-  if (mode.value === 'ota') return isEn.value ? 'No-BOOT app update' : '免 BOOT 更新：设备正常运行时只更新 app'
+  if (mode.value === 'ota') return isEn.value ? 'Flashing: update app while the device is running' : '在线烧录：设备正常运行时只更新 app'
   return isEn.value ? 'Factory restore full flash' : '恢复出厂：进 BOOT，全量恢复'
 })
 
@@ -305,8 +305,8 @@ function waitForFw(timeoutMs = 5000) {
       if (/^ERROR\b.*unknown command/i.test(line)) {
         clearTimeout(timer)
         reject(new Error(t(
-          '当前设备固件不支持免 BOOT 更新协议。请切换到“恢复出厂”，让设备进入 BOOT 下载模式后再烧录。',
-          'The current device firmware does not support the no-BOOT update protocol. Switch to Factory restore, put the device into BOOT download mode, and flash again.'
+          '当前设备固件不支持在线烧录协议。请切换到“恢复出厂”，让设备进入 BOOT 下载模式后再烧录。',
+          'The current device firmware does not support the online flashing protocol. Switch to Factory restore, put the device into BOOT download mode, and flash again.'
         )))
         return true
       }
@@ -329,7 +329,7 @@ async function sendFw(line: string, timeoutMs = 5000) {
 async function runOta() {
   reset(true)
   state.value = 'connecting'
-  log(t('连接运行中的设备，免 BOOT 更新需要当前固件支持 fw 协议。', 'Connecting to a running device. No-BOOT update requires the current firmware to support the fw protocol.'))
+  log(t('连接运行中的设备，在线烧录需要当前固件支持 fw 协议。', 'Connecting to a running device. Flashing requires the current firmware to support the fw protocol.'))
   const data = await getImageData()
   const bytes = new Uint8Array(data)
   const digest = await sha256(data)
@@ -344,7 +344,7 @@ async function runOta() {
     try {
       await sendFw('fw abort', 1000)
     } catch (e: any) {
-      if (/不支持免 BOOT 更新协议|does not support the no-BOOT update protocol/.test(e?.message || '')) throw e
+      if (/不支持在线烧录协议|does not support the online flashing protocol/.test(e?.message || '')) throw e
     }
 
     const force = forceLowVoltage.value ? ' force' : ''
@@ -442,7 +442,7 @@ onUnmounted(closePort)
     <div class="fw-updater">
       <div class="mode-row">
         <button :class="{ active: mode === 'ota' }" @click="switchMode('ota')">
-          {{ t('免 BOOT 更新', 'No-BOOT update') }}
+          {{ t('在线烧录', 'Flashing') }}
         </button>
         <button :class="{ active: mode === 'recovery' }" @click="switchMode('recovery')">
           {{ t('恢复出厂', 'Factory restore') }}
@@ -516,7 +516,7 @@ onUnmounted(closePort)
       </div>
 
       <div class="port-state">
-        {{ selectedPort ? t(`串口：${selectedPortLabel}`, `Port: ${selectedPortLabel}`) : t('未选择串口。免 BOOT 更新和串口监视器需要先选择串口；恢复出厂也可以先选择，开始时会复用。', 'No serial port selected. No-BOOT update and monitor require a selected port; factory restore can also reuse it.') }}
+        {{ selectedPort ? t(`串口：${selectedPortLabel}`, `Port: ${selectedPortLabel}`) : t('未选择串口。在线烧录和串口监视器需要先选择串口；恢复出厂也可以先选择，开始时会复用。', 'No serial port selected. Flashing and monitor require a selected port; factory restore can also reuse it.') }}
       </div>
 
       <div v-if="state === 'running' || state === 'done'" class="progress-wrap">

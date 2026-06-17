@@ -5,4 +5,5 @@ idf_component_register(
         esp_driver_i2c
         esp_driver_gpio
         esp_timer
+        osrcore_fw_update
 )

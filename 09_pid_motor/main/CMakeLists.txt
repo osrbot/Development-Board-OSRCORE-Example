@@ -5,4 +5,5 @@ idf_component_register(
         esp_driver_pcnt
         esp_driver_ledc
         esp_driver_usb_serial_jtag
+        osrcore_fw_update
 )

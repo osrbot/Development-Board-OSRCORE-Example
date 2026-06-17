@@ -4,4 +4,5 @@ idf_component_register(
     PRIV_REQUIRES
         esp_driver_ledc
         esp_timer
+        osrcore_fw_update
 )

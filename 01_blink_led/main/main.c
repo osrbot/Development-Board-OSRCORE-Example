@@ -15,6 +15,7 @@
 #include "freertos/task.h"
 #include "driver/rmt_tx.h"
 #include "esp_log.h"
+#include "osrcore_fw_update.h"
 
 #define LED_PIN      45
 #define RMT_CLK_HZ   80000000  /* 80 MHz */
@@ -152,6 +153,7 @@ static void led_set(uint8_t r, uint8_t g, uint8_t b)
 void app_main(void)
 {
     led_init();
+    osrcore_fw_update_start();
     ESP_LOGI(TAG, "WS2812B ready on GPIO%d", LED_PIN);
 
     /* Cycle: red -> green -> blue -> off */

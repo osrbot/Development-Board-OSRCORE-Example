@@ -26,6 +26,7 @@
 #include "esp_random.h"
 #include "esp_system.h"
 #include "esp_timer.h"
+#include "osrcore_fw_update.h"
 
 #define LED_PIN       45
 #define BUZZER_PIN    42
@@ -531,7 +532,7 @@ static void print_rc(void) {
 
 static void serial_task(void *arg) {
     (void)arg;
-    char line[96];
+    char line[384];
     print_help();
     while (1) {
         if (fgets(line, sizeof(line), stdin) == NULL) {
@@ -541,6 +542,7 @@ static void serial_task(void *arg) {
         line[strcspn(line, "\r\n")] = '\0';
         if (line[0] == '\0') continue;
         s_cmd_count++;
+        if (osrcore_fw_handle_line(line)) continue;
 
         int r = 0, g = 0, b = 0;
         if (strcmp(line, "diag") == 0) {

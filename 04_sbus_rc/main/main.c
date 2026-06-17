@@ -17,6 +17,7 @@
 #include "freertos/task.h"
 #include "driver/uart.h"
 #include "esp_log.h"
+#include "osrcore_fw_update.h"
 
 #define SBUS_UART     UART_NUM_0
 #define SBUS_RX_PIN   44
@@ -122,6 +123,7 @@ static void sbus_task(void *arg)
 void app_main(void)
 {
     sbus_init();
+    osrcore_fw_update_start();
     ESP_LOGI(TAG, "SBUS ready on UART%d RX=GPIO%d", SBUS_UART, SBUS_RX_PIN);
     xTaskCreate(sbus_task, "sbus", 4096, NULL, 5, NULL);
 }

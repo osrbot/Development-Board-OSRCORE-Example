@@ -71,7 +71,7 @@ jobs:
 
             ## Flashing
 
-            `*-full.bin` files are merged (bootloader + partition-table + app) images flashable at offset `0x0`.
+            `*-full.bin` files are merged (bootloader + partition-table + OTA data + app) images flashable at offset `0x0`.
             `*-app.bin` files are application images for firmware-level OTA update only.
 
             ```bash

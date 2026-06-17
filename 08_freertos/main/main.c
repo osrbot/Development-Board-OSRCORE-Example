@@ -20,6 +20,7 @@
 #include "freertos/semphr.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "osrcore_fw_update.h"
 
 static const char *TAG = "freertos";
 
@@ -101,6 +102,7 @@ void app_main(void)
 {
     g_mutex    = xSemaphoreCreateMutex();
     g_sensor_q = xQueueCreate(1, sizeof(sensor_msg_t));
+    osrcore_fw_update_start();
 
     ESP_LOGI(TAG, "Creating tasks...");
 

@@ -22,6 +22,7 @@
 #include "freertos/task.h"
 #include "driver/ledc.h"
 #include "esp_log.h"
+#include "osrcore_fw_update.h"
 
 #define THROTTLE_PIN  1
 #define STEERING_PIN  2
@@ -85,6 +86,7 @@ static void set_pulse(ledc_channel_t ch, uint32_t pulse_us)
 void app_main(void)
 {
     pwm_init();
+    osrcore_fw_update_start();
     ESP_LOGI(TAG, "PWM ready — throttle GPIO%d, steering GPIO%d", THROTTLE_PIN, STEERING_PIN);
 
     /* ESC arming: hold neutral for 2 s */

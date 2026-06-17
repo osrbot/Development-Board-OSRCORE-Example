@@ -11,6 +11,7 @@
 #include "driver/ledc.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "osrcore_fw_update.h"
 
 #define BUZZER_PIN      42
 #define BUZZER_TIMER    LEDC_TIMER_1
@@ -84,6 +85,7 @@ static void buzzer_tone(uint32_t freq_hz, uint32_t duration_ms)
 void app_main(void)
 {
     buzzer_init();
+    osrcore_fw_update_start();
     ESP_LOGI(TAG, "Buzzer ready on GPIO%d", BUZZER_PIN);
 
     /* C major scale up and down */

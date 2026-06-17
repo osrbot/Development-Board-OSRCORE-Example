@@ -26,6 +26,7 @@
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_vfs.h"
 #include "esp_log.h"
+#include "osrcore_fw_update.h"
 #include "pid.h"
 
 /* ---- Hardware config ---- */
@@ -146,10 +147,11 @@ static void task_control(void *arg)
 /* ---- Command task ---- */
 static void task_cmd(void *arg)
 {
-    char line[32];
+    char line[384];
     while (1) {
         if (!fgets(line, sizeof(line), stdin)) continue;
         line[strcspn(line, "\r\n")] = '\0';
+        if (osrcore_fw_handle_line(line)) continue;
 
         float v;
         if (sscanf(line, "v %f", &v) == 1) {

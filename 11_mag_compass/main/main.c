@@ -16,6 +16,7 @@
 #include "driver/usb_serial_jtag_vfs.h"
 #include "driver/usb_serial_jtag.h"
 #include "esp_log.h"
+#include "osrcore_fw_update.h"
 #include "qmc6309.h"
 
 #define I2C_SDA      10
@@ -23,7 +24,7 @@
 #define IO_CTRL_BAT  16
 
 #define I2C_FREQ_HZ  400000
-#define CMD_BUF_LEN  64
+#define CMD_BUF_LEN  384
 
 static const char *TAG = "mag";
 
@@ -40,6 +41,8 @@ static void handle_command(const char *line)
     size_t len = strlen(buf);
     while (len > 0 && (buf[len - 1] == '\r' || buf[len - 1] == ' '))
         buf[--len] = '\0';
+
+    if (osrcore_fw_handle_line(buf)) return;
 
     if (strncmp(buf, "cal", 3) == 0) {
         uint32_t sec = 30; /* default 30 s */

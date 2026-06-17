@@ -28,6 +28,7 @@
 #include "esp_log.h"
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_vfs.h"
+#include "osrcore_fw_update.h"
 
 static const char *TAG = "nvs_example";
 
@@ -342,7 +343,7 @@ static void all_show(void)
 
 static void cmd_task(void *arg)
 {
-    char line[128];
+    char line[384];
 
     printf("\nNVS example ready. Commands:\n");
     printf("  kp/ki/kd <val>\n");
@@ -357,6 +358,7 @@ static void cmd_task(void *arg)
             continue;
         line[strcspn(line, "\r\n")] = '\0';
         if (line[0] == '\0') continue;
+        if (osrcore_fw_handle_line(line)) continue;
 
         float a, b, c;
 
