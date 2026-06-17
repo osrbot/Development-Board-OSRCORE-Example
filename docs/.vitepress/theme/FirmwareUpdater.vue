@@ -35,6 +35,8 @@ const localFull = ref<ArrayBuffer | null>(null)
 const localAppName = ref('')
 const localFullName = ref('')
 const commandInput = ref('')
+const selectedPort = ref<SerialPort | null>(null)
+const selectedPortLabel = ref('')
 
 let port: SerialPort | null = null
 let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
@@ -44,7 +46,15 @@ let lineBuffer = ''
 let waiters: Array<(line: string) => boolean> = []
 
 const isSupported = computed(() => typeof navigator !== 'undefined' && 'serial' in navigator)
+const isSerialOpen = computed(() => !!port)
 const selectedFileName = computed(() => mode.value === 'ota' ? localAppName.value : localFullName.value)
+const defaultUrl = computed(() => mode.value === 'ota' ? RELEASE_BASE + DEFAULT_APP : RELEASE_BASE + DEFAULT_FULL)
+const urlHelp = computed(() => {
+  if (mode.value === 'ota') {
+    return t('默认使用当前线上 app 固件。也可以填写 https://.../*.bin 或 /firmware/*.bin。', 'Default: current online app firmware. You may also enter https://.../*.bin or /firmware/*.bin.')
+  }
+  return t('默认使用当前线上全量恢复固件。恢复刷机需要设备进入 BOOT。也可以填写 https://.../*.bin 或 /firmware/*.bin。', 'Default: current online full flash firmware. Recovery requires BOOT mode. You may also enter https://.../*.bin or /firmware/*.bin.')
+})
 const actionText = computed(() => {
   if (mode.value === 'ota') return isEn.value ? 'Update app without BOOT' : '普通升级：不进 BOOT，只更新 app'
   return isEn.value ? 'Recovery full flash' : '恢复刷机：进 BOOT，全量恢复'
@@ -129,12 +139,30 @@ async function closePort() {
   waiters = []
 }
 
-async function openSerial(baudRate = 460800) {
-  port = await (navigator as any).serial.requestPort({ filters: USB_FILTERS })
+function describePort(p: SerialPort) {
+  const info = (p as any).getInfo?.() ?? {}
+  const vid = info.usbVendorId !== undefined ? `VID ${info.usbVendorId.toString(16).padStart(4, '0')}` : ''
+  const pid = info.usbProductId !== undefined ? `PID ${info.usbProductId.toString(16).padStart(4, '0')}` : ''
+  return [vid, pid].filter(Boolean).join(' / ') || t('已选择串口', 'Serial port selected')
+}
+
+async function selectSerialPort() {
+  selectedPort.value = await (navigator as any).serial.requestPort({ filters: USB_FILTERS })
+  selectedPortLabel.value = describePort(selectedPort.value!)
+  log(t(`已选择串口：${selectedPortLabel.value}`, `Selected serial port: ${selectedPortLabel.value}`))
+}
+
+async function openSerial(baudRate = 460800, requestIfMissing = true) {
+  if (port) return
+  if (!selectedPort.value && requestIfMissing) await selectSerialPort()
+  if (!selectedPort.value) throw new Error(t('请先选择串口', 'Select a serial port first'))
+  port = selectedPort.value
   await port!.open({ baudRate })
   reader = (port as any).readable.getReader()
   writer = (port as any).writable.getWriter()
   readAbort = false
+  state.value = 'connected'
+  log(t(`串口已连接：${selectedPortLabel.value || describePort(port!)}`, `Serial connected: ${selectedPortLabel.value || describePort(port!)}`))
   readLoop()
 }
 
@@ -230,7 +258,9 @@ async function runRecovery() {
   log(t('恢复刷机需要设备处于 BOOT 下载模式。', 'Recovery flashing requires BOOT download mode.'))
   const data = await getImageData()
   const { ESPLoader, Transport } = await import('esptool-js')
-  const device = await (navigator as any).serial.requestPort({ filters: USB_FILTERS })
+  if (port) await closePort()
+  if (!selectedPort.value) await selectSerialPort()
+  const device = selectedPort.value!
   const transport = new Transport(device)
   const terminal = {
     clean() {},
@@ -324,6 +354,7 @@ onUnmounted(closePort)
         <label>{{ mode === 'ota' ? 'App URL' : 'Full flash URL' }}</label>
         <input v-if="mode === 'ota'" v-model="appUrl" />
         <input v-else v-model="fullUrl" />
+        <div class="hint">{{ urlHelp }}</div>
       </div>
 
       <div v-else class="field">
@@ -343,10 +374,23 @@ onUnmounted(closePort)
       </div>
 
       <div class="action-row">
+        <button class="secondary" :disabled="state === 'running' || !isSupported" @click="selectSerialPort">
+          {{ selectedPort ? t('重新选择串口', 'Select another port') : t('选择串口', 'Select serial port') }}
+        </button>
+        <button class="secondary" :disabled="state === 'running' || !isSupported || isSerialOpen" @click="openSerial(460800)">
+          {{ t('连接串口监视器', 'Connect monitor') }}
+        </button>
+        <button class="secondary" :disabled="state === 'running' || !isSerialOpen" @click="closePort">
+          {{ t('断开', 'Disconnect') }}
+        </button>
         <button class="primary" :disabled="state === 'connecting' || state === 'running' || !isSupported" @click="start">
           {{ state === 'running' || state === 'connecting' ? t('执行中...', 'Running...') : t('开始', 'Start') }}
         </button>
         <button class="secondary" @click="reset(true)">{{ t('清空日志', 'Clear log') }}</button>
+      </div>
+
+      <div class="port-state">
+        {{ selectedPort ? t(`串口：${selectedPortLabel}`, `Port: ${selectedPortLabel}`) : t('未选择串口。普通升级和串口监视器需要先选择串口；恢复刷机也可以先选择，开始时会复用。', 'No serial port selected. App update and monitor require a selected port; recovery can also reuse it.') }}
       </div>
 
       <div v-if="state === 'running' || state === 'done'" class="progress-wrap">
@@ -423,6 +467,13 @@ button:disabled {
   padding: 8px 10px;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
+}
+.hint, .port-state {
+  color: var(--vp-c-text-2);
+  font-size: 12px;
+}
+.hint {
+  grid-column: 2;
 }
 .file-name {
   grid-column: 2;

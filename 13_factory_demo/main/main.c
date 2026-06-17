@@ -14,10 +14,16 @@
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "driver/i2c_master.h"
 #include "driver/ledc.h"
 #include "driver/rmt_tx.h"
 #include "esp_chip_info.h"
+#include "esp_flash.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_mac.h"
+#include "esp_random.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 
 #define LED_PIN       45
@@ -25,6 +31,9 @@
 #define RMT_CLK_HZ    80000000
 #define BUZZER_TIMER  LEDC_TIMER_1
 #define BUZZER_CH     LEDC_CHANNEL_2
+#define I2C_SDA       10
+#define I2C_SCL       11
+#define I2C_FREQ_HZ   400000
 
 #define T0H (400 / 12)
 #define T0L (850 / 12)
@@ -36,6 +45,7 @@ static const char *TAG = "factory";
 static rmt_channel_handle_t s_led_channel;
 static rmt_encoder_handle_t s_led_encoder;
 static esp_timer_handle_t s_buzzer_timer;
+static i2c_master_bus_handle_t s_i2c_bus;
 static uint8_t s_led_rgb[3] = {0, 32, 0};
 static uint32_t s_cmd_count = 0;
 
@@ -189,20 +199,132 @@ static void buzzer_tone(uint32_t freq_hz, uint32_t duration_ms) {
     esp_timer_start_once(s_buzzer_timer, (uint64_t)duration_ms * 1000);
 }
 
+static void i2c_init(void) {
+    i2c_master_bus_config_t bus_cfg = {
+        .i2c_port = I2C_NUM_0,
+        .sda_io_num = I2C_SDA,
+        .scl_io_num = I2C_SCL,
+        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .glitch_ignore_cnt = 7,
+        .flags.enable_internal_pullup = true,
+    };
+    esp_err_t ret = i2c_new_master_bus(&bus_cfg, &s_i2c_bus);
+    if (ret != ESP_OK) {
+        printf("DIAG i2c init=FAIL err=%s\n", esp_err_to_name(ret));
+    }
+}
+
+static void print_reset_reason(void) {
+    const char *name = "unknown";
+    switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: name = "poweron"; break;
+    case ESP_RST_EXT: name = "external"; break;
+    case ESP_RST_SW: name = "software"; break;
+    case ESP_RST_PANIC: name = "panic"; break;
+    case ESP_RST_INT_WDT: name = "interrupt_wdt"; break;
+    case ESP_RST_TASK_WDT: name = "task_wdt"; break;
+    case ESP_RST_WDT: name = "other_wdt"; break;
+    case ESP_RST_DEEPSLEEP: name = "deepsleep"; break;
+    case ESP_RST_BROWNOUT: name = "brownout"; break;
+    case ESP_RST_SDIO: name = "sdio"; break;
+    default: break;
+    }
+    printf("DIAG reset=%s\n", name);
+}
+
+static void print_board_info(void) {
+    esp_chip_info_t chip;
+    uint32_t flash_size = 0;
+    uint8_t mac[6] = {0};
+    esp_chip_info(&chip);
+    esp_flash_get_size(NULL, &flash_size);
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
+
+    printf("DIAG chip=ESP32-S3 cores=%d rev=%d features=0x%lx\n",
+           chip.cores, chip.revision, (unsigned long)chip.features);
+    printf("DIAG flash=%luKB heap_free=%lu heap_min=%lu heap_dma=%lu\n",
+           (unsigned long)(flash_size / 1024),
+           (unsigned long)esp_get_free_heap_size(),
+           (unsigned long)esp_get_minimum_free_heap_size(),
+           (unsigned long)heap_caps_get_free_size(MALLOC_CAP_DMA));
+    printf("DIAG mac=%02X:%02X:%02X:%02X:%02X:%02X random=0x%08lX uptime_ms=%lld\n",
+           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+           (unsigned long)esp_random(),
+           (long long)(esp_timer_get_time() / 1000));
+    print_reset_reason();
+}
+
+static void i2c_scan(void) {
+    if (!s_i2c_bus) {
+        printf("DIAG i2c scan=FAIL bus_not_ready\n");
+        return;
+    }
+    printf("DIAG i2c sda=%d scl=%d freq=%d scan_begin\n", I2C_SDA, I2C_SCL, I2C_FREQ_HZ);
+    int found = 0;
+    for (uint8_t addr = 0x08; addr <= 0x77; addr++) {
+        if (i2c_master_probe(s_i2c_bus, addr, 20) == ESP_OK) {
+            printf("DIAG i2c addr=0x%02X%s\n", addr,
+                   addr == 0x6B ? " QMI8658" : "");
+            found++;
+        }
+    }
+    printf("DIAG i2c qmi8658=%s\n", i2c_master_probe(s_i2c_bus, 0x6B, 20) == ESP_OK ? "OK" : "MISS");
+    printf("DIAG i2c qmc6309_7bit_0x7C=%s\n", i2c_master_probe(s_i2c_bus, 0x7C, 20) == ESP_OK ? "OK" : "MISS");
+    printf("DIAG i2c scan_done found=%d\n", found);
+}
+
+static void led_test(void) {
+    const uint8_t colors[][3] = {
+        { 48, 0, 0 },
+        { 0, 48, 0 },
+        { 0, 0, 48 },
+        { 48, 32, 0 },
+        { 0, 0, 0 },
+    };
+    for (size_t i = 0; i < sizeof(colors) / sizeof(colors[0]); i++) {
+        led_set(colors[i][0], colors[i][1], colors[i][2]);
+        vTaskDelay(pdMS_TO_TICKS(180));
+    }
+    printf("OK ledtest\n");
+}
+
+static void beep_test(void) {
+    const uint32_t tones[] = { 1600, 2200, 2800 };
+    for (size_t i = 0; i < sizeof(tones) / sizeof(tones[0]); i++) {
+        buzzer_tone(tones[i], 90);
+        vTaskDelay(pdMS_TO_TICKS(140));
+    }
+    printf("OK beeptest\n");
+}
+
+static void run_diag(void) {
+    printf("DIAG begin\n");
+    print_board_info();
+    i2c_scan();
+    printf("DIAG led_gpio=%d buzzer_gpio=%d serial=USB\n", LED_PIN, BUZZER_PIN);
+    printf("DIAG result=CHECK_LED_BUZZER_BY_OBSERVATION\n");
+    printf("DIAG done\n");
+}
+
 static void print_help(void) {
     printf("Commands:\n");
-    printf("  status    print board test status\n");
-    printf("  led r g b set LED color, 0..255\n");
-    printf("  beep      play buzzer test tone\n");
-    printf("  help      command list\n");
+    printf("  diag       run full board diagnostics\n");
+    printf("  status     print short board status\n");
+    printf("  i2c        scan I2C bus on SDA10/SCL11\n");
+    printf("  ledtest    run LED color sequence\n");
+    printf("  beeptest   run buzzer tone sequence\n");
+    printf("  led r g b  set LED color, 0..255\n");
+    printf("  beep       play one buzzer test tone\n");
+    printf("  help       command list\n");
 }
 
 static void print_status(void) {
     esp_chip_info_t chip;
     esp_chip_info(&chip);
-    printf("FACTORY status uptime_ms=%lld chip_cores=%d led=%u,%u,%u cmds=%lu\n",
+    printf("FACTORY status uptime_ms=%lld chip_cores=%d heap=%lu led=%u,%u,%u cmds=%lu\n",
            (long long)(esp_timer_get_time() / 1000),
            chip.cores,
+           (unsigned long)esp_get_free_heap_size(),
            s_led_rgb[0], s_led_rgb[1], s_led_rgb[2],
            (unsigned long)s_cmd_count);
 }
@@ -221,8 +343,16 @@ static void serial_task(void *arg) {
         s_cmd_count++;
 
         int r = 0, g = 0, b = 0;
-        if (strcmp(line, "status") == 0) {
+        if (strcmp(line, "diag") == 0) {
+            run_diag();
+        } else if (strcmp(line, "status") == 0) {
             print_status();
+        } else if (strcmp(line, "i2c") == 0) {
+            i2c_scan();
+        } else if (strcmp(line, "ledtest") == 0) {
+            led_test();
+        } else if (strcmp(line, "beeptest") == 0) {
+            beep_test();
         } else if (strcmp(line, "beep") == 0) {
             buzzer_tone(2000, 120);
             printf("OK beep\n");
@@ -263,7 +393,7 @@ static void heartbeat_task(void *arg) {
     (void)arg;
     while (1) {
         print_status();
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
 
@@ -273,11 +403,13 @@ void app_main(void) {
 
     led_init();
     buzzer_init();
+    i2c_init();
     buzzer_tone(1800, 120);
     vTaskDelay(pdMS_TO_TICKS(160));
     buzzer_tone(2400, 120);
 
     ESP_LOGI(TAG, "OSRBOT ESP32-S3 factory demo started");
+    run_diag();
     xTaskCreate(led_task, "factory_led", 3072, NULL, 5, NULL);
     xTaskCreate(serial_task, "factory_serial", 4096, NULL, 5, NULL);
     xTaskCreate(heartbeat_task, "factory_heartbeat", 3072, NULL, 4, NULL);
