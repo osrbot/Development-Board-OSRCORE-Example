@@ -1,6 +1,7 @@
 #include "osrcore_fw_update.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,10 +83,26 @@ static bool valid_sha_hex(const char *sha)
 
 static void handle_fw_begin(const char *line)
 {
-    unsigned long size_ul = 0;
-    char sha[FW_SHA_HEX_LEN + 1] = {0};
-    if (sscanf(line, "fw begin %lu %64s", &size_ul, sha) != 2 || size_ul == 0 || !valid_sha_hex(sha)) {
-        printf("ERROR fw begin invalid\n");
+    char work[FW_LINE_MAX];
+    strlcpy(work, line, sizeof(work));
+
+    char *save = NULL;
+    char *cmd = strtok_r(work, " \t", &save);
+    char *sub = strtok_r(NULL, " \t", &save);
+    char *size_text = strtok_r(NULL, " \t", &save);
+    char *sha = strtok_r(NULL, " \t", &save);
+    if (!cmd || !sub || strcmp(cmd, "fw") != 0 || strcmp(sub, "begin") != 0 ||
+        !size_text || !sha) {
+        printf("ERROR fw begin invalid argc\n");
+        return;
+    }
+
+    errno = 0;
+    char *end = NULL;
+    unsigned long size_ul = strtoul(size_text, &end, 10);
+    if (errno != 0 || end == size_text || *end != '\0' || size_ul == 0 || !valid_sha_hex(sha)) {
+        printf("ERROR fw begin invalid size=%s sha_len=%u\n",
+               size_text, (unsigned)strlen(sha));
         return;
     }
     size_t size = (size_t)size_ul;

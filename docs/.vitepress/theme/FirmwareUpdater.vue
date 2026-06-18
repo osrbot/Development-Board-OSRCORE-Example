@@ -390,13 +390,6 @@ async function runOta() {
     try {
       await sendFw(`fw begin ${bytes.length} ${digest}${force}`)
     } catch (e: any) {
-      if (/^ERROR fw begin invalid/.test(e?.line || e?.message || '')) {
-        const fullData = await getSelectedExampleFullImage()
-        log(t('当前固件的 fw begin 响应异常，自动改用 full flash 烧录当前选择的例程。', 'The current firmware rejected fw begin; switching automatically to full flash for the selected example.'))
-        await closePort()
-        await runFullFlash(fullData, t('正在全量烧录所选例程。', 'Flashing the selected example full image.'), t('烧录完成，设备正在重启。', 'Flashing complete. Device is rebooting.'))
-        return
-      }
       throw e
     }
 
