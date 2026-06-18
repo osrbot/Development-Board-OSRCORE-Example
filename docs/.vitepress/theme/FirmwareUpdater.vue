@@ -339,14 +339,6 @@ function waitForFw(timeoutMs = 5000) {
       reject(new Error(t('等待固件响应超时', 'Timeout waiting for firmware response')))
     }, timeoutMs)
     const waiter = (line: string) => {
-      if (/^ERROR\b.*unknown command/i.test(line)) {
-        clearTimeout(timer)
-        reject(Object.assign(new Error(t(
-          '当前设备固件不支持在线烧录协议。请切换到“恢复出厂”，让设备进入 BOOT 下载模式后再烧录。',
-          'The current device firmware does not support the online flashing protocol. Switch to Factory restore, put the device into BOOT download mode, and flash again.'
-        )), { code: 'FW_UNSUPPORTED' }))
-        return true
-      }
       if (!line.startsWith('OK fw') && !line.startsWith('ERROR fw')) return false
       clearTimeout(timer)
       if (line.startsWith('ERROR fw')) reject(Object.assign(new Error(line), { code: 'FW_ERROR', line }))
@@ -379,18 +371,19 @@ async function runOta() {
     await writeLine('stream off')
     await new Promise(r => setTimeout(r, 200))
     try {
-      await sendFw('fw abort', 1000)
+      await sendFw('fw abort', 1200)
     } catch (e: any) {
-      if (e?.code === 'FW_UNSUPPORTED') {
-        if (sawRomBoot) {
-          const fullData = await getSelectedExampleFullImage()
-          log(t('检测到设备已在 ESP-ROM 下载模式，自动改用 full flash 烧录当前选择的例程。', 'ESP-ROM download mode detected; switching automatically to full flash for the selected example.'))
-          await closePort()
-          await runFullFlash(fullData, t('正在全量烧录所选例程。', 'Flashing the selected example full image.'), t('烧录完成，设备正在重启。', 'Flashing complete. Device is rebooting.'))
-          return
-        }
-        throw e
+      if (sawRomBoot) {
+        const fullData = await getSelectedExampleFullImage()
+        log(t('检测到设备已在 ESP-ROM 下载模式，自动改用 full flash 烧录当前选择的例程。', 'ESP-ROM download mode detected; switching automatically to full flash for the selected example.'))
+        await closePort()
+        await runFullFlash(fullData, t('正在全量烧录所选例程。', 'Flashing the selected example full image.'), t('烧录完成，设备正在重启。', 'Flashing complete. Device is rebooting.'))
+        return
       }
+      throw Object.assign(new Error(t(
+        '当前设备没有响应 fw 协议。请确认设备已运行支持在线烧录的固件；否则切换到“恢复出厂”，让设备进入 BOOT 下载模式后再烧录。',
+        'The current device did not respond to the fw protocol. Confirm that it is running firmware with online flashing support; otherwise switch to Factory restore, put the device into BOOT download mode, and flash again.'
+      )), { code: 'FW_UNSUPPORTED', cause: e })
     }
 
     const force = forceLowVoltage.value ? ' force' : ''
