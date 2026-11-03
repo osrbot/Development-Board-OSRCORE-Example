@@ -1,6 +1,6 @@
 # OSRCORE Learn
 
-[English](README.md) · [简体中文](README_zh.md)
+[English](README.md) · [简体中文](README_zh.md) · [在线教程 / Website](https://osrbot.github.io/osrcore-learn/)
 
 Interactive learning for the OSRCORE ESP32-S3 board: a selectable 3D board, pin references, lesson simulations, and matching ESP-IDF examples.
 

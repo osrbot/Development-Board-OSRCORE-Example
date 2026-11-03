@@ -1,6 +1,6 @@
 # OSRCORE Learn
 
-[English](README.md) · [简体中文](README_zh.md)
+[English](README.md) · [简体中文](README_zh.md) · [在线教程 / Website](https://osrbot.github.io/osrcore-learn/)
 
 OSRCORE（ESP32-S3）交互式入门教程：三维开发板、接口引脚查询、课程行为模拟，以及配套 ESP-IDF 例程。
 

@@ -1,4 +1,4 @@
-name: Validate interactive lessons
+name: Validate and publish lessons
 on:
   push:
     branches: [main, refactor/interactive-learning]
@@ -7,6 +7,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -17,6 +20,29 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: docs/package-lock.json
-      - run: npm --prefix docs ci
+      - run: npm ci
+        working-directory: docs
       - run: node --test tools/*.test.mjs docs/scripts/*.test.mjs
-      - run: npm --prefix docs run build
+      - run: npm run build
+        working-directory: docs
+        env:
+          OSRCORE_PAGES: 'true'
+      - name: Upload Pages site
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && github.server_url == 'https://github.com'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/.vitepress/dist
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && github.server_url == 'https://github.com'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy Pages site
+        id: deployment
+        uses: actions/deploy-pages@v4

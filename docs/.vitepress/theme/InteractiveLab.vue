@@ -494,7 +494,7 @@ const displayValue = computed(() =>
       <nav class="lab-top-nav" aria-label="主菜单">
        <button @click="choose(0)" aria-label="认识开发板"><Home/><span>开发板</span></button>
        <button @click="sidebar=!sidebar" :aria-expanded="sidebar"><BookOpen/><span>课程</span></button>
-       <a :href="withBase(en?'/en/chapters':'/chapters')"><Layers/><span>资料</span></a>
+       <a :href="withBase(en?'/en/chapters.html':'/chapters.html')"><Layers/><span>资料</span></a>
        <button @click="settings=!settings" aria-label="设置"><Settings2/><span>设置</span></button>
        <button @click="en=!en" aria-label="切换语言"><Languages/><span>语言</span></button>
       </nav>

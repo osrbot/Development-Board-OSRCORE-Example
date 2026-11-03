@@ -1,9 +1,9 @@
 import { defineConfig } from 'vitepress'
 import { lessons } from './theme/lab-simulation.mjs'
 
-const isGitHubPages = process.env.GITHUB_ACTIONS === 'true'
-const base = isGitHubPages ? '/Development-Board-OSRCORE-Example/' : '/'
-const repo = 'https://github.com/osrbot/Development-Board-OSRCORE-Example'
+const isGitHubPages = process.env.OSRCORE_PAGES === 'true'
+const base = isGitHubPages ? '/osrcore-learn/' : '/'
+const repo = 'https://github.com/osrbot/osrcore-learn'
 
 const zhChapters = lessons.map(l => [String(l.id).padStart(2,'0')+' · '+l.zh, '/chapter-'+String(l.id).padStart(2,'0')])
 
@@ -13,7 +13,7 @@ export default defineConfig({
   title: 'OSRCORE Learn',
   description: 'OSRCORE development board ESP-IDF examples and robot tutorial',
   base,
-  cleanUrls: true,
+  cleanUrls: false,
   appearance: false,
   lastUpdated: true,
   metaChunk: true,
