@@ -33,6 +33,7 @@
 #define BIAS_STEP_MAX           0.5f
 
 static i2c_master_dev_handle_t s_dev = NULL;
+static bool s_ready = false;
 
 static float s_acc_hist[HISTORY_LEN][3];
 static float s_gyr_hist[HISTORY_LEN][3];
@@ -78,6 +79,7 @@ static bool read_burst(uint8_t reg, uint8_t *buf, uint8_t len)
 void qmi8658_init(i2c_master_dev_handle_t dev)
 {
     s_dev = dev;
+    s_ready = false;
     memset(s_acc_hist, 0, sizeof(s_acc_hist));
     memset(s_gyr_hist, 0, sizeof(s_gyr_hist));
 
@@ -92,11 +94,13 @@ void qmi8658_init(i2c_master_dev_handle_t dev)
     write_reg(QMI_REG_CTRL7, 0x03);  // enable accel + gyro
 
     vTaskDelay(pdMS_TO_TICKS(50));
+    s_ready = true;
     printf("INFO: QMI8658 init OK\n");
 }
 
 void qmi8658_calibrate_bias(void)
 {
+    if (!s_ready) return;
     float sum[3] = {0};
     int count = 0;
     int attempts = 0;
@@ -215,6 +219,7 @@ static void update_bias(float gx, float gy, float gz)
 
 bool qmi8658_read(qmi8658_data_t *out)
 {
+    if (!s_ready) return false;
     uint8_t status = read_reg(QMI_REG_STATUS1);
     if (!(status & 0x03)) return false;
 

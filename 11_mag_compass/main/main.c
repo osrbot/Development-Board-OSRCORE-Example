@@ -17,6 +17,7 @@
 #include "driver/usb_serial_jtag.h"
 #include "esp_log.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_lesson_config.h"
 #include "qmc6309.h"
 
 #define I2C_SDA      10
@@ -48,6 +49,7 @@ static void handle_command(const char *line)
         uint32_t sec = 30; /* default 30 s */
         if (buf[3] == ' ' && buf[4] != '\0')
             sec = (uint32_t)atoi(&buf[4]);
+        if(sec<5||sec>120){printf("cal duration must be 5..120 seconds\n");return;}
         printf("Calibrating for %lu s — rotate board 360°...\n", (unsigned long)sec);
         qmc6309_calibrate(sec * 1000);
         float hard[3], soft[9];
@@ -91,7 +93,7 @@ static void mag_task(void *arg)
             last_read = now;
             qmc6309_data_t d;
             if (qmc6309_read(&d))
-                printf("hdg=%.1f x=%.4f y=%.4f z=%.4f\n",
+                ESP_LOGI(TAG, "hdg=%.1f x=%.4f y=%.4f z=%.4f",
                        d.heading, d.x, d.y, d.z);
         }
 
@@ -118,16 +120,8 @@ static void mag_task(void *arg)
 
 void app_main(void)
 {
-    /* Battery enable — GPIO16 HIGH */
-    gpio_config_t io_cfg = {
-        .pin_bit_mask = (1ULL << IO_CTRL_BAT),
-        .mode         = GPIO_MODE_OUTPUT,
-        .pull_up_en   = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type    = GPIO_INTR_DISABLE,
-    };
-    gpio_config(&io_cfg);
-    gpio_set_level(IO_CTRL_BAT, 1);
+    osrcore_fw_network_start();
+    /* Reading the on-board magnetometer does not toggle battery power. */
 
     /* USB CDC console */
     usb_serial_jtag_driver_config_t usb_cfg = {

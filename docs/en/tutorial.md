@@ -1,6 +1,6 @@
 # OSRCORE Embedded Software Tutorial
 
-> Target hardware: OSRCORE development board, ESP32-S3-WROOM-1U N8R16  
+> Target hardware: OSRCORE development board, ESP32-S3-WROOM-1U N16R8
 > Toolchain: ESP-IDF v5.3+
 
 ---
@@ -218,7 +218,7 @@ static void led_set(uint8_t r, uint8_t g, uint8_t b)
     uint8_t grb[3] = { g, r, b };
     rmt_transmit_config_t tx_cfg = { .loop_count = 0 };
     rmt_transmit(s_channel, s_encoder, grb, sizeof(grb), &tx_cfg);
-    rmt_tx_wait_all_done(s_channel, portMAX_DELAY);
+    ESP_ERROR_CHECK(rmt_tx_wait_all_done(s_channel, -1));
 }
 ```
 
@@ -230,183 +230,55 @@ This chapter explained WS2812B timing and the ESP-IDF RMT TX API. The same RMT e
 
 ## Chapter 2: Passive Buzzer (LEDC PWM Tone Control)
 
-> 📂 **Example Code**: [02_buzzer](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/02_buzzer)
+### Goal
 
-### 2.1 Key Points
+Drive the GPIO42 passive buzzer with a configurable tone. Only the board and a USB data cable are required.
 
-- LEDC timer and channel configuration
-- Dynamic PWM frequency changes for tone generation
-- Duty cycle and sound output relationship
-- Note frequency table and melody playback logic
+### Simulation and hardware
 
-### 2.2 Course Content
+Frequency is 220–1760 Hz; duration is 100–1000 ms, followed by 100 ms of silence. Defaults are 440 Hz and 300 ms. Enable browser audio for the simulation. Hardware uses LEDC with a 50% duty cycle.
 
-A passive buzzer does not contain an internal oscillator. It must be driven by an external square wave, and the frequency determines the pitch. ESP32-S3's LEDC peripheral can generate PWM at flexible frequencies, making it suitable for melody playback.
+Open Connect board, build the current parameters, and download. Slider changes require a new build before they affect hardware. Source: `02_buzzer/main/main.c`.
 
-This chapter implements an ascending and descending C major scale.
+### Exercise
 
-### 2.3 Basic Learning
+Double the frequency and compare pitch, then change only duration. The browser audio setting does not mute the physical board.
 
-#### LEDC Structure
+### Download
 
-LEDC contains timers and channels:
+Connect USB, build current parameters, download, then reconnect logs. Wi-Fi needs initial USB provisioning.
 
-- The timer defines clock source, resolution, and frequency.
-- The channel binds a GPIO to a timer and sets duty cycle.
+### Troubleshooting
 
-For the buzzer, OSRCORE uses `LEDC_TIMER_1` with 10-bit resolution. A duty value of 512 produces a 50% duty square wave. Muting the buzzer is done by setting the duty to zero.
-
-#### Note Frequencies
-
-```text
-C4=262  D4=294  E4=330  F4=349
-G4=392  A4=440  B4=494  C5=523
-```
-
-### 2.4 Program Study
-
-Initialize the timer and channel:
-
-```c
-ledc_timer_config_t timer = {
-    .speed_mode      = LEDC_LOW_SPEED_MODE,
-    .duty_resolution = LEDC_TIMER_10_BIT,
-    .timer_num       = LEDC_TIMER_1,
-    .freq_hz         = 1000,
-    .clk_cfg         = LEDC_AUTO_CLK,
-};
-ledc_timer_config(&timer);
-
-ledc_channel_config_t ch = {
-    .gpio_num   = 42,
-    .speed_mode = LEDC_LOW_SPEED_MODE,
-    .channel    = LEDC_CHANNEL_2,
-    .timer_sel  = LEDC_TIMER_1,
-    .duty       = 0,
-};
-ledc_channel_config(&ch);
-```
-
-Play a single note:
-
-```c
-static void buzzer_tone(uint32_t freq_hz, uint32_t duration_ms)
-{
-    ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_1, freq_hz);
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 512);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2);
-    vTaskDelay(pdMS_TO_TICKS(duration_ms));
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 0);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2);
-}
-```
-
-### 2.5 Summary
-
-This chapter showed how to drive a passive buzzer with LEDC and how to change tone by changing PWM frequency. LEDC is also used later for ESC and servo PWM output.
+For hardware, check the running project and parameters. For browser audio, check its sound toggle and volume.
 
 ---
 
 ## Chapter 3: Servo and ESC Control
 
-> 📂 **Example Code**: [03_pwm_servo](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/03_pwm_servo)
+### Goal
 
-### 3.1 Key Points
+Set a fixed servo pulse instead of sweeping automatically. GPIO2 produces 50 Hz PWM with a 1000–2000 µs pulse (1500 µs default). GPIO1 remains at the 1500 µs ESC neutral signal.
 
-- Standard RC PWM: 50 Hz period and 1000–2000 µs pulse width
-- Duty calculation with LEDC 14-bit resolution
-- ESC arming sequence: hold neutral for about two seconds
-- Dual-channel configuration for throttle and steering
+### Wiring and operation
 
-### 3.2 Course Content
+Use EX2 row 8: GPIO2, VCC_ESC, GND. Power the servo according to its rating and share ground with the board. VCC_ESC is separate from the ordinary 5 V supply domain. Check connector orientation in the board view.
 
-Both the ESC and steering servo use standard RC PWM. A 1000 µs pulse represents the minimum command, 1500 µs is neutral, and 2000 µs is the maximum command. OSRCORE uses LEDC TIMER0 with two channels: GPIO1 for throttle and GPIO2 for steering.
+Start at 1500 µs and make small adjustments. Browser angles approximate a typical servo; actual travel depends on the device. Build and download to change the physical pulse. Moving a slider alone does not drive hardware.
 
-### 3.3 Basic Learning
+Source: `03_pwm_servo/main/main.c`. Check the pulse in the device log.
 
-#### RC PWM Timing
+### Exercise
 
-```text
-Period: 20 ms (50 Hz)
-Pulse range: 1000 µs to 2000 µs
-Neutral: 1500 µs
-```
+Compare one parameter change at a time and record the observed hardware result.
 
-#### Duty Calculation
+### Code
 
-With an 80 MHz clock and 14-bit LEDC resolution:
+PWM setup and duty conversion are in main.c. OSR_SERVO_PULSE controls GPIO2.
 
-```text
-period_ticks = 80_000_000 / 50 = 1_600_000
-1 µs = 80 ticks
-duty = pulse_us × 80
-```
+### Verification
 
-Examples:
-
-```text
-1500 µs -> 120000
-2000 µs -> 160000
-```
-
-A convenient macro is:
-
-```c
-#define US_TO_DUTY(us) ((us) * 80)
-```
-
-#### ESC Arming
-
-Many ESCs require a neutral input signal after power-up before accepting throttle commands. Holding 1500 µs for one to three seconds is a common arming sequence.
-
-### 3.4 Program Study
-
-Configure the timer and two PWM channels:
-
-```c
-ledc_timer_config_t timer = {
-    .speed_mode      = LEDC_LOW_SPEED_MODE,
-    .duty_resolution = LEDC_TIMER_14_BIT,
-    .timer_num       = LEDC_TIMER_0,
-    .freq_hz         = 50,
-    .clk_cfg         = LEDC_AUTO_CLK,
-};
-ledc_timer_config(&timer);
-
-ledc_channel_config_t ch_throttle = {
-    .gpio_num = 1,
-    .channel = LEDC_CHANNEL_0,
-    .timer_sel = LEDC_TIMER_0,
-    .duty = US_TO_DUTY(1500),
-};
-ledc_channel_config(&ch_throttle);
-
-ledc_channel_config_t ch_steering = {
-    .gpio_num = 2,
-    .channel = LEDC_CHANNEL_1,
-    .timer_sel = LEDC_TIMER_0,
-    .duty = US_TO_DUTY(1500),
-};
-ledc_channel_config(&ch_steering);
-```
-
-Set pulse width and arm the ESC:
-
-```c
-static void set_pulse(ledc_channel_t ch, uint32_t pulse_us)
-{
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, ch, US_TO_DUTY(pulse_us));
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, ch);
-}
-
-set_pulse(CH_THROTTLE, 1500);
-set_pulse(CH_STEERING, 1500);
-vTaskDelay(pdMS_TO_TICKS(2000));
-```
-
-### 3.5 Summary
-
-This chapter covered RC PWM timing, LEDC 14-bit duty calculation, and ESC arming. The `US_TO_DUTY()` macro maps physical pulse width directly to the LEDC duty value used by later control loops.
+Check pulse width before attaching a mechanical load. The servo determines whether 1500 µs corresponds to its center.
 
 ---
 
@@ -685,158 +557,60 @@ This chapter showed how to use PCNT for encoder counting and how to convert puls
 
 ## Chapter 7: NVS Parameter Persistence
 
-> 📂 **Example Code**: [07_nvs](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/07_nvs)
+### Goal
 
-### 7.1 Key Points
+Save one Kp value and read it after reboot. This lesson does not run a robot controller.
 
-- ESP-IDF NVS Flash concepts: namespace, key, and value
-- Storing and loading PID parameters
-- Default values when NVS data is missing
-- Updating parameters without recompiling firmware
+### Procedure
 
-### 7.2 Course Content
+1. Set Kp (default 2.5), build, and download.
+2. Read `Loaded Kp=...`; an existing saved value takes precedence.
+3. Use Save Kp or send `save` to store the value compiled into this firmware. Check `Saved Kp=...`.
+4. Reboot, reconnect, and verify the loaded value.
 
-NVS stores small key-value data in flash. In the OSRCORE examples, it is used for PID parameters and other runtime settings. After tuning parameters through a serial interface or debug command, the values can be saved and restored after reboot.
+Browser storage and board NVS are independent. The firmware uses the `lesson7` namespace. USB downloads preserve NVS. After changing a parameter, build and download before saving it.
 
-### 7.3 Basic Learning
+Source: `07_nvs/main/main.c`. The example uses `nvs_set_blob()`, `nvs_commit()`, and `nvs_get_blob()`.
 
-#### NVS Concepts
+### Storage scope
 
-NVS organizes data by namespace. Each namespace contains keys. Values can be integers, strings, binary blobs, or floating-point values stored as raw bytes.
+Only lesson7/kp is accessed; other lesson and Wi-Fi namespaces are preserved.
 
-Common steps:
+### Troubleshooting
 
-1. Initialize NVS flash.
-2. Open a namespace.
-3. Read or write values.
-4. Commit writes.
-5. Close the handle.
+Confirm the running project is 07_nvs before saving. Building alone does not change the flashed program or stored value.
 
-#### Typical PID Parameter Set
+### Verification
 
-| Parameter | Meaning |
-|---|---|
-| `kp` | Proportional gain |
-| `ki` | Integral gain |
-| `kd` | Derivative gain |
-| `target_speed` | Desired speed |
-
-### 7.4 Program Study
-
-Initialize NVS:
-
-```c
-esp_err_t ret = nvs_flash_init();
-if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-    ESP_ERROR_CHECK(nvs_flash_erase());
-    ESP_ERROR_CHECK(nvs_flash_init());
-}
-```
-
-Open a namespace and read parameters:
-
-```c
-nvs_handle_t handle;
-ESP_ERROR_CHECK(nvs_open("pid", NVS_READWRITE, &handle));
-
-size_t len = sizeof(pid_params_t);
-esp_err_t err = nvs_get_blob(handle, "params", &params, &len);
-if (err == ESP_ERR_NVS_NOT_FOUND) {
-    params.kp = 1.0f;
-    params.ki = 0.0f;
-    params.kd = 0.0f;
-}
-```
-
-Write and commit parameters:
-
-```c
-ESP_ERROR_CHECK(nvs_set_blob(handle, "params", &params, sizeof(params)));
-ESP_ERROR_CHECK(nvs_commit(handle));
-nvs_close(handle);
-```
-
-### 7.5 Summary
-
-NVS makes runtime tuning practical. Instead of hard-coding PID parameters, the firmware can store tuned values in flash and load them automatically after each reboot.
+Save and reboot with two different Kp values and confirm the second replaces the first.
 
 ---
 
 ## Chapter 8: FreeRTOS Multitasking
 
-> 📂 **Example Code**: [08_freertos](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/08_freertos)
+### Goal
 
-### 8.1 Key Points
+Observe two independent periodic tasks without robot drivers or sensor initialization.
 
-- FreeRTOS task creation and core pinning on ESP32-S3
-- Queue-based communication between tasks
-- Mutex protection for shared data
-- Separating sensor, control, and telemetry tasks
+### Simulation and hardware
 
-### 8.2 Course Content
+Task A defaults to 500 ms and B to 1000 ms. Change their periods, run the browser timeline, then build and download. Real logs show task names and increasing counters.
 
-A robot program should not place all logic inside a single loop. OSRCORE uses FreeRTOS tasks to separate RC input, sensor reading, control computation, and logging. This improves timing stability and makes the software easier to extend.
+`vTaskDelayUntil()` schedules relative to the previous wake time. The browser models periods, not dual-core scheduling or execution time. Simultaneous prints have no guaranteed order.
 
-### 8.3 Basic Learning
+Try equal periods, then 300 ms and 700 ms. Source: `08_freertos/main/main.c`.
 
-#### Task Model
+### Exercise
 
-ESP32-S3 has two cores. ESP-IDF allows tasks to be pinned to a specific core:
+Compare one parameter change at a time and record the observed hardware result.
 
-```c
-xTaskCreatePinnedToCore(task_func, "task", 4096, NULL, 5, NULL, 0);
-```
+### Code
 
-A typical split is:
+Each task counts and prints. Main creates the tasks; OSR_TASK_A_MS and OSR_TASK_B_MS supply their periods.
 
-| Task | Responsibility |
-|---|---|
-| RC task | Receive and parse SBUS frames |
-| Control task | Encoder feedback, PID calculation, ESC output |
-| IMU task | Read and process IMU data |
-| Telemetry task | Print logs and debug values |
+### Verification
 
-#### Queue and Mutex
-
-- A queue transfers data between tasks safely.
-- A mutex protects shared state from concurrent access.
-
-### 8.4 Program Study
-
-Create a queue:
-
-```c
-typedef struct {
-    uint16_t ch[16];
-    bool failsafe;
-} rc_frame_t;
-
-QueueHandle_t rc_queue = xQueueCreate(4, sizeof(rc_frame_t));
-```
-
-Send from the SBUS task:
-
-```c
-rc_frame_t frame;
-if (sbus_read(&frame)) {
-    xQueueSend(rc_queue, &frame, 0);
-}
-```
-
-Receive in the control task:
-
-```c
-rc_frame_t frame;
-if (xQueueReceive(rc_queue, &frame, pdMS_TO_TICKS(20))) {
-    if (!frame.failsafe) {
-        // Convert channels to throttle and steering commands.
-    }
-}
-```
-
-### 8.5 Summary
-
-FreeRTOS allows the robot firmware to remain responsive and modular. Queues and mutexes provide safe communication between tasks and avoid timing interference between unrelated work.
+Compare count ratios over a longer interval rather than inferring missed tasks from adjacent log lines.
 
 ---
 
@@ -907,71 +681,31 @@ The PID loop connects encoder feedback to ESC output. It is the first step from 
 
 ---
 
-## Chapter 10: Madgwick AHRS Attitude Estimation
+## Chapter 10: Complementary Attitude Filter
 
-> 📂 **Example Code**: [10_ahrs](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/10_ahrs)
+### Goal
 
-### 10.1 Key Points
+Fuse gyroscope integration and gravity angles with a complementary filter to obtain Roll and Pitch. The basic lesson does not enable the heater or wait for a temperature threshold.
 
-- Quaternion attitude representation
-- Accelerometer and gyroscope fusion
-- Madgwick 6-DOF AHRS update flow
-- Converting quaternion to Euler angles
+### Model
 
-### 10.2 Course Content
+Each update combines `alpha × integrated gyro angle + (1-alpha) × gravity angle`, with alpha=0.95 by default. Elapsed time is measured using `esp_timer_get_time()` and includes I²C reads and averaging; it is not assumed to be exactly 5 ms.
 
-The gyroscope provides angular velocity but drifts over time. The accelerometer gives a gravity reference but is noisy during motion. Madgwick AHRS fuses both sensors to estimate roll, pitch, and yaw-related attitude information.
+Linear acceleration disturbs the gravity estimate. Gravity alone cannot provide absolute heading.
 
-### 10.3 Basic Learning
+### Procedure
 
-#### Why Use Quaternions
+Keep the board still during startup bias calibration, then tilt it slowly. Compare different alpha values. Browser angles are simulated inputs; hardware reads the onboard QMI8658 over GPIO10/11.
 
-Euler angles are easy to read but suffer from singularities. Quaternions avoid gimbal lock and are efficient for continuous attitude updates.
+Source: `10_ahrs/main/main.c`. Historical Madgwick and heater files remain as advanced references but are not built in this lesson.
 
-A quaternion contains four components:
+### Parameter scope
 
-```text
-q = [q0, q1, q2, q3]
-```
+Alpha closer to one emphasizes gyro integration per update. Reassess the weight if sample frequency changes.
 
-#### AHRS Pipeline
+### Verification
 
-1. Read accelerometer and gyroscope data.
-2. Normalize the accelerometer vector.
-3. Convert gyroscope units to radians per second.
-4. Run the Madgwick update step.
-5. Normalize the quaternion.
-6. Convert the quaternion to roll, pitch, and yaw for display or control.
-
-### 10.4 Program Study
-
-Typical update loop:
-
-```c
-qmi8658_data_t imu;
-if (qmi8658_read(&imu)) {
-    madgwick_update_imu(&ahrs,
-                        imu.gx * DEG_TO_RAD,
-                        imu.gy * DEG_TO_RAD,
-                        imu.gz * DEG_TO_RAD,
-                        imu.ax, imu.ay, imu.az,
-                        dt);
-}
-```
-
-Quaternion to Euler conversion:
-
-```c
-roll  = atan2f(2.0f * (q0*q1 + q2*q3),
-               1.0f - 2.0f * (q1*q1 + q2*q2));
-pitch = asinf(2.0f * (q0*q2 - q3*q1));
-yaw   = atan2f(2.0f * (q0*q3 + q1*q2),
-               1.0f - 2.0f * (q2*q2 + q3*q3));
-```
-
-### 10.5 Summary
-
-This chapter introduced IMU fusion with the Madgwick algorithm. The result is a stable attitude estimate that can be used for logging, control, or future robot behavior extensions.
+Test flat, slow side-to-side tilt, and slow forward/back tilt. Errors during rapid translation are a model limitation.
 
 ---
 
@@ -1219,3 +953,25 @@ while (1) {
 ### 11.5 Chapter Summary
 
 This chapter covered QMC6309 I2C driver implementation, the two-step hard/soft iron calibration workflow, and tilt-compensated heading calculation. The magnetometer provides an absolute heading reference but is sensitive to electromagnetic interference. In the Chapter 12 full example, a complementary filter fuses the magnetometer with the gyroscope to produce a stable compass heading under dynamic conditions.
+
+## Chapter 13: Factory checks
+
+### Goal
+
+Check the onboard functions individually. Browser fault switches are teaching inputs, not hardware measurements.
+
+### Preparation
+
+Use the board and a USB data cable. External receivers, motors and servos require the corresponding devices to be connected.
+
+### Procedure
+
+Open the device panel in lesson 13, build and download the diagnostic example, then reconnect the serial log. Check the LED, buzzer and sensors before external interfaces.
+
+### Source and output
+
+The implementation is in `13_factory_demo/main/main.c`. Use real device responses for diagnosis; browser outputs are separate. Motor tests require explicit commands; lost frames or a receiver timeout stop remote output.
+
+### Verification
+
+Record each item as passed, failed or not connected. Missing peripherals do not imply a faulty board. Check power, wiring and the running firmware version first.

@@ -580,7 +580,7 @@ onUnmounted(() => {
       </label>
 
       <div v-if="!isSupported" class="error">
-        {{ t('当前浏览器不支持 Web Serial API，请使用 Chrome 或 Edge。', 'This browser does not support Web Serial API. Use Chrome or Edge.') }}
+        {{ t('串口连接需要 Chrome / Edge 和安全连接。局域网 HTTP 可浏览教程；烧录请在开发机上使用 http://localhost:5173，或使用可信 HTTPS。', 'Serial requires Chrome / Edge and a secure context. LAN HTTP supports reading; flash from http://localhost:5173 on the development computer, or trusted HTTPS.') }}
       </div>
 
       <div class="action-row">

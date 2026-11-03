@@ -19,6 +19,7 @@
 #include "driver/pulse_cnt.h"
 #include "esp_log.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_lesson_config.h"
 
 #define EA              3
 #define EB              9
@@ -27,7 +28,7 @@
 #define WHEEL_RADIUS    0.0425f
 #define CALC_INTERVAL   20   /* ms */
 
-#define PULSES_PER_REV  (ENCODER_PPR * GEAR_RATIO)
+#define PULSES_PER_REV  ((float)OSR_ENCODER_CPR)
 #define CIRCUMFERENCE   (2.0f * 3.14159265f * WHEEL_RADIUS)
 #define DIST_PER_PULSE  (CIRCUMFERENCE / PULSES_PER_REV)
 
@@ -88,6 +89,6 @@ void app_main(void)
         last = now;
 
         float speed = delta * DIST_PER_PULSE / dt;
-        printf("count=%ld  delta=%ld  speed=%.3f m/s\n", now, delta, speed);
+        ESP_LOGI(TAG, "count=%ld delta=%ld rpm=%.2f speed=%.3f m/s", (long)now, (long)delta, delta / dt / PULSES_PER_REV * 60.0f, speed);
     }
 }

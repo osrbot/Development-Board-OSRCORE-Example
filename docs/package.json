@@ -6,15 +6,22 @@
   "scripts": {
     "docs:split": "node scripts/split-docs.mjs",
     "i18n:check": "node scripts/split-docs.mjs && node scripts/check-i18n.mjs",
-    "dev": "node scripts/split-docs.mjs && vitepress dev . --host 0.0.0.0",
-    "build": "node scripts/split-docs.mjs && node scripts/check-i18n.mjs && vitepress build .",
-    "preview": "vitepress preview . --host 0.0.0.0"
+    "dev": "node scripts/split-docs.mjs && node scripts/learning-data.mjs && vitepress dev . --host 0.0.0.0",
+    "build": "node scripts/split-docs.mjs && node scripts/learning-data.mjs && node scripts/check-i18n.mjs && vitepress build .",
+    "preview": "vitepress preview . --host 0.0.0.0",
+    "test:lab": "node --test scripts/lab-simulation.test.mjs"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
     "vitepress": "^1.6.4"
   },
   "dependencies": {
     "esptool-js": "^0.5.4",
+    "lucide-vue-next": "^1.0.0",
+    "meshoptimizer": "^1.3.0",
+    "three": "^0.187.0",
     "xterm": "^4.19.0",
     "xterm-addon-fit": "^0.5.0"
   }

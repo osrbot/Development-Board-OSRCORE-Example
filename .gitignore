@@ -18,3 +18,24 @@ __pycache__/
 *.pyc
 dependencies.lock
 managed_components/
+
+# Local validation and firmware delivery
+verification/
+docs/public/firmware/
+docs/.vitepress/theme/courses.json
+docs/public/code/
+
+# Local development notes and deployment credentials
+.DS_Store
+.env
+.env.*
+!.env.example
+.vercel/
+DEVELOPMENT_NOTES.md
+HARDWARE_MAP_REVIEW.md
+REAL_BOARD_PLAN.md
+REFERENCE_REBUILD_PLAN.md
+design-qa.md
+
+# Runtime geometry selection data (not firmware)
+!docs/public/hardware/selection-map.bin

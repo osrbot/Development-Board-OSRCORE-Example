@@ -33,6 +33,7 @@
 #define BIAS_STEP_MAX        0.5f
 
 static i2c_master_dev_handle_t s_dev = NULL;
+static bool s_ready = false;
 
 /* 10-sample history for static detection */
 static float s_acc_hist[HISTORY_LEN][3];
@@ -82,12 +83,15 @@ static bool read_burst(uint8_t reg, uint8_t *buf, uint8_t len)
 void qmi8658_init(i2c_master_dev_handle_t dev)
 {
     s_dev = dev;
+    s_ready = false;
     memset(s_acc_hist, 0, sizeof(s_acc_hist));
     memset(s_gyr_hist, 0, sizeof(s_gyr_hist));
 
     uint8_t id = read_reg(REG_WHO_AM_I);
-    if (id != WHO_AM_I_VAL)
-        printf("WARN: QMI8658 WHO_AM_I=0x%02X (expected 0x%02X)\n", id, WHO_AM_I_VAL);
+    if (id != WHO_AM_I_VAL) {
+        printf("ERROR: QMI8658 WHO_AM_I=0x%02X (expected 0x%02X); sampling disabled\n", id, WHO_AM_I_VAL);
+        return;
+    }
 
     write_reg(REG_CTRL1, 0x40);  /* address auto-increment, little-endian */
     write_reg(REG_CTRL2, 0x13);  /* accel ±4g, 1000Hz ODR */
@@ -95,11 +99,13 @@ void qmi8658_init(i2c_master_dev_handle_t dev)
     write_reg(REG_CTRL7, 0x03);  /* enable accel + gyro */
 
     vTaskDelay(pdMS_TO_TICKS(50));
+    s_ready = true;
     printf("INFO: QMI8658 init OK\n");
 }
 
 void qmi8658_calibrate_bias(void)
 {
+    if (!s_ready) return;
     float sum[3] = {0};
     int count = 0;
     int attempts = 0;
@@ -227,6 +233,7 @@ static void update_bias(float gx, float gy, float gz)
 
 bool qmi8658_read(qmi8658_data_t *out)
 {
+    if (!s_ready) return false;
     uint8_t status = read_reg(REG_STATUS1);
     if (!(status & 0x03)) return false;
 

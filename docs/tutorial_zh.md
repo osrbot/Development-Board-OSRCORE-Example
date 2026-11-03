@@ -1,6 +1,6 @@
 # OSRCORE 开发板嵌入式软件教程
 
-> 适用硬件：OSRCORE（ESP32-S3-WROOM-1U N8R16）
+> 适用硬件：OSRCORE（ESP32-S3-WROOM-1U N16R8）
 > 工具链：ESP-IDF v5.3+
 
 ---
@@ -169,12 +169,12 @@ WS2812B 使用归零码（NRZ）编码，每个 bit 由高低电平的持续时�
 RMT 时钟配置为 80 MHz（12.5 ns/tick），tick 数由时序规格直接推导：
 
 ```
-T0H = 400/12  ≈ 33 ticks   T0L = 850/12  ≈ 70 ticks
-T1H = 800/12  ≈ 66 ticks   T1L = 450/12  ≈ 37 ticks
-Reset = 50000/12 ≈ 4166 ticks (≥ 50 µs)
+T0H = 400/12.5 = 32 ticks   T0L = 850/12.5 = 68 ticks
+T1H = 800/12.5 = 64 ticks   T1L = 450/12.5 = 36 ticks
+Reset = 50000/12.5 = 4000 ticks (≥ 50 µs)
 ```
 
-用整数除法写成宏：`#define T0H (400/12)`，编译器在编译期计算，无运行时开销。
+用整数除法写成宏：`#define T0H (400 * 80 / 1000)`，编译器在编译期计算，无运行时开销。
 
 #### RMT 编码器架构
 
@@ -198,11 +198,11 @@ rmt_tx_channel_config_t ch_cfg = {
 rmt_new_tx_channel(&ch_cfg, &s_channel);
 
 /* WS2812B bit timing: formula-based macros, computed at compile time */
-#define T0H  (400  / 12)   // ~33 ticks
-#define T0L  (850  / 12)   // ~70 ticks
-#define T1H  (800  / 12)   // ~66 ticks
-#define T1L  (450  / 12)   // ~37 ticks
-#define RESET_TICKS (50000 / 12)  // ~4166 ticks
+#define T0H  (400 * 80 / 1000)   // 32 ticks
+#define T0L  (850 * 80 / 1000)   // 68 ticks
+#define T1H  (800 * 80 / 1000)   // 64 ticks
+#define T1L  (450 * 80 / 1000)   // 36 ticks
+#define RESET_TICKS (50000 * 80 / 1000)  // 4000 ticks
 
 rmt_bytes_encoder_config_t bcfg = {
     .bit0 = { .level0=1, .duration0=T0H, .level1=0, .duration1=T0L },
@@ -221,7 +221,7 @@ static void led_set(uint8_t r, uint8_t g, uint8_t b)
     uint8_t grb[3] = { g, r, b };
     rmt_transmit_config_t tx_cfg = { .loop_count = 0 };
     rmt_transmit(s_channel, s_encoder, grb, sizeof(grb), &tx_cfg);
-    rmt_tx_wait_all_done(s_channel, portMAX_DELAY);
+    ESP_ERROR_CHECK(rmt_tx_wait_all_done(s_channel, -1));
 }
 ```
 
@@ -233,198 +233,53 @@ static void led_set(uint8_t r, uint8_t g, uint8_t b)
 
 ## 第 2 章  无源蜂鸣器（LEDC PWM 音调控制）
 
-> 📂 **示例代码**：[02_buzzer](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/02_buzzer)
+### 本课要完成什么
 
-### 2.1 知识要点
+让板载 GPIO42 蜂鸣器以指定频率重复发声，理解频率与音高、时长与节奏的关系。只需要开发板和 USB 数据线。
 
-- LEDC（LED Control）外设的定时器与通道配置
-- 通过动态修改 PWM 频率实现音调变化
-- 占空比与音量的关系（50% 占空比驱动无源蜂鸣器）
-- 音符频率表与旋律播放逻辑
+### 网页与实板
 
-### 2.2 课程内容
+网页调整频率（220–1760 Hz）和时长（100–1000 ms），开启网页声音后运行。每次发声后静音 100 ms。实板使用 LEDC 产生 50% 占空比的方波，行为与本课参数一致。
 
-无源蜂鸣器需要外部提供特定频率的方波才能发声，频率决定音调。ESP32-S3 的 LEDC 外设可以灵活配置 PWM 频率，非常适合驱动蜂鸣器播放旋律。本章实现 C 大调音阶的上行与下行演奏。
+打开顶部“连接开发板”，编译当前参数后下载。默认 440 Hz、300 ms；修改参数需要重新编译。完整实现见 `02_buzzer/main/main.c`，默认参数见 `components/osrcore_fw_update/include/osrcore_lesson_config.h`。
 
-### 2.3 基础学习
+### 观察与练习
 
-#### LEDC 外设结构
+将频率加倍，比较音高；保持频率不变，只增加时长。听不到声音时先检查是否下载了本课，网页声音开关不控制真板。
 
-LEDC 包含 4 个定时器和 8 个通道（低速模式）：
-- **定时器**：配置时钟源、分辨率（bit 数）、频率
-- **通道**：绑定到定时器，配置 GPIO 和占空比
+### 下载步骤
 
-蜂鸣器使用 LEDC_TIMER_1，10-bit 分辨率（1024 步），占空比 512（50%）时输出对称方波。
+在顶部连接 USB，编译当前参数，下载完成后重连日志；Wi-Fi 需先由 USB 配网。
 
-改变音调只需调用 `ledc_set_freq()`，无需重新初始化通道。静音时将占空比置 0。
+### 故障定位
 
-#### 音符频率（Hz）
-
-```
-C4=262  D4=294  E4=330  F4=349
-G4=392  A4=440  B4=494  C5=523
-```
-
-### 2.4 程序学习
-
-**初始化定时器与通道：**
-
-```c
-ledc_timer_config_t timer = {
-    .speed_mode      = LEDC_LOW_SPEED_MODE,
-    .duty_resolution = LEDC_TIMER_10_BIT,
-    .timer_num       = LEDC_TIMER_1,
-    .freq_hz         = 1000,
-    .clk_cfg         = LEDC_AUTO_CLK,
-};
-ledc_timer_config(&timer);
-
-ledc_channel_config_t ch = {
-    .gpio_num   = 42,
-    .speed_mode = LEDC_LOW_SPEED_MODE,
-    .channel    = LEDC_CHANNEL_2,
-    .timer_sel  = LEDC_TIMER_1,
-    .duty       = 0,
-};
-ledc_channel_config(&ch);
-```
-
-**播放单个音符（非阻塞，esp_timer 异步关闭）：**
-
-```c
-static esp_timer_handle_t s_buzzer_timer = NULL;
-
-static void buzzer_set_off(void)
-{
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 0);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2);
-}
-
-static void buzzer_timer_cb(void *arg) { buzzer_set_off(); }
-
-static void buzzer_tone(uint32_t freq_hz, uint32_t duration_ms)
-{
-    if (freq_hz == 0 || duration_ms == 0) { buzzer_set_off(); return; }
-    if (s_buzzer_timer == NULL) {
-        esp_timer_create_args_t args = { .callback = buzzer_timer_cb, .name = "buzzer" };
-        esp_timer_create(&args, &s_buzzer_timer);
-    }
-    esp_timer_stop(s_buzzer_timer);
-    ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_1, freq_hz);
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 512); /* 50% duty */
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2);
-    /* 到期后由定时器回调异步关闭，不阻塞调用任务 */
-    esp_timer_start_once(s_buzzer_timer, (uint64_t)duration_ms * 1000);
-}
-```
-
-关键点：旧版用 `vTaskDelay` 阻塞等待音符结束，新版改用 `esp_timer_start_once` 启动一次性定时器，到期后回调自动将占空比置 0。调用方在 `buzzer_tone` 返回后可以立即执行其他逻辑，音符播放完全异步。
-
-### 2.5 课程总结
-
-本章学会了使用 LEDC 外设驱动无源蜂鸣器，掌握了通过动态修改频率实现音调控制的方法。LEDC 是 ESP32-S3 上最通用的 PWM 外设，后续章节的 ESC 和舵机控制也将使用它。
+真板不响时核对运行程序名称和参数；网页不响时检查声音开关和浏览器音量。
 
 ---
 
 ## 第 3 章  PWM 舵机与 ESC 控制
 
-> 📂 **示例代码**：[03_pwm_servo](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/03_pwm_servo)
+### 本课要完成什么
 
-### 3.1 知识要点
+用固定脉宽控制舵机位置，不在启动后自动扫动。GPIO2 输出 50 Hz PWM，脉宽为 1000–2000 µs，默认 1500 µs；GPIO1 电调信号固定保持 1500 µs 中位。
 
-- 标准 RC PWM 协议：50 Hz 周期，1000–2000 µs 脉宽
-- LEDC 14-bit 分辨率下的占空比计算
-- ESC 上电解锁流程（中立位保持 2 秒）
-- 双通道同步配置（油门 + 转向）
+### 接线
 
-### 3.2 课程内容
+EX2 第 8 行接 GPIO2、VCC_ESC、GND。舵机按其额定电压独立供电并与开发板共地。VCC_ESC 与普通 5 V 引脚不是同一个供电域。先核对网页接口示意中的方向和引脚，不凭线色接线。
 
-电调（ESC）和舵机均使用标准 RC PWM 协议控制：50 Hz 重复频率，脉宽 1000 µs 对应最小值，1500 µs 对应中立，2000 µs 对应最大值。OSRCORE 使用 LEDC TIMER0 的两个通道分别驱动 GPIO1（油门）和 GPIO2（转向）。
+### 网页与实板
 
-### 3.3 基础学习
+网页角度只是常见舵机的近似映射，实际转角由舵机型号决定。先尝试 1500 µs，再少量调整。编译并下载后，板卡持续输出选定脉宽；仅拖动网页滑条不会立即驱动真板。
 
-#### RC PWM 时序
+完整实现见 `03_pwm_servo/main/main.c`。连接设备后查看脉宽日志，确认运行版本。
 
-```
-周期 = 20 ms (50 Hz)
-脉宽范围：1000 µs（最小）~ 2000 µs（最大）
-中立位：1500 µs
-```
+### 代码入口
 
-#### 14-bit 分辨率下的占空比计算
+PWM 初始化与占空比换算均在 main.c；编译参数 OSR_SERVO_PULSE 控制 GPIO2。
 
-14-bit 寄存器的最大值为 2¹⁴ − 1 = **16383**，对应 100% 占空比（即完整的 20 ms 周期）。正确公式：
+### 验收
 
-```
-duty = pulse_us / 20000.0 * 16383
-```
-
-例：1500 µs → 1500/20000 × 16383 ≈ **1228**；2000 µs → 2000/20000 × 16383 ≈ **1638**。
-
-旧写法 `duty = pulse_us × 80` 是错误的：1500 × 80 = 120000，远超 14-bit 寄存器上限 16383，会导致寄存器溢出截断，输出脉宽完全错误。
-
-正确实现：
-
-```c
-/* pulse_us / 20000.0 * (2^14 - 1)，结果在 [0, 16383] 范围内 */
-static int duty_from_pulse(int pulse_us)
-{
-    if (pulse_us < 1000) pulse_us = 1000;
-    if (pulse_us > 2000) pulse_us = 2000;
-    return (int)((float)pulse_us / 20000.0f * ((1 << 14) - 1));
-}
-```
-
-#### ESC 解锁流程
-
-大多数 ESC 上电后需要检测到中立位信号（1500 µs）才会解锁，通常需要保持 1–3 秒。未解锁的 ESC 不响应油门指令。
-
-### 3.4 程序学习
-
-**定时器与双通道初始化：**
-
-```c
-ledc_timer_config_t timer = {
-    .speed_mode      = LEDC_LOW_SPEED_MODE,
-    .duty_resolution = LEDC_TIMER_14_BIT,
-    .timer_num       = LEDC_TIMER_0,
-    .freq_hz         = 50,
-    .clk_cfg         = LEDC_AUTO_CLK,
-};
-ledc_timer_config(&timer);
-
-ledc_channel_config_t ch_throttle = {
-    .gpio_num = 1, .channel = LEDC_CHANNEL_0,
-    .timer_sel = LEDC_TIMER_0, .duty = duty_from_pulse(1500),
-};
-ledc_channel_config(&ch_throttle);
-
-ledc_channel_config_t ch_steering = {
-    .gpio_num = 2, .channel = LEDC_CHANNEL_1,
-    .timer_sel = LEDC_TIMER_0, .duty = duty_from_pulse(1500),
-};
-ledc_channel_config(&ch_steering);
-```
-
-**设置脉宽与 ESC 解锁：**
-
-```c
-static void set_pulse(ledc_channel_t ch, uint32_t pulse_us)
-{
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, ch, duty_from_pulse((int)pulse_us));
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, ch);
-}
-
-// ESC 解锁：中立位保持 2 秒
-set_pulse(CH_THROTTLE, 1500);
-set_pulse(CH_STEERING, 1500);
-vTaskDelay(pdMS_TO_TICKS(2000));
-```
-
-### 3.5 课程总结
-
-本章掌握了 RC PWM 协议的原理和 LEDC 14-bit 精度配置，实现了 ESC 解锁和舵机扫描。`duty_from_pulse()` 函数将物理脉宽正确映射为 14-bit 寄存器值（公式：`pulse_us / 20000.0 * 16383`），是后续 PID 控制输出的基础接口。
-
+先核对信号脉宽，再连接机械负载；1500 µs 是否代表居中由实际舵机决定。
 
 ---
 
@@ -759,267 +614,60 @@ float speed = delta * DIST_PER_PULSE / 0.020f;  // m/s
 
 ## 第 7 章  NVS 参数持久化存储
 
-> 📂 **示例代码**：[07_nvs](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/07_nvs)
+### 本课要完成什么
 
-### 7.1 知识要点
+只保存一个 Kp 参数，并在重启后读回，理解 RAM 与 NVS 的区别。本课不运行机器人控制器。
 
-- NVS（Non-Volatile Storage）的分区结构与命名空间
-- 基本类型（u8/i32/float）和 blob 的读写 API
-- 参数初始化标志位的设计模式
-- 4 个命名空间的组织方式（pid_params / mag_calib / cf_params / level_cal）
-- USB CDC 串口命令解析与参数热更新
+### 操作顺序
 
-### 7.2 课程内容
+1. 设置 Kp（默认 2.5），编译并下载本课。
+2. 连接设备日志，先查看 `Loaded Kp=...`；已有保存值会优先读出。
+3. 点击“保存 Kp”或发送 `save`，保存本次固件编译的 Kp，观察 `Saved Kp=...`。
+4. 点击“重启并读回”或发送 `reboot`，重新连接，确认读出的数值一致。
 
-机器人控制系统中，PID 参数、传感器校准数据等需要在断电后保留。ESP32-S3 的 NVS 提供了一个键值存储系统，基于 Flash 的磨损均衡分区，支持字符串、整数、浮点数和任意二进制数据（blob）的持久化存储。本章演示 OSRCORE 使用的全部 4 个命名空间，并通过 USB CDC 串口命令实时修改各参数。
+网页模拟使用浏览器存储；真实开发板使用 NVS 的 `lesson7` 命名空间，两者独立。USB 下载本课不擦除 NVS；修改网页参数必须重新编译下载后再保存。
 
-### 7.3 基础学习
+完整实现见 `07_nvs/main/main.c`。`nvs_set_blob()` 写值，`nvs_commit()` 提交，`nvs_get_blob()` 读回。
 
-#### NVS 结构
+### 存储边界
 
-NVS 使用命名空间（namespace）隔离不同模块的数据，每个命名空间下可以存储多个键值对。OSRCORE 使用 4 个命名空间：
+只读写 lesson7/kp，不清除其他课程或 Wi-Fi 的命名空间。
 
-```
-NVS Flash
-├── namespace: "pid_params"
-│   ├── "init"   → u8（是否已初始化）
-│   ├── "kp"     → blob (float)
-│   ├── "ki"     → blob (float)
-│   └── "kd"     → blob (float)
-├── namespace: "mag_calib"
-│   ├── "init"   → u8
-│   ├── "hi"     → blob (3×float，硬铁偏移)
-│   └── "si"     → blob (9×float，软铁矩阵)
-├── namespace: "cf_params"
-│   ├── "init"   → u8
-│   ├── "alpha_s"→ blob (float，静止互补滤波系数)
-│   ├── "alpha_m"→ blob (float，运动互补滤波系数)
-│   └── "spd_thr"→ blob (float，速度切换阈值)
-└── namespace: "level_cal"
-    ├── "init"   → u8
-    ├── "ox"     → blob (float，加速度计 X 偏移)
-    ├── "oy"     → blob (float，加速度计 Y 偏移)
-    └── "oz"     → blob (float，加速度计 Z 偏移)
-```
+### 故障定位
 
-#### 初始化标志模式
+保存前确认当前运行的是07_nvs；仅重新编译不会改变板上的程序或保存值。
 
-首次上电时 NVS 为空，需要写入默认值。通过一个 `init` 标志位判断是否已初始化，避免每次重启都覆盖用户修改的参数：
+### 验收
 
-```c
-uint8_t inited = 0;
-nvs_get_u8(h, "init", &inited);
-if (!inited) {
-    // 使用默认值，不从 NVS 读取
-}
-```
-
-#### Blob 读写
-
-Blob 可以存储任意结构体，读取时需要传入缓冲区大小：
-
-```c
-// 写入
-nvs_set_blob(h, "params", &g_params, sizeof(pid_params_t));
-nvs_commit(h);  // 必须 commit 才会真正写入 Flash
-
-// 读取
-size_t sz = sizeof(pid_params_t);
-nvs_get_blob(h, "params", &g_params, &sz);
-```
-
-### 7.4 程序学习
-
-**加载参数（带默认值回退）：**
-
-```c
-static void params_load(void)
-{
-    nvs_handle_t h;
-    if (nvs_open("pid_params", NVS_READONLY, &h) != ESP_OK) goto defaults;
-
-    uint8_t inited = 0;
-    nvs_get_u8(h, "init", &inited);
-    if (!inited) { nvs_close(h); goto defaults; }
-
-    size_t sz = sizeof(pid_params_t);
-    if (nvs_get_blob(h, "params", &g_params, &sz) == ESP_OK) {
-        nvs_close(h);
-        return;
-    }
-defaults:
-    g_params.kp = 447.0f;
-    g_params.ki = 4.7f;
-    g_params.kd = 47.0f;
-}
-```
-
-**保存参数：**
-
-```c
-static void params_save(void)
-{
-    nvs_handle_t h;
-    ESP_ERROR_CHECK(nvs_open("pid_params", NVS_READWRITE, &h));
-    nvs_set_blob(h, "params", &g_params, sizeof(pid_params_t));
-    nvs_set_u8(h, "init", 1);
-    nvs_commit(h);
-    nvs_close(h);
-}
-```
-
-**串口命令解析（全部 4 个命名空间）：**
-
-```c
-char line[128];
-if (fgets(line, sizeof(line), stdin)) {
-    line[strcspn(line, "\r\n")] = '\0';
-    float a, b, c;
-
-    /* pid_params */
-    if      (sscanf(line, "kp %f", &a) == 1) { g_pid.kp = a; pid_save(); }
-    else if (sscanf(line, "ki %f", &a) == 1) { g_pid.ki = a; pid_save(); }
-    else if (sscanf(line, "kd %f", &a) == 1) { g_pid.kd = a; pid_save(); }
-
-    /* mag_calib */
-    else if (sscanf(line, "mag hi %f %f %f", &a, &b, &c) == 3) {
-        g_mag.hard[0]=a; g_mag.hard[1]=b; g_mag.hard[2]=c; mag_save();
-    }
-
-    /* cf_params */
-    else if (sscanf(line, "cf %f %f %f", &a, &b, &c) == 3) {
-        g_cf.alpha_static=a; g_cf.alpha_moving=b; g_cf.speed_thr=c; cf_save();
-    }
-
-    /* level_cal */
-    else if (sscanf(line, "level %f %f %f", &a, &b, &c) == 3) {
-        g_level.ox=a; g_level.oy=b; g_level.oz=c; level_save();
-    }
-
-    /* show / reset */
-    else if (strcmp(line, "show")  == 0) { all_show(); }
-    else if (strcmp(line, "reset") == 0) { all_reset(); }
-}
-```
-
-### 7.5 课程总结
-
-本章掌握了 NVS 的命名空间、blob 读写和 commit 机制，实现了 4 个命名空间（pid_params / mag_calib / cf_params / level_cal）的断电保持和串口热更新。每个命名空间独立管理 `init` 标志，首次上电自动使用默认值，后续修改持久保存。`reset` 命令可一键恢复全部默认值。
-
+使用两个不同 Kp 分别保存和重启读回，观察第二次确实覆盖本课旧值。
 
 ---
 
 ## 第 8 章  FreeRTOS 多任务架构
 
-> 📂 **示例代码**：[08_freertos](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/08_freertos)
+### 本课要完成什么
 
-### 8.1 知识要点
+让 A、B 两个任务按各自周期打印计数，理解并发任务和周期。无需外设，不再混入机器人驱动与传感器初始化。
 
-- FreeRTOS 任务创建、优先级与栈大小配置
-- ESP32-S3 双核绑定（`xTaskCreatePinnedToCore`）
-- 任务间通信：Queue（队列）和 Mutex（互斥锁）
-- 实时任务与通信任务的核心分离架构
+### 网页与实板
 
-### 8.2 课程内容
+默认 A 每 500 ms 输出一次、B 每 1000 ms 输出一次。分别调整周期、运行网页时间轴，再编译下载到板卡。真实设备日志会出现任务名和递增计数。
 
-ESP32-S3 搭载双核 Xtensa LX7 处理器（Core 0 和 Core 1），FreeRTOS 支持对称多处理（SMP）。合理的任务架构是机器人控制系统实时性的基础：将传感器采样和控制计算绑定到 Core 1（实时核），将通信和日志绑定到 Core 0（通信核），避免相互干扰。
+任务使用 `vTaskDelayUntil()` 相对上次唤醒时刻安排下一周期。网页展示周期行为，不模拟 ESP32 两核调度、抢占或实际执行耗时。
 
-### 8.3 基础学习
+### 观察与练习
 
-#### 任务优先级规划
+将两个周期设为相同，再改为 300 ms 与 700 ms，观察输出交错。多任务不保证同时打印时的固定先后顺序。
 
-FreeRTOS 优先级数值越大越高，`configMAX_PRIORITIES` 默认为 25。OSRCORE 的三任务架构：
+完整实现见 `08_freertos/main/main.c`。
 
-| 任务 | 核心 | 优先级 | 周期 | 职责 |
-|------|------|--------|------|------|
-| task_sensor | Core 1 | 5 | 100 ms | 传感器采样 |
-| task_control | Core 1 | 4 | 20 ms | 控制计算 |
-| task_comm | Core 0 | 3 | 1000 ms | 状态上报 |
+### 代码入口
 
-#### Queue 与 Mutex
+两个任务的入口分别负责计数和打印；主函数只创建任务，参数通过 OSR_TASK_A_MS 和 OSR_TASK_B_MS 注入。
 
-- **Queue**：用于任务间传递数据（生产者-消费者模式）。`xQueueOverwrite()` 适合只需要最新值的场景（如传感器数据）。
-- **Mutex**：用于保护共享数据结构，防止并发访问导致数据撕裂。
+### 验收
 
-#### 双核绑定
-
-```c
-// 绑定到 Core 1（实时任务）
-xTaskCreatePinnedToCore(task_sensor, "sensor", 4096, NULL, 5, NULL, 1);
-// 绑定到 Core 0（通信任务）
-xTaskCreatePinnedToCore(task_comm, "comm", 4096, NULL, 3, NULL, 0);
-```
-
-不绑定核心时使用 `xTaskCreate()`，FreeRTOS 自动调度。
-
-### 8.4 程序学习
-
-**共享状态与同步原语：**
-
-```c
-typedef struct {
-    float sensor_val;
-    float control_out;
-    uint32_t tick;
-} shared_state_t;
-
-static shared_state_t g_state;
-static SemaphoreHandle_t g_mutex;
-static QueueHandle_t g_sensor_q;  // 深度为 1 的队列
-
-// 初始化
-g_mutex    = xSemaphoreCreateMutex();
-g_sensor_q = xQueueCreate(1, sizeof(sensor_msg_t));
-```
-
-**传感器任务（写队列 + 更新共享状态）：**
-
-```c
-static void task_sensor(void *arg)
-{
-    sensor_msg_t msg;
-    while (1) {
-        msg.value        = read_sensor();
-        msg.timestamp_us = esp_timer_get_time();
-        xQueueOverwrite(g_sensor_q, &msg);  // 覆盖旧值
-
-        xSemaphoreTake(g_mutex, portMAX_DELAY);
-        g_state.sensor_val = msg.value;
-        g_state.tick++;
-        xSemaphoreGive(g_mutex);
-
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
-}
-```
-
-**控制任务（读队列，执行 PI 控制）：**
-
-```c
-static void task_control(void *arg)
-{
-    sensor_msg_t msg;
-    float integral = 0.0f;
-    const float kp = 2.0f, ki = 0.1f, target = 1.25f;
-
-    while (1) {
-        if (xQueuePeek(g_sensor_q, &msg, 0) == pdTRUE) {
-            float err = target - msg.value;
-            integral += err * 0.02f;
-            float out = kp * err + ki * integral;
-
-            xSemaphoreTake(g_mutex, portMAX_DELAY);
-            g_state.control_out = out;
-            xSemaphoreGive(g_mutex);
-        }
-        vTaskDelay(pdMS_TO_TICKS(20));
-    }
-}
-```
-
-### 8.5 课程总结
-
-本章建立了 OSRCORE 的三任务双核架构，掌握了 Queue 和 Mutex 的使用模式。这一架构是后续 PID 闭环控制和完整示例的基础框架，实时任务与通信任务的核心分离保证了控制周期的确定性。
+观察一段较长时间内的计数比例，不用相邻两行日志的排列判断任务是否丢失。
 
 ---
 
@@ -1151,163 +799,31 @@ static void task_control(void *arg)
 
 ---
 
-## 第 10 章  Madgwick AHRS 姿态解算
+## 第 10 章  互补滤波姿态解算
 
-> 📂 **示例代码**：[10_ahrs](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/10_ahrs)
+### 本课要完成什么
 
-### 10.1 知识要点
+用互补滤波融合陀螺仪与重力方向，输出 Roll 和 Pitch。基础课程不启动加热器，也不等待温度达到阈值。
 
-- 四元数表示姿态的优势（无万向锁，计算高效）
-- Madgwick 6-DOF 算法原理（梯度下降优化）
-- β 参数对收敛速度与噪声抑制的影响
-- 四元数到欧拉角（Roll/Pitch/Yaw）的转换公式
-- IMU 加热电阻（GPIO46）：通过恒温控制消除温度漂移对陀螺仪偏置的影响
-- 硬件前置条件：加热功能需要 V_IN（9–26V）供电，仅 USB 供电时功率不足
+### 原理
 
-### 10.2 课程内容
+陀螺仪角速度乘以实际采样间隔得到角度增量；加速度计提供重力方向的角度参考。每次更新按 `alpha × 陀螺积分角度 + (1-alpha) × 重力角度` 融合。默认 alpha=0.95。
 
-姿态航向参考系统（AHRS）将 IMU 的加速度计和陀螺仪数据融合，输出稳定的姿态估计。Madgwick 算法是一种计算效率高、适合嵌入式系统的互补滤波算法。OSRCORE 以 200 Hz（5 ms 周期）运行 AHRS，为平衡控制等应用提供实时姿态数据。
+采样间隔由 `esp_timer_get_time()` 测量，包含 I²C 读取和采样平均所需时间，不能简单假设每次都是 5 ms。强线性加速度会干扰重力估计；仅靠重力不能得到绝对航向。
 
-### 10.3 基础学习
+### 操作顺序
 
-#### 四元数表示
+启动时保持板卡静止，完成陀螺仪偏置采样，然后缓慢倾斜。比较不同 alpha 下的响应。网页角度是模拟输入；真板直接读取板载 QMI8658（GPIO10/11）。
 
-四元数 q = [q0, q1, q2, q3]（标量 + 向量部分）可以无奇异点地表示三维旋转。初始值为单位四元数 [1, 0, 0, 0]（无旋转）。
+完整实现见 `10_ahrs/main/main.c`。历史 Madgwick 和加热器文件保留为进阶参考，但不参与本课构建。
 
-#### Madgwick 算法原理
+### 参数边界
 
-6-DOF 模式（无磁力计）：
-1. 陀螺仪积分：用角速度更新四元数（预测步）
-2. 加速度计修正：通过梯度下降最小化重力向量与测量值的误差（修正步）
-3. β 参数控制修正步长：β 越大收敛越快但噪声越大，β=0.1 是典型平衡点
+alpha 越接近1，单次更新越依赖陀螺积分；本课权重按采样更新使用，改变采样频率时需重新评估。
 
-#### 快速反平方根优化
+### 验收
 
-Madgwick 算法需要频繁归一化四元数，使用 Quake III 的快速反平方根（`invSqrt`）可以显著减少计算量：
-
-```c
-static float invSqrt(float x) {
-    float halfx = 0.5f * x;
-    float y = x;
-    long i = *(long*)&y;
-    i = 0x5f3759df - (i >> 1);
-    y = *(float*)&i;
-    y = y * (1.5f - (halfx * y * y));
-    return y;
-}
-```
-
-#### 四元数到欧拉角
-
-```
-Roll  = atan2(2(q0q1 + q2q3), 1 - 2(q1² + q2²))
-Pitch = asin(2(q0q2 - q3q1))
-Yaw   = atan2(2(q0q3 + q1q2), 1 - 2(q2² + q3²))
-```
-
-#### IMU 加热器工作原理
-
-QMI8658 的陀螺仪零偏随温度变化显著。OSRCORE 板载一颗加热电阻，由 GPIO46 的 MOS 管控制，将 IMU 管芯温度稳定在约 56°C，从根本上消除温漂。
-
-**供电要求**：加热电阻通过板载 TPS54540 降压后的 5V 供电，电源来自 V_IN（9–26V）。仅使用 USB 供电时，5V 轨电流不足，无法达到满功率加热，温控效果不可保证。
-
-**GPIO46 特殊处理**：GPIO46 是 ESP32-S3 的 boot strapping 引脚，`gpio_config()` 会静默跳过输出驱动使能。必须直接写 GPIO 寄存器：
-
-```c
-#include "soc/gpio_reg.h"
-#include "soc/io_mux_reg.h"
-#define HEATER_PIN_BIT (1UL << (46 - 32))
-
-// 初始化：配置为输出
-PIN_FUNC_SELECT(IO_MUX_GPIO46_REG, FUNC_GPIO46_GPIO46);
-REG_WRITE(GPIO_ENABLE1_W1TS_REG, HEATER_PIN_BIT);
-
-// 开启加热
-REG_WRITE(GPIO_OUT1_W1TS_REG, HEATER_PIN_BIT);
-
-// 关闭加热
-REG_WRITE(GPIO_OUT1_W1TC_REG, HEATER_PIN_BIT);
-```
-
-**两阶段控制**：
-1. **预热阶段**：目标温度 56°C，当温度低于 (56 - 8) = 48°C 时全功率加热
-2. **调节阶段**：bang-bang 控制，±1°C 滞回，维持在 56°C 附近
-
-**里程碑**：
-- **38°C warm**：陀螺偏置开始收敛，可以启动 AHRS
-- **54°C stable**：热稳态，偏置最优，建议此时重启一次陀螺校准
-- **56°C target**：bang-bang 调节中心
-
-### 10.4 程序学习
-
-**初始化与更新：**
-
-```c
-madgwick_t g_ahrs;
-madgwick_init(&g_ahrs, 0.1f);  // beta = 0.1
-
-// 每 5ms 调用一次（200 Hz）
-qmi8658_data_t d;
-if (qmi8658_read(&d)) {
-    madgwick_update_imu(&g_ahrs,
-        d.gx, d.gy, d.gz,   // 陀螺仪 deg/s
-        d.ax, d.ay, d.az);  // 加速度计 g
-}
-```
-
-**读取欧拉角：**
-
-```c
-float roll, pitch, yaw;
-madgwick_get_euler(&g_ahrs, &roll, &pitch, &yaw);
-printf("R=%.1f P=%.1f Y=%.1f\n", roll, pitch, yaw);
-```
-
-**IMU 任务（Core 1，P5，5ms）：**
-
-```c
-static void task_imu(void *arg)
-{
-    qmi8658_data_t d;
-    int print_cnt = 0;
-    while (1) {
-        if (qmi8658_read(&d)) {
-            madgwick_update_imu(&g_ahrs, d.gx, d.gy, d.gz, d.ax, d.ay, d.az);
-            if (++print_cnt >= 20) {  // 每 100ms 打印
-                print_cnt = 0;
-                float roll, pitch, yaw;
-                madgwick_get_euler(&g_ahrs, &roll, &pitch, &yaw);
-                printf("q: %.4f %.4f %.4f %.4f  R=%.1f P=%.1f Y=%.1f\n",
-                       g_ahrs.q0, g_ahrs.q1, g_ahrs.q2, g_ahrs.q3,
-                       roll, pitch, yaw);
-            }
-        }
-        vTaskDelay(pdMS_TO_TICKS(5));
-    }
-}
-```
-
-#### 启动顺序
-
-加热器需要 IMU 任务持续喂入温度数据，因此必须先启动 IMU 任务，再等待 warm 里程碑：
-
-```c
-imu_heater_init(56.0f);
-
-// 先启动 IMU 任务，让它持续喂温度给加热器
-xTaskCreatePinnedToCore(task_imu, "imu", 4096, NULL, 5, NULL, 1);
-
-// 等待 38°C warm 里程碑
-printf("Waiting for IMU heater warm (38C)...\n");
-while (!imu_heater_warm()) {
-    vTaskDelay(pdMS_TO_TICKS(500));
-}
-printf("Heater warm, starting AHRS\n");
-```
-
-### 10.5 课程总结
-
-本章掌握了 Madgwick AHRS 算法的原理和实现，学会了四元数姿态表示和欧拉角转换。200 Hz 的更新频率为动态运动提供了足够的时间分辨率，β=0.1 在静态精度和动态响应之间取得了良好平衡。
+平放、缓慢左右倾斜、缓慢前后倾斜各测试一次；快速平移时的角度误差是模型限制。
 
 ---
 
@@ -1326,7 +842,7 @@ printf("Heater warm, starting AHRS\n");
 - 速度模式通道（ch[7]）：限速 15% vs 全速
 - RC 超时（200 ms）与串口控制超时（500 ms）安全机制
 - 电池使能 GPIO 初始化（GPIO16 置 LOW）
-- IMU 加热器完整集成：warm/stable/ready 三里程碑，蜂鸣器+LED 反馈
+- 默认直接启动采样与控制，不等待加热器升温
 
 ### 12.2 课程内容
 
@@ -1537,19 +1053,9 @@ void app_main(void)
 }
 ```
 
-#### IMU 加热器集成
+#### 默认启动行为
 
-完整示例中加热器有三个里程碑，对应不同的系统状态：
-
-| 里程碑 | 温度 | 蜂鸣器 | LED | 含义 |
-|--------|------|--------|-----|------|
-| warm | 38°C | 880Hz 200ms | 绿 | 可以使用，启动控制任务 |
-| stable | 54°C | 1200Hz+600Hz | 红 | 热稳态，偏置最优 |
-| ready | 56°C 斜率稳定 | — | — | bang-bang 维持 |
-
-启动序列：`task_imu` 先启动（喂温度）→ 等 warm（38°C）→ 启动 `task_control` 和 `task_comm`。
-
-蜂鸣器和 LED 颜色切换由 `imu_heater.c` 内部驱动，与任务架构解耦。
+当前教学版本不启动加热器，也不等待 warm/stable/ready 温度阈值。IMU 采样、控制与通信直接启动；历史加热器模块保留为进阶参考。
 
 ### 12.5 课程总结
 
@@ -1748,3 +1254,25 @@ while (1) {
 ### 11.5 课程总结
 
 本章掌握了 QMC6309 磁力计的 I2C 驱动编写、硬铁/软铁两步校准流程，以及倾斜补偿航向计算。磁力计提供绝对航向参考，但对电磁干扰敏感；第 12 章完整示例中，通过互补滤波将磁力计与陀螺仪融合，在动态场景下获得稳定的罗盘航向。
+
+## 第 13 章 出厂功能检查
+
+### 目标
+
+逐项确认板载功能能否响应；网页故障开关是教学模拟，不能替代实板检测。
+
+### 准备
+
+准备开发板与 USB 数据线。外部接收机、电机、舵机等接口，只有接上对应外设才能测试。
+
+### 操作
+
+在第 13 课打开设备面板，编译并下载诊断例程。重新连接串口，查看启动检测和日志。先检查灯、蜂鸣器与传感器，再测试外部接口。
+
+### 源码与输出
+
+完整实现位于 `13_factory_demo/main/main.c`。以真实日志中的响应为准；网页模拟输出独立显示。电机测试必须使用对应命令，失联或丢帧会停止遥控输出。
+
+### 验收
+
+逐项记录通过、失败或未连接；未连接外设不等于开发板损坏。先检查供电、接线和运行的固件版本，再判断硬件故障。

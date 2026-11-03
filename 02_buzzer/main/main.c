@@ -1,5 +1,5 @@
 /**
- * 示例02：蜂鸣器播放旋律
+ * 示例02：可调频率与时长的蜂鸣器
  *
  * 硬件：GPIO42，无源蜂鸣器
  * 原理：LEDC TIMER_1 动态调整频率，50% 占空比驱动蜂鸣器发声。
@@ -12,6 +12,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_lesson_config.h"
 
 #define BUZZER_PIN      42
 #define BUZZER_TIMER    LEDC_TIMER_1
@@ -72,33 +73,14 @@ static void buzzer_tone(uint32_t freq_hz, uint32_t duration_ms)
     esp_timer_start_once(s_buzzer_timer, (uint64_t)duration_ms * 1000);
 }
 
-/* ---- Note frequencies (Hz) ---- */
-#define C4  262
-#define D4  294
-#define E4  330
-#define F4  349
-#define G4  392
-#define A4  440
-#define B4  494
-#define C5  523
-
+/* One lesson, one configurable tone followed by 100 ms silence. */
 void app_main(void)
 {
     buzzer_init();
     osrcore_fw_update_start();
-    ESP_LOGI(TAG, "Buzzer ready on GPIO%d", BUZZER_PIN);
-
-    /* C major scale up and down */
-    const uint32_t scale[] = { C4, D4, E4, F4, G4, A4, B4, C5,
-                                B4, A4, G4, F4, E4, D4, C4 };
-    const int n = sizeof(scale) / sizeof(scale[0]);
-
     while (1) {
-        for (int i = 0; i < n; i++) {
-            ESP_LOGI(TAG, "note %d Hz", (int)scale[i]);
-            buzzer_tone(scale[i], 150);
-            vTaskDelay(pdMS_TO_TICKS(30)); /* gap between notes */
-        }
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        ESP_LOGI(TAG, "tone=%d Hz duration=%d ms", OSR_BUZZER_FREQUENCY, OSR_BUZZER_DURATION);
+        buzzer_tone(OSR_BUZZER_FREQUENCY, OSR_BUZZER_DURATION);
+        vTaskDelay(pdMS_TO_TICKS(OSR_BUZZER_DURATION + 100));
     }
 }

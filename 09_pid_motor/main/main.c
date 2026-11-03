@@ -27,6 +27,7 @@
 #include "driver/usb_serial_jtag_vfs.h"
 #include "esp_log.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_lesson_config.h"
 #include "pid.h"
 
 /* ---- Hardware config ---- */
@@ -56,6 +57,7 @@ static const char *TAG = "pid_motor";
 
 static pcnt_unit_handle_t s_pcnt;
 static float   s_target_speed = 0.0f;
+static TickType_t s_command_tick;
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 
 /* ---- Encoder ---- */
@@ -131,16 +133,16 @@ static void task_control(void *arg)
         filtered_speed  = LPF_ALPHA * raw_speed + (1.0f - LPF_ALPHA) * filtered_speed;
 
         portENTER_CRITICAL(&s_mux);
-        float target = s_target_speed;
+        float target = (xTaskGetTickCount()-s_command_tick < pdMS_TO_TICKS(1000)) ? s_target_speed : 0;
         portEXIT_CRITICAL(&s_mux);
 
         if (fabsf(target) < 0.05f)
             pid_reset(&pid);
 
-        int pulse = pid_update(&pid, target, filtered_speed, THROTTLE_NEUTRAL, CONTROL_DT);
+        int pulse = fabsf(target)<0.05f ? THROTTLE_NEUTRAL : pid_update(&pid, target, filtered_speed, THROTTLE_NEUTRAL, CONTROL_DT);
         esc_set((uint32_t)pulse);
 
-        printf("target=%.2f  actual=%.2f  pulse=%d\n", target, filtered_speed, pulse);
+        ESP_LOGI(TAG,"target=%.2f actual=%.2f pulse=%d",target,filtered_speed,pulse);
     }
 }
 
@@ -149,16 +151,17 @@ static void task_cmd(void *arg)
 {
     char line[384];
     while (1) {
-        if (!fgets(line, sizeof(line), stdin)) continue;
+        if (!fgets(line, sizeof(line), stdin)){vTaskDelay(pdMS_TO_TICKS(20));continue;}
         line[strcspn(line, "\r\n")] = '\0';
         if (osrcore_fw_handle_line(line)) continue;
 
         float v;
-        if (sscanf(line, "v %f", &v) == 1) {
+        if (sscanf(line, "v %f", &v) == 1 && isfinite(v)) {
             if (v >  6.0f) v =  6.0f;
             if (v < -6.0f) v = -6.0f;
             portENTER_CRITICAL(&s_mux);
             s_target_speed = v;
+            s_command_tick=xTaskGetTickCount();
             portEXIT_CRITICAL(&s_mux);
             printf("target speed set to %.2f m/s\n", v);
         } else if (strcmp(line, "stop") == 0) {
@@ -176,6 +179,7 @@ void app_main(void)
     usb_serial_jtag_driver_install(&usb_cfg);
     usb_serial_jtag_vfs_use_driver();
 
+    osrcore_fw_network_start();
     encoder_init();
     esc_init();
 

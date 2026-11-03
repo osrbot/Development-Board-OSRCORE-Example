@@ -1,68 +1,48 @@
-name: Deploy VitePress Docs
-
+name: Validate and publish lessons
 on:
   push:
-    branches: [main]
-    paths:
-      - 'docs/**'
-      - '.github/workflows/docs.yml'
+    branches: [main, refactor/interactive-learning]
   pull_request:
     branches: [main]
-    paths:
-      - 'docs/**'
-      - '.github/workflows/docs.yml'
   workflow_dispatch:
-
 permissions:
-  contents: write
-
+  contents: read
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: false
-
 jobs:
-  build-and-deploy:
+  validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
-          cache-dependency-path: docs/package.json
-
-      - name: Install dependencies
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
         working-directory: docs
-        run: npm install
-
-      - name: Check bilingual docs alignment
+      - run: node --test tools/*.test.mjs docs/scripts/*.test.mjs
+      - run: npm run build
         working-directory: docs
-        run: npm run i18n:check
-
-      - name: Build with VitePress
-        working-directory: docs
-        run: npm run build
-
-      - name: Deploy docs to gh-pages (preserve firmware/)
-        if: github.event_name != 'pull_request'
-        run: |
-          git config user.name "kitso666"
-          git config user.email "kitso@osrbot.com"
-
-          # Checkout gh-pages into a subdirectory
-          git fetch origin gh-pages
-          git worktree add /tmp/gh-pages origin/gh-pages
-
-          # Sync docs dist into gh-pages root, keeping firmware/ untouched
-          rsync -av --delete \
-            --exclude='firmware/' \
-            --exclude='.git' \
-            docs/.vitepress/dist/ /tmp/gh-pages/
-
-          cd /tmp/gh-pages
-          git add -A
-          git commit -m "docs: deploy VitePress site from ${GITHUB_SHA::7}" || echo "Nothing to commit"
-          git push origin HEAD:gh-pages
+        env:
+          OSRCORE_PAGES: 'true'
+      - name: Upload Pages site
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && github.server_url == 'https://github.com'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/.vitepress/dist
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && github.server_url == 'https://github.com'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy Pages site
+        id: deployment
+        uses: actions/deploy-pages@v4

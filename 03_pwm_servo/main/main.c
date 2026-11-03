@@ -23,6 +23,7 @@
 #include "driver/ledc.h"
 #include "esp_log.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_lesson_config.h"
 
 #define THROTTLE_PIN  1
 #define STEERING_PIN  2
@@ -95,15 +96,10 @@ void app_main(void)
     ESP_LOGI(TAG, "ESC arming (2s neutral)...");
     vTaskDelay(pdMS_TO_TICKS(2000));
 
-    /* Sweep steering left → center → right, throttle stays neutral */
-    const uint32_t steering_pts[] = { 1500, 1200, 1500, 1800, 1500 };
-    const int n = sizeof(steering_pts) / sizeof(steering_pts[0]);
-
+    /* Only steering moves. ESC stays neutral. */
+    set_pulse(CH_STEERING, OSR_SERVO_PULSE);
     while (1) {
-        for (int i = 0; i < n; i++) {
-            ESP_LOGI(TAG, "steering %d us", (int)steering_pts[i]);
-            set_pulse(CH_STEERING, steering_pts[i]);
-            vTaskDelay(pdMS_TO_TICKS(800));
-        }
+        ESP_LOGI(TAG, "steering=%d us, throttle=1500 us", OSR_SERVO_PULSE);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

@@ -11,8 +11,13 @@
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_idf_version.h"
+#if ESP_IDF_VERSION_MAJOR >= 6
 #define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
 #include "mbedtls/private/sha256.h"
+#else
+#include "mbedtls/sha256.h"
+#endif
 
 #define FW_LINE_MAX 384
 #define FW_SHA_HEX_LEN 64
@@ -67,6 +72,7 @@ static void fw_abort(void)
 {
     if (s_fw.active) {
         esp_ota_abort(s_fw.handle);
+        osrcore_fw_unlock();
         mbedtls_sha256_free(&s_fw.sha_ctx);
     }
     memset(&s_fw, 0, sizeof(s_fw));
@@ -115,8 +121,10 @@ static void handle_fw_begin(const char *line)
         return;
     }
 
+    if (!osrcore_fw_try_lock()) { printf("ERROR fw busy\n"); return; }
     esp_err_t err = esp_ota_begin(partition, size, &s_fw.handle);
     if (err != ESP_OK) {
+        osrcore_fw_unlock();
         printf("ERROR fw begin 0x%x\n", (unsigned)err);
         memset(&s_fw, 0, sizeof(s_fw));
         return;
@@ -199,8 +207,12 @@ static void handle_fw_end(void)
     }
 
     esp_err_t err = esp_ota_end(s_fw.handle);
+    /* esp_ota_end releases the handle on both success and failure. */
+    s_fw.active = false;
+    mbedtls_sha256_free(&s_fw.sha_ctx);
     if (err != ESP_OK) {
         printf("ERROR fw end 0x%x\n", (unsigned)err);
+        osrcore_fw_unlock();
         fw_abort();
         return;
     }
@@ -208,12 +220,12 @@ static void handle_fw_end(void)
     err = esp_ota_set_boot_partition(s_fw.partition);
     if (err != ESP_OK) {
         printf("ERROR fw boot 0x%x\n", (unsigned)err);
+        osrcore_fw_unlock();
         fw_abort();
         return;
     }
 
     printf("OK fw reboot\n");
-    mbedtls_sha256_free(&s_fw.sha_ctx);
     memset(&s_fw, 0, sizeof(s_fw));
     fflush(stdout);
     vTaskDelay(pdMS_TO_TICKS(200));
@@ -223,6 +235,7 @@ static void handle_fw_end(void)
 bool osrcore_fw_handle_line(const char *line)
 {
     if (!line) return false;
+    if (osrcore_wifi_handle_line(line)) return true;
 
     if (strcmp(line, "stream off") == 0 || strcmp(line, "stream legacy") == 0 ||
         strcmp(line, "stream sync") == 0 || strcmp(line, "stream") == 0) {
@@ -274,6 +287,7 @@ static void fw_update_task(void *arg)
 
 void osrcore_fw_update_start(void)
 {
+    osrcore_fw_network_start();
     if (s_task_started) return;
     s_task_started = true;
     xTaskCreate(fw_update_task, "fw_update", 8192, NULL, 3, NULL);
