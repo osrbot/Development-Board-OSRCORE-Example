@@ -5,27 +5,29 @@
  * 原理：使用 ESP-IDF RMT TX 驱动，自定义编码器将 GRB 字节流转换为 RMT 符号。
  *
  * WS2812B 时序（80MHz RMT 时钟，12.5ns/tick）：
- *   T0H = 400/12 ticks (~33)   T0L = 850/12 ticks (~70)
- *   T1H = 800/12 ticks (~66)   T1L = 450/12 ticks (~37)
- *   Reset >= 50000/12 ticks (~4166, 50us)
+ *   T0H = 400/12.5 ticks (32)   T0L = 850/12.5 ticks (68)
+ *   T1H = 800/12.5 ticks (64)   T1L = 450/12.5 ticks (36)
+ *   Reset >= 50000/12.5 ticks (4000, 50us)
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/rmt_tx.h"
 #include "esp_log.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_lesson_config.h"
 
 #define LED_PIN      45
 #define RMT_CLK_HZ   80000000  /* 80 MHz */
 
 /* WS2812B bit timing in RMT ticks (1 tick = 12.5 ns @ 80 MHz) */
-#define T0H  (400  / 12)   // ~33 ticks
-#define T0L  (850  / 12)   // ~70 ticks
-#define T1H  (800  / 12)   // ~66 ticks
-#define T1L  (450  / 12)   // ~37 ticks
-#define RESET_TICKS (50000 / 12)  // ~4166 ticks
+#define T0H  (400 * 80 / 1000)   // 32 ticks
+#define T0L  (850 * 80 / 1000)   // 68 ticks
+#define T1H  (800 * 80 / 1000)   // 64 ticks
+#define T1L  (450 * 80 / 1000)   // 36 ticks
+#define RESET_TICKS (50000 * 80 / 1000)  // 4000 ticks
 
 static const char *TAG = "led";
 
@@ -45,29 +47,29 @@ static size_t ws2812_encode(rmt_encoder_t *encoder, rmt_channel_handle_t channel
 {
     ws2812_encoder_t *ws = __containerof(encoder, ws2812_encoder_t, base);
     rmt_encode_state_t session_state = RMT_ENCODING_RESET;
+    rmt_encode_state_t state = RMT_ENCODING_RESET;
     size_t encoded = 0;
-
     if (ws->state == 0) {
         encoded += ws->bytes_encoder->encode(ws->bytes_encoder, channel,
                                              data, data_size, &session_state);
-        if (session_state & RMT_ENCODING_COMPLETE) {
-            ws->state = 1;
-            session_state = RMT_ENCODING_RESET;
-        }
+        if (session_state & RMT_ENCODING_COMPLETE) ws->state = 1;
         if (session_state & RMT_ENCODING_MEM_FULL) {
-            *ret_state = RMT_ENCODING_MEM_FULL;
-            return encoded;
+            state |= RMT_ENCODING_MEM_FULL;
+            goto done;
         }
     }
     if (ws->state == 1) {
+        session_state = RMT_ENCODING_RESET;
         encoded += ws->copy_encoder->encode(ws->copy_encoder, channel,
-                                            &ws->reset_symbol, sizeof(rmt_symbol_word_t),
-                                            &session_state);
+                    &ws->reset_symbol, sizeof(ws->reset_symbol), &session_state);
         if (session_state & RMT_ENCODING_COMPLETE) {
-            ws->state = RMT_ENCODING_RESET;
-            *ret_state = RMT_ENCODING_COMPLETE;
+            ws->state = 0;
+            state |= RMT_ENCODING_COMPLETE;
         }
+        if (session_state & RMT_ENCODING_MEM_FULL) state |= RMT_ENCODING_MEM_FULL;
     }
+done:
+    *ret_state = state;
     return encoded;
 }
 
@@ -92,6 +94,7 @@ static esp_err_t ws2812_reset(rmt_encoder_t *encoder)
 static esp_err_t ws2812_encoder_new(rmt_encoder_handle_t *ret)
 {
     ws2812_encoder_t *ws = calloc(1, sizeof(ws2812_encoder_t));
+    if (!ws) return ESP_ERR_NO_MEM;
     ws->base.encode  = ws2812_encode;
     ws->base.del     = ws2812_del;
     ws->base.reset   = ws2812_reset;
@@ -102,18 +105,20 @@ static esp_err_t ws2812_encoder_new(rmt_encoder_handle_t *ret)
         .bit1 = { .level0 = 1, .duration0 = T1H, .level1 = 0, .duration1 = T1L },
         .flags.msb_first = 1,
     };
-    rmt_new_bytes_encoder(&bcfg, &ws->bytes_encoder);
+    esp_err_t err = rmt_new_bytes_encoder(&bcfg, &ws->bytes_encoder);
+    if (err != ESP_OK) { free(ws); return err; }
 
     /* Copy encoder for the reset pulse */
     rmt_copy_encoder_config_t ccfg = {};
-    rmt_new_copy_encoder(&ccfg, &ws->copy_encoder);
+    err = rmt_new_copy_encoder(&ccfg, &ws->copy_encoder);
+    if (err != ESP_OK) { rmt_del_encoder(ws->bytes_encoder); free(ws); return err; }
 
     /* Reset symbol: low for >= 50 us */
     ws->reset_symbol = (rmt_symbol_word_t){
         .level0    = 0,
-        .duration0 = RESET_TICKS,
+        .duration0 = RESET_TICKS / 2,
         .level1    = 0,
-        .duration1 = 0,
+        .duration1 = RESET_TICKS / 2,
     };
 
     *ret = &ws->base;
@@ -134,9 +139,9 @@ static void led_init(void)
         .mem_block_symbols = 64,
         .trans_queue_depth = 4,
     };
-    rmt_new_tx_channel(&ch_cfg, &s_channel);
-    ws2812_encoder_new(&s_encoder);
-    rmt_enable(s_channel);
+    ESP_ERROR_CHECK(rmt_new_tx_channel(&ch_cfg, &s_channel));
+    ESP_ERROR_CHECK(ws2812_encoder_new(&s_encoder));
+    ESP_ERROR_CHECK(rmt_enable(s_channel));
 }
 
 /* data: GRB byte order */
@@ -144,8 +149,8 @@ static void led_set(uint8_t r, uint8_t g, uint8_t b)
 {
     uint8_t grb[3] = { g, r, b };
     rmt_transmit_config_t tx_cfg = { .loop_count = 0 };
-    rmt_transmit(s_channel, s_encoder, grb, sizeof(grb), &tx_cfg);
-    rmt_tx_wait_all_done(s_channel, portMAX_DELAY);
+    ESP_ERROR_CHECK(rmt_transmit(s_channel, s_encoder, grb, sizeof(grb), &tx_cfg));
+    ESP_ERROR_CHECK(rmt_tx_wait_all_done(s_channel, -1));
 }
 
 /* ---- Main ---- */
@@ -158,9 +163,9 @@ void app_main(void)
 
     /* Cycle: red -> green -> blue -> off */
     const struct { uint8_t r, g, b; const char *name; } colors[] = {
-        { 32,  0,  0, "red"   },
-        {  0, 32,  0, "green" },
-        {  0,  0, 32, "blue"  },
+        { OSR_LED_BRIGHTNESS, 0, 0, "red"   },
+        { 0, OSR_LED_BRIGHTNESS, 0, "green" },
+        { 0, 0, OSR_LED_BRIGHTNESS, "blue"  },
         {  0,  0,  0, "off"   },
     };
     int idx = 0;
@@ -169,6 +174,6 @@ void app_main(void)
         ESP_LOGI(TAG, "%s", colors[idx].name);
         led_set(colors[idx].r, colors[idx].g, colors[idx].b);
         idx = (idx + 1) % 4;
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(OSR_LED_INTERVAL));
     }
 }

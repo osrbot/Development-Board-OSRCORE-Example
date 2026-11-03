@@ -27,6 +27,7 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_lesson_config.h"
 
 #define LED_PIN       45
 #define BUZZER_PIN    42
@@ -50,11 +51,11 @@
 #define SBUS_MAX      1810
 #define SBUS_CENTER   1024
 
-#define T0H (400 / 12)
-#define T0L (850 / 12)
-#define T1H (800 / 12)
-#define T1L (450 / 12)
-#define RESET_TICKS (50000 / 12)
+#define T0H (400 * 80 / 1000)
+#define T0L (850 * 80 / 1000)
+#define T1H (800 * 80 / 1000)
+#define T1L (450 * 80 / 1000)
+#define RESET_TICKS (50000 * 80 / 1000)
 
 static const char *TAG = "factory";
 static rmt_channel_handle_t s_led_channel;
@@ -80,38 +81,38 @@ typedef struct {
 
 static size_t ws2812_encode(rmt_encoder_t *encoder, rmt_channel_handle_t channel,
                             const void *data, size_t data_size,
-                            rmt_encode_state_t *ret_state) {
+                            rmt_encode_state_t *ret_state)
+{
     ws2812_encoder_t *ws = __containerof(encoder, ws2812_encoder_t, base);
     rmt_encode_state_t session_state = RMT_ENCODING_RESET;
+    rmt_encode_state_t state = RMT_ENCODING_RESET;
     size_t encoded = 0;
-
     if (ws->state == 0) {
         encoded += ws->bytes_encoder->encode(ws->bytes_encoder, channel,
                                              data, data_size, &session_state);
-        if (session_state & RMT_ENCODING_COMPLETE) {
-            ws->state = 1;
-            session_state = RMT_ENCODING_RESET;
-        }
+        if (session_state & RMT_ENCODING_COMPLETE) ws->state = 1;
         if (session_state & RMT_ENCODING_MEM_FULL) {
-            *ret_state = RMT_ENCODING_MEM_FULL;
-            return encoded;
+            state |= RMT_ENCODING_MEM_FULL;
+            goto done;
         }
     }
-
     if (ws->state == 1) {
+        session_state = RMT_ENCODING_RESET;
         encoded += ws->copy_encoder->encode(ws->copy_encoder, channel,
-                                            &ws->reset_symbol, sizeof(ws->reset_symbol),
-                                            &session_state);
+                    &ws->reset_symbol, sizeof(ws->reset_symbol), &session_state);
         if (session_state & RMT_ENCODING_COMPLETE) {
             ws->state = 0;
-            *ret_state = RMT_ENCODING_COMPLETE;
+            state |= RMT_ENCODING_COMPLETE;
         }
+        if (session_state & RMT_ENCODING_MEM_FULL) state |= RMT_ENCODING_MEM_FULL;
     }
-
+done:
+    *ret_state = state;
     return encoded;
 }
 
-static esp_err_t ws2812_del(rmt_encoder_t *encoder) {
+static esp_err_t ws2812_del(rmt_encoder_t *encoder)
+{
     ws2812_encoder_t *ws = __containerof(encoder, ws2812_encoder_t, base);
     rmt_del_encoder(ws->bytes_encoder);
     rmt_del_encoder(ws->copy_encoder);
@@ -119,7 +120,8 @@ static esp_err_t ws2812_del(rmt_encoder_t *encoder) {
     return ESP_OK;
 }
 
-static esp_err_t ws2812_reset(rmt_encoder_t *encoder) {
+static esp_err_t ws2812_reset(rmt_encoder_t *encoder)
+{
     ws2812_encoder_t *ws = __containerof(encoder, ws2812_encoder_t, base);
     rmt_encoder_reset(ws->bytes_encoder);
     rmt_encoder_reset(ws->copy_encoder);
@@ -127,29 +129,38 @@ static esp_err_t ws2812_reset(rmt_encoder_t *encoder) {
     return ESP_OK;
 }
 
-static void led_encoder_new(rmt_encoder_handle_t *ret) {
+static esp_err_t led_encoder_new(rmt_encoder_handle_t *ret)
+{
     ws2812_encoder_t *ws = calloc(1, sizeof(ws2812_encoder_t));
-    ws->base.encode = ws2812_encode;
-    ws->base.del = ws2812_del;
-    ws->base.reset = ws2812_reset;
+    if (!ws) return ESP_ERR_NO_MEM;
+    ws->base.encode  = ws2812_encode;
+    ws->base.del     = ws2812_del;
+    ws->base.reset   = ws2812_reset;
 
+    /* Bit-level encoder: maps each byte to RMT symbols */
     rmt_bytes_encoder_config_t bcfg = {
         .bit0 = { .level0 = 1, .duration0 = T0H, .level1 = 0, .duration1 = T0L },
         .bit1 = { .level0 = 1, .duration0 = T1H, .level1 = 0, .duration1 = T1L },
         .flags.msb_first = 1,
     };
-    rmt_new_bytes_encoder(&bcfg, &ws->bytes_encoder);
+    esp_err_t err = rmt_new_bytes_encoder(&bcfg, &ws->bytes_encoder);
+    if (err != ESP_OK) { free(ws); return err; }
 
+    /* Copy encoder for the reset pulse */
     rmt_copy_encoder_config_t ccfg = {};
-    rmt_new_copy_encoder(&ccfg, &ws->copy_encoder);
+    err = rmt_new_copy_encoder(&ccfg, &ws->copy_encoder);
+    if (err != ESP_OK) { rmt_del_encoder(ws->bytes_encoder); free(ws); return err; }
 
+    /* Reset symbol: low for >= 50 us */
     ws->reset_symbol = (rmt_symbol_word_t){
-        .level0 = 0,
-        .duration0 = RESET_TICKS,
-        .level1 = 0,
-        .duration1 = 0,
+        .level0    = 0,
+        .duration0 = RESET_TICKS / 2,
+        .level1    = 0,
+        .duration1 = RESET_TICKS / 2,
     };
+
     *ret = &ws->base;
+    return ESP_OK;
 }
 
 static void led_init(void) {
@@ -160,9 +171,9 @@ static void led_init(void) {
         .mem_block_symbols = 64,
         .trans_queue_depth = 4,
     };
-    rmt_new_tx_channel(&ch_cfg, &s_led_channel);
-    led_encoder_new(&s_led_encoder);
-    rmt_enable(s_led_channel);
+    ESP_ERROR_CHECK(rmt_new_tx_channel(&ch_cfg, &s_led_channel));
+    ESP_ERROR_CHECK(led_encoder_new(&s_led_encoder));
+    ESP_ERROR_CHECK(rmt_enable(s_led_channel));
 }
 
 static void led_set(uint8_t r, uint8_t g, uint8_t b) {
@@ -171,8 +182,8 @@ static void led_set(uint8_t r, uint8_t g, uint8_t b) {
     s_led_rgb[2] = b;
     uint8_t grb[3] = { g, r, b };
     rmt_transmit_config_t tx_cfg = { .loop_count = 0 };
-    rmt_transmit(s_led_channel, s_led_encoder, grb, sizeof(grb), &tx_cfg);
-    rmt_tx_wait_all_done(s_led_channel, portMAX_DELAY);
+    ESP_ERROR_CHECK(rmt_transmit(s_led_channel, s_led_encoder, grb, sizeof(grb), &tx_cfg));
+    ESP_ERROR_CHECK(rmt_tx_wait_all_done(s_led_channel, -1));
 }
 
 static void buzzer_off(void) {
@@ -301,7 +312,7 @@ static bool sbus_parse(const uint8_t *buf, uint16_t *ch, bool *failsafe) {
     ch[13] = ((buf[18] >> 7 | buf[19] << 1 | buf[20] << 9) & 0x07FF);
     ch[14] = ((buf[20] >> 2 | buf[21] << 6) & 0x07FF);
     ch[15] = ((buf[21] >> 5 | buf[22] << 3) & 0x07FF);
-    *failsafe = (buf[23] & (1 << 3)) != 0;
+    *failsafe = (buf[23] & ((1 << 3) | (1 << 2))) != 0;
     return true;
 }
 
@@ -640,7 +651,12 @@ static void heartbeat_task(void *arg) {
 static void sbus_task(void *arg) {
     (void)arg;
     uint8_t buf[SBUS_FRAME];
+    TickType_t last_valid=0;
     while (1) {
+        if(xTaskGetTickCount()-last_valid > pdMS_TO_TICKS(200)){
+            set_pwm(THROTTLE_CH,1500);set_pwm(STEERING_CH,1500);
+            portENTER_CRITICAL(&s_factory_mux);s_rc_ok=false;s_rc_failsafe=true;portEXIT_CRITICAL(&s_factory_mux);
+        }
         uint8_t byte = 0;
         if (uart_read_bytes(UART_NUM_0, &byte, 1, pdMS_TO_TICKS(20)) != 1) {
             if (!s_drive_enabled) {
@@ -659,6 +675,7 @@ static void sbus_task(void *arg) {
         bool failsafe = false;
         if (!sbus_parse(buf, ch, &failsafe)) continue;
 
+        last_valid=xTaskGetTickCount();
         portENTER_CRITICAL(&s_factory_mux);
         memcpy(s_rc_ch, ch, sizeof(s_rc_ch));
         s_rc_ok = true;
@@ -684,6 +701,7 @@ void app_main(void) {
     setvbuf(stdin, NULL, _IONBF, 0);
     setvbuf(stdout, NULL, _IONBF, 0);
 
+    osrcore_fw_network_start();
     led_init();
     buzzer_init();
     pwm_init();

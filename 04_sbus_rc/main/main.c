@@ -18,6 +18,7 @@
 #include "driver/uart.h"
 #include "esp_log.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_lesson_config.h"
 
 #define SBUS_UART     UART_NUM_0
 #define SBUS_RX_PIN   44
@@ -104,14 +105,14 @@ static void sbus_task(void *arg)
         if (!sbus_parse(buf, &data))
             continue;
 
-        if (data.failsafe) {
+        if (data.failsafe || data.lost_frame) {
             ESP_LOGW(TAG, "FAILSAFE");
             continue;
         }
 
-        printf("ch: %4d %4d %4d %4d %4d %4d %4d %4d"
+        ESP_LOGI(TAG, "ch: %4d %4d %4d %4d %4d %4d %4d %4d"
                "  %4d %4d %4d %4d %4d %4d %4d %4d"
-               " | fs=%d lf=%d\n",
+               " | fs=%d lf=%d",
                data.ch[0],  data.ch[1],  data.ch[2],  data.ch[3],
                data.ch[4],  data.ch[5],  data.ch[6],  data.ch[7],
                data.ch[8],  data.ch[9],  data.ch[10], data.ch[11],

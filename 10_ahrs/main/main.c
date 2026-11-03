@@ -1,30 +1,15 @@
-/**
- * 示例10：Madgwick AHRS 姿态解算
- *
- * 硬件：QMI8658 IMU（I2C，SDA=GPIO10，SCL=GPIO11）
- * 输出：四元数 + 欧拉角（Roll/Pitch/Yaw），每 5ms 更新，每 100ms 打印
- *
- * Madgwick 算法：
- *   - 6-DOF 模式（仅加速度计 + 陀螺仪）
- *   - β=0.1（收敛速度与噪声抑制的平衡点）
- *   - 使用 Quake III 快速反平方根优化
- *
- * 驱动特性：
- *   - ±4g / ±1024dps，1000Hz ODR
- *   - 5 样本均值输出
- *   - 启动零偏校准（100 样本）+ 静止批量更新（1000 样本）
- *   - 静止检测（10 样本历史，加速度 Z 方差 + 陀螺仪 Z 均值）
- */
-
+/** Lesson 10: complementary roll/pitch filter, 5 ms interval. Yaw is not observable from gravity. */
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/i2c_master.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "qmi8658.h"
-#include "madgwick.h"
-#include "imu_heater.h"
+#include <math.h>
+
 #include "osrcore_fw_update.h"
+#include "osrcore_lesson_config.h"
 
 #define I2C_SDA     10
 #define I2C_SCL     11
@@ -32,30 +17,26 @@
 
 static const char *TAG = "ahrs";
 
-static madgwick_t g_ahrs;
+static float roll, pitch;
 static i2c_master_dev_handle_t g_imu_dev;
 
 static void task_imu(void *arg)
 {
     qmi8658_data_t d;
-    int print_cnt = 0;
+    int64_t previous = esp_timer_get_time(), last_print = previous;
 
     while (1) {
         if (qmi8658_read(&d)) {
-            imu_heater_update_temp(d.temp);
-            /* Gyro values are already bias-corrected by the driver */
-            madgwick_update_imu(&g_ahrs,
-                                d.gyroX, d.gyroY, d.gyroZ,
-                                d.accelX, d.accelY, d.accelZ);
-
-            if (++print_cnt >= 20) {  /* print every 100ms */
-                print_cnt = 0;
-                float roll, pitch, yaw;
-                madgwick_get_euler(&g_ahrs, &roll, &pitch, &yaw);
-                printf("q: %.4f %.4f %.4f %.4f  euler: R=%.1f P=%.1f Y=%.1f  static=%d\n",
-                       g_ahrs.q0, g_ahrs.q1, g_ahrs.q2, g_ahrs.q3,
-                       roll, pitch, yaw,
-                       (int)qmi8658_is_static());
+            int64_t now = esp_timer_get_time();
+            float dt = fminf((now - previous) / 1000000.0f, 0.1f);
+            previous = now;
+            float gravity_roll=atan2f(d.accelY,d.accelZ)*57.2957795f;
+            float gravity_pitch=atan2f(-d.accelX,sqrtf(d.accelY*d.accelY+d.accelZ*d.accelZ))*57.2957795f;
+            roll=OSR_AHRS_ALPHA*(roll+d.gyroX*dt)+(1-OSR_AHRS_ALPHA)*gravity_roll;
+            pitch=OSR_AHRS_ALPHA*(pitch+d.gyroY*dt)+(1-OSR_AHRS_ALPHA)*gravity_pitch;
+            if (now - last_print >= 100000) {
+                last_print = now;
+                ESP_LOGI(TAG,"roll=%.2f pitch=%.2f alpha=%.2f",roll,pitch,(double)OSR_AHRS_ALPHA);
             }
         }
         vTaskDelay(pdMS_TO_TICKS(5));
@@ -86,17 +67,6 @@ void app_main(void)
 
     qmi8658_init(g_imu_dev);
     qmi8658_calibrate_bias();
-    madgwick_init(&g_ahrs, 0.1f);
-    imu_heater_init(56.0f);
-
-    /* start IMU task first so it feeds temp to the heater */
     xTaskCreatePinnedToCore(task_imu, "imu", 4096, NULL, 5, NULL, 1);
-
-    printf("Waiting for IMU heater warm (38C)...\n");
-    while (!imu_heater_warm()) {
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-    printf("Heater warm, starting AHRS\n");
-
-    ESP_LOGI(TAG, "AHRS running (6-DOF Madgwick, beta=0.1)");
+    ESP_LOGI(TAG, "Complementary attitude filter; heater disabled; keep still for calibration.");
 }

@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
+if(OSRCORE_LAB_CONFIG)
+  add_compile_options("-include" "${OSRCORE_LAB_CONFIG}")
+endif()
 set(EXTRA_COMPONENT_DIRS "../components")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(10_ahrs)

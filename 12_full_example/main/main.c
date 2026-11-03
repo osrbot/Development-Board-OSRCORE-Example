@@ -46,6 +46,7 @@
 #include "pid.h"
 #include "imu_heater.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_lesson_config.h"
 
 /* ---- Pin / parameter config ---- */
 #define I2C_SDA             10
@@ -174,6 +175,7 @@ static void serial_tx_task_fn(void *arg)
     serial_tx_msg_t msg;
     while (1) {
         if (xQueueReceive(s_serial_tx_queue, &msg, portMAX_DELAY) == pdTRUE) {
+            osrcore_fw_record_log(msg.line);
             fputs(msg.line, stdout);
             fflush(stdout);
         }
@@ -576,6 +578,10 @@ static void process_serial_cmd(const char *line)
     if (remote) return;  /* remote has priority */
 
     if (sscanf(line, "v %f %f", &v, &s) == 2) {
+        if (!isfinite(v) || !isfinite(s) || v > MAX_SPEED_FORWARD || v < -MAX_SPEED_REVERSE || fabsf(s) > 90.0f) {
+            serial_tx_printf("ERR: invalid speed or steering\n");
+            return;
+        }
         /* v <vx_m_s> <steer_deg>: steer_deg maps to pulse */
         int pulse = STEER_DEG_TO_PULSE(s);
         pulse = iclamp(pulse, STEERING_MIN, STEERING_MAX);
@@ -633,6 +639,7 @@ static void process_serial_cmd(const char *line)
                          spd, steer, volt, temp, rem, fs, full);
 
     } else if (sscanf(line, "kp %f", &val) == 1) {
+        if (!isfinite(val) || val < 0 || val > 10000) {serial_tx_printf("ERR: invalid gain\n");return;}
         portENTER_CRITICAL(&g_mux);
         g_state.kp = val;
         g_pid.kp   = val;
@@ -640,6 +647,7 @@ static void process_serial_cmd(const char *line)
         serial_tx_printf("OK kp=%.3f\n", val);
 
     } else if (sscanf(line, "ki %f", &val) == 1) {
+        if (!isfinite(val) || val < 0 || val > 10000) {serial_tx_printf("ERR: invalid gain\n");return;}
         portENTER_CRITICAL(&g_mux);
         g_state.ki = val;
         g_pid.ki   = val;
@@ -647,6 +655,7 @@ static void process_serial_cmd(const char *line)
         serial_tx_printf("OK ki=%.3f\n", val);
 
     } else if (sscanf(line, "kd %f", &val) == 1) {
+        if (!isfinite(val) || val < 0 || val > 10000) {serial_tx_printf("ERR: invalid gain\n");return;}
         portENTER_CRITICAL(&g_mux);
         g_state.kd = val;
         g_pid.kd   = val;
@@ -872,6 +881,7 @@ void app_main(void)
     gpio_config(&led_cfg);
 
     ESP_ERROR_CHECK(nvs_flash_init());
+    osrcore_fw_network_start();
 
     init_i2c_imu();
     init_encoder();
@@ -881,7 +891,7 @@ void app_main(void)
 
     madgwick_init(&g_ahrs, 0.1f);
 
-    imu_heater_init(56.0f);
+    /* Heater is an advanced opt-in function, not part of this lesson. */
 
     /* Init state */
     memset(&g_state, 0, sizeof(g_state));
@@ -915,13 +925,6 @@ void app_main(void)
 
     /* Start IMU task first so the heater can receive temperature updates */
     xTaskCreatePinnedToCore(task_imu, "imu", 4096, NULL, 5, NULL, 1);
-
-    /* Wait until heater reaches warm threshold (38°C) before starting control */
-    serial_tx_printf("INFO: Waiting for IMU heater warm...\n");
-    while (!imu_heater_warm()) {
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-    serial_tx_printf("INFO: IMU heater warm — starting control tasks\n");
 
     xTaskCreatePinnedToCore(task_control, "ctrl",    4096, NULL, 4, NULL, 1);
     xTaskCreatePinnedToCore(task_comm,    "comm",    8192, NULL, 3, NULL, 0);

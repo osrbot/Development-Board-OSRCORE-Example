@@ -12,6 +12,7 @@
 #include "driver/i2c_master.h"
 #include "esp_log.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_lesson_config.h"
 #include "qmi8658.h"
 
 #define I2C_SDA      10
@@ -56,7 +57,7 @@ void app_main(void)
     qmi8658_data_t d;
     while (1) {
         if (qmi8658_read(&d)) {
-            printf("ax=%.3f ay=%.3f az=%.3f  gx=%.2f gy=%.2f gz=%.2f  T=%.1f  static=%d\n",
+            ESP_LOGI(TAG, "ax=%.3f ay=%.3f az=%.3f  gx=%.2f gy=%.2f gz=%.2f  T=%.1f  static=%d",
                    d.accelX, d.accelY, d.accelZ,
                    d.gyroX,  d.gyroY,  d.gyroZ,
                    d.temp,
