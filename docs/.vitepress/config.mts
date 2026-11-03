@@ -1,60 +1,34 @@
 import { defineConfig } from 'vitepress'
+import { lessons } from './theme/lab-simulation.mjs'
 
 const isGitHubPages = process.env.GITHUB_ACTIONS === 'true'
 const base = isGitHubPages ? '/Development-Board-OSRCORE-Example/' : '/'
 const repo = 'https://github.com/osrbot/Development-Board-OSRCORE-Example'
 
-const zhChapters = [
-  ['第 0 章：ESP-IDF 与硬件入门', '/chapter-00'],
-  ['第 1 章：WS2812B 彩色 LED', '/chapter-01'],
-  ['第 2 章：无源蜂鸣器', '/chapter-02'],
-  ['第 3 章：PWM 舵机与 ESC', '/chapter-03'],
-  ['第 4 章：SBUS 遥控接收', '/chapter-04'],
-  ['第 5 章：QMI8658 IMU', '/chapter-05'],
-  ['第 6 章：正交编码器测速', '/chapter-06'],
-  ['第 7 章：NVS 参数持久化', '/chapter-07'],
-  ['第 8 章：FreeRTOS 多任务', '/chapter-08'],
-  ['第 9 章：PID 电机闭环', '/chapter-09'],
-  ['第 10 章：Madgwick AHRS', '/chapter-10'],
-  ['第 11 章：QMC6309 磁力计', '/chapter-11'],
-  ['第 12 章：完整机器人示例', '/chapter-12']
-] as const
+const zhChapters = lessons.map(l => [String(l.id).padStart(2,'0')+' · '+l.zh, '/chapter-'+String(l.id).padStart(2,'0')])
 
-const enChapters = [
-  ['0. ESP-IDF & Hardware', '/en/chapter-00'],
-  ['1. WS2812B LED', '/en/chapter-01'],
-  ['2. Passive Buzzer', '/en/chapter-02'],
-  ['3. Servo & ESC PWM', '/en/chapter-03'],
-  ['4. SBUS Receiver', '/en/chapter-04'],
-  ['5. QMI8658 IMU', '/en/chapter-05'],
-  ['6. Quadrature Encoder', '/en/chapter-06'],
-  ['7. NVS Persistence', '/en/chapter-07'],
-  ['8. FreeRTOS Tasks', '/en/chapter-08'],
-  ['9. PID Speed Loop', '/en/chapter-09'],
-  ['10. Madgwick AHRS', '/en/chapter-10'],
-  ['11. QMC6309 Magnetometer', '/en/chapter-11'],
-  ['12. Full Robot Example', '/en/chapter-12']
-] as const
+const enChapters = lessons.map(l => [String(l.id).padStart(2,'0')+' · '+l.en, '/en/chapter-'+String(l.id).padStart(2,'0')])
 
 export default defineConfig({
-  title: 'OSRCORE Docs',
+  title: 'OSRCORE Learn',
   description: 'OSRCORE development board ESP-IDF examples and robot tutorial',
   base,
   cleanUrls: true,
+  appearance: false,
   lastUpdated: true,
   metaChunk: true,
   markdown: {
     lineNumbers: true
   },
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }],
-    ['link', { rel: 'apple-touch-icon', href: `${base}logo.svg` }],
-    ['meta', { name: 'theme-color', content: '#16a34a' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}brand/favicon.svg` }],
+    ['link', { rel: 'apple-touch-icon', href: `${base}brand/favicon.svg` }],
+    ['meta', { name: 'theme-color', content: '#0076DF' }],
     ['meta', { name: 'viewport', content: 'width=device-width,initial-scale=1' }]
   ],
   themeConfig: {
-    logo: '/logo.svg',
-    siteTitle: 'OSRCORE',
+    logo: '/brand/logo.svg',
+    siteTitle: false,
     socialLinks: [
       { icon: 'github', link: repo }
     ],
@@ -71,7 +45,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '教程', link: '/chapters' },
-          { text: '固件烧录', link: '/updater' },
+          { text: '连接与下载', link: '/updater' },
           { text: '示例仓库', link: repo }
         ],
         sidebar: [
@@ -80,7 +54,7 @@ export default defineConfig({
             items: [
               { text: '首页', link: '/' },
               { text: '章节索引', link: '/chapters' },
-              { text: '固件烧录', link: '/updater' }
+              { text: '连接与下载', link: '/updater' }
             ]
           },
           {
@@ -143,12 +117,12 @@ export default defineConfig({
       label: 'English',
       lang: 'en-US',
       link: '/en/',
-      title: 'OSRCORE Docs',
+      title: 'OSRCORE Learn',
       description: 'OSRCORE development board ESP-IDF examples and robot tutorial',
       themeConfig: {
         nav: [
           { text: 'Guide', link: '/en/chapters' },
-          { text: 'Firmware Flashing', link: '/en/updater' },
+          { text: 'Connect & download', link: '/en/updater' },
           { text: 'Examples', link: repo }
         ],
         sidebar: [
@@ -157,7 +131,7 @@ export default defineConfig({
             items: [
               { text: 'Overview', link: '/en/' },
               { text: 'Chapter Index', link: '/en/chapters' },
-              { text: 'Firmware Flashing', link: '/en/updater' }
+              { text: 'Connect & download', link: '/en/updater' }
             ]
           },
           {

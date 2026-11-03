@@ -1,12 +1,12 @@
----
-title: Firmware Flashing
-description: Flash OSRCORE example or factory restore firmware directly in your browser.
----
+# Build and download to the board
 
-# Firmware Flashing
+[Open the interactive lessons](/en/#lesson-01), select a lesson, then open **Connect board**.
 
-> This legacy entry now uses the unified firmware flashing tool. Chrome or Edge is required because this page uses the Web Serial API.
+1. Run the browser model and change firmware parameters.
+2. Connect USB, build current parameters, and download the resulting firmware.
+3. Reconnect device logs to observe real output. Parameter changes require a new build.
+4. Provision Wi-Fi over USB with the new lesson firmware first, then update through the same device panel.
 
-Flashing can select the current repository examples directly. Factory restore uses the built-in full flash image.
+Resources, source and build artifacts follow the current refactored curriculum. Legacy prebuilt firmware, remote URL downloads and full-flash recovery are no longer offered here.
 
-<FirmwareUpdater locale="en" />
+Local compilation requires `tools/lab-server.mjs`. For USB, open localhost on the computer connected to the board. Hardware validation is still pending.

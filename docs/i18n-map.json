@@ -13,94 +13,101 @@
   "chapters": [
     {
       "id": "00",
-      "zhTitle": "第 0 章：ESP-IDF 工具链与 OSRCORE 硬件",
-      "enTitle": "Chapter 0: ESP-IDF Toolchain and OSRCORE Hardware",
+      "zhTitle": "00 · 认识开发板",
+      "enTitle": "00 · Meet OSRCORE",
       "zh": "chapter-00.md",
       "en": "en/chapter-00.md"
     },
     {
       "id": "01",
-      "zhTitle": "第 1 章：WS2812B 彩色 LED（RMT 驱动）",
-      "enTitle": "Chapter 1: WS2812B RGB LED (RMT Driver)",
+      "zhTitle": "01 · 点亮 RGB 灯",
+      "enTitle": "01 · Light up an LED",
       "zh": "chapter-01.md",
       "en": "en/chapter-01.md"
     },
     {
       "id": "02",
-      "zhTitle": "第 2 章：无源蜂鸣器（LEDC PWM 音调控制）",
-      "enTitle": "Chapter 2: Passive Buzzer (LEDC PWM Tone Control)",
+      "zhTitle": "02 · 让蜂鸣器发声",
+      "enTitle": "02 · Make some sound",
       "zh": "chapter-02.md",
       "en": "en/chapter-02.md"
     },
     {
       "id": "03",
-      "zhTitle": "第 3 章：PWM 舵机与 ESC 控制",
-      "enTitle": "Chapter 3: PWM Servo and ESC Control",
+      "zhTitle": "03 · 控制舵机与电调",
+      "enTitle": "03 · Servo & ESC",
       "zh": "chapter-03.md",
       "en": "en/chapter-03.md"
     },
     {
       "id": "04",
-      "zhTitle": "第 4 章：SBUS 遥控接收",
-      "enTitle": "Chapter 4: SBUS RC Receiver",
+      "zhTitle": "04 · 接收遥控信号",
+      "enTitle": "04 · Read RC signals",
       "zh": "chapter-04.md",
       "en": "en/chapter-04.md"
     },
     {
       "id": "05",
-      "zhTitle": "第 5 章：QMI8658 IMU（I2C 读取）",
-      "enTitle": "Chapter 5: QMI8658 IMU (I2C Readout)",
+      "zhTitle": "05 · 感知运动",
+      "enTitle": "05 · Sense motion",
       "zh": "chapter-05.md",
       "en": "en/chapter-05.md"
     },
     {
       "id": "06",
-      "zhTitle": "第 6 章：正交编码器速度测量（PCNT）",
-      "enTitle": "Chapter 6: Quadrature Encoder Speed Measurement (PCNT)",
+      "zhTitle": "06 · 测量转速",
+      "enTitle": "06 · Measure speed",
       "zh": "chapter-06.md",
       "en": "en/chapter-06.md"
     },
     {
       "id": "07",
-      "zhTitle": "第 7 章：NVS 参数持久化",
-      "enTitle": "Chapter 7: NVS Parameter Persistence",
+      "zhTitle": "07 · 保存参数",
+      "enTitle": "07 · Save settings",
       "zh": "chapter-07.md",
       "en": "en/chapter-07.md"
     },
     {
       "id": "08",
-      "zhTitle": "第 8 章：FreeRTOS 多任务架构",
-      "enTitle": "Chapter 8: FreeRTOS Multitasking Architecture",
+      "zhTitle": "08 · 运行多个任务",
+      "enTitle": "08 · Run multiple tasks",
       "zh": "chapter-08.md",
       "en": "en/chapter-08.md"
     },
     {
       "id": "09",
-      "zhTitle": "第 9 章：PID 电机速度闭环控制",
-      "enTitle": "Chapter 9: PID Motor Speed Closed-Loop Control",
+      "zhTitle": "09 · 闭环控制电机",
+      "enTitle": "09 · Control motor speed",
       "zh": "chapter-09.md",
       "en": "en/chapter-09.md"
     },
     {
       "id": "10",
-      "zhTitle": "第 10 章：Madgwick AHRS 姿态解算",
-      "enTitle": "Chapter 10: Madgwick AHRS Attitude Estimation",
+      "zhTitle": "10 · 解算姿态",
+      "enTitle": "10 · Estimate attitude",
       "zh": "chapter-10.md",
       "en": "en/chapter-10.md"
     },
     {
       "id": "11",
-      "zhTitle": "第 11 章：QMC6309 磁力计与罗盘航向",
-      "enTitle": "Chapter 11: QMC6309 Magnetometer and Compass Heading",
+      "zhTitle": "11 · 找到方向",
+      "enTitle": "11 · Find your heading",
       "zh": "chapter-11.md",
       "en": "en/chapter-11.md"
     },
     {
       "id": "12",
-      "zhTitle": "第 12 章：完整机器人示例",
-      "enTitle": "Chapter 12: Complete Robot Example",
+      "zhTitle": "12 · 组合成机器人",
+      "enTitle": "12 · Build a robot",
       "zh": "chapter-12.md",
       "en": "en/chapter-12.md"
+    },
+    {
+      "id": "13",
+      "zhTitle": "13 · 出厂功能检查",
+      "enTitle": "13 · Factory check",
+      "zh": "chapter-13.md",
+      "en": "en/chapter-13.md"
     }
   ]
 }
