@@ -36,3 +36,6 @@ HARDWARE_MAP_REVIEW.md
 REAL_BOARD_PLAN.md
 REFERENCE_REBUILD_PLAN.md
 design-qa.md
+
+# Runtime geometry selection data (not firmware)
+!docs/public/hardware/selection-map.bin
