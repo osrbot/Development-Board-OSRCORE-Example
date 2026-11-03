@@ -15,99 +15,99 @@
       "id": "00",
       "zhTitle": "00 · 认识开发板",
       "enTitle": "00 · Meet OSRCORE",
-      "zh": "chapter-00.md",
-      "en": "en/chapter-00.md"
+      "zh": "zh/chapter-00.md",
+      "en": "chapter-00.md"
     },
     {
       "id": "01",
       "zhTitle": "01 · 点亮 RGB 灯",
       "enTitle": "01 · Light up an LED",
-      "zh": "chapter-01.md",
-      "en": "en/chapter-01.md"
+      "zh": "zh/chapter-01.md",
+      "en": "chapter-01.md"
     },
     {
       "id": "02",
       "zhTitle": "02 · 让蜂鸣器发声",
       "enTitle": "02 · Make some sound",
-      "zh": "chapter-02.md",
-      "en": "en/chapter-02.md"
+      "zh": "zh/chapter-02.md",
+      "en": "chapter-02.md"
     },
     {
       "id": "03",
       "zhTitle": "03 · 控制舵机与电调",
       "enTitle": "03 · Servo & ESC",
-      "zh": "chapter-03.md",
-      "en": "en/chapter-03.md"
+      "zh": "zh/chapter-03.md",
+      "en": "chapter-03.md"
     },
     {
       "id": "04",
       "zhTitle": "04 · 接收遥控信号",
       "enTitle": "04 · Read RC signals",
-      "zh": "chapter-04.md",
-      "en": "en/chapter-04.md"
+      "zh": "zh/chapter-04.md",
+      "en": "chapter-04.md"
     },
     {
       "id": "05",
       "zhTitle": "05 · 感知运动",
       "enTitle": "05 · Sense motion",
-      "zh": "chapter-05.md",
-      "en": "en/chapter-05.md"
+      "zh": "zh/chapter-05.md",
+      "en": "chapter-05.md"
     },
     {
       "id": "06",
       "zhTitle": "06 · 测量转速",
       "enTitle": "06 · Measure speed",
-      "zh": "chapter-06.md",
-      "en": "en/chapter-06.md"
+      "zh": "zh/chapter-06.md",
+      "en": "chapter-06.md"
     },
     {
       "id": "07",
       "zhTitle": "07 · 保存参数",
       "enTitle": "07 · Save settings",
-      "zh": "chapter-07.md",
-      "en": "en/chapter-07.md"
+      "zh": "zh/chapter-07.md",
+      "en": "chapter-07.md"
     },
     {
       "id": "08",
       "zhTitle": "08 · 运行多个任务",
       "enTitle": "08 · Run multiple tasks",
-      "zh": "chapter-08.md",
-      "en": "en/chapter-08.md"
+      "zh": "zh/chapter-08.md",
+      "en": "chapter-08.md"
     },
     {
       "id": "09",
       "zhTitle": "09 · 闭环控制电机",
       "enTitle": "09 · Control motor speed",
-      "zh": "chapter-09.md",
-      "en": "en/chapter-09.md"
+      "zh": "zh/chapter-09.md",
+      "en": "chapter-09.md"
     },
     {
       "id": "10",
       "zhTitle": "10 · 解算姿态",
       "enTitle": "10 · Estimate attitude",
-      "zh": "chapter-10.md",
-      "en": "en/chapter-10.md"
+      "zh": "zh/chapter-10.md",
+      "en": "chapter-10.md"
     },
     {
       "id": "11",
       "zhTitle": "11 · 找到方向",
       "enTitle": "11 · Find your heading",
-      "zh": "chapter-11.md",
-      "en": "en/chapter-11.md"
+      "zh": "zh/chapter-11.md",
+      "en": "chapter-11.md"
     },
     {
       "id": "12",
       "zhTitle": "12 · 组合成机器人",
       "enTitle": "12 · Build a robot",
-      "zh": "chapter-12.md",
-      "en": "en/chapter-12.md"
+      "zh": "zh/chapter-12.md",
+      "en": "chapter-12.md"
     },
     {
       "id": "13",
       "zhTitle": "13 · 出厂功能检查",
       "enTitle": "13 · Factory check",
-      "zh": "chapter-13.md",
-      "en": "en/chapter-13.md"
+      "zh": "zh/chapter-13.md",
+      "en": "chapter-13.md"
     }
   ]
 }

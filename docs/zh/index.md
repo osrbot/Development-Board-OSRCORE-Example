@@ -3,4 +3,4 @@ layout: page
 sidebar: false
 ---
 
-<LearningLab locale="en" />
+<LearningLab locale="zh" />

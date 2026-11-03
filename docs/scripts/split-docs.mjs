@@ -12,15 +12,15 @@ map.chapters = lessons.map(lesson => {
     id,
     zhTitle: `${id} · ${lesson.zh}`,
     enTitle: `${id} · ${lesson.en}`,
-    zh: `chapter-${id}.md`,
-    en: `en/chapter-${id}.md`
+    zh: `zh/chapter-${id}.md`,
+    en: `chapter-${id}.md`
   }
 })
 await fs.writeFile(mapPath,JSON.stringify(map,null,2)+'\n')
 
 const sources = {
-  zh: path.join(root, 'tutorial_zh.md'),
-  en: path.join(root, 'en', 'tutorial.md')
+  zh: path.join(root, 'zh', 'tutorial.md'),
+  en: path.join(root, 'tutorial.md')
 }
 
 const splitRules = {
@@ -50,7 +50,7 @@ function splitByChapter(content, locale) {
 
 function promoteChapterHeading(markdown, title, locale) {
   const id=markdown.match(/^##\s+(?:第\s*|Chapter\s+)(\d+)/m)?.[1] || '0'
-  const url=(locale==='zh'?'/':'/en/')+'#lesson-'+id.padStart(2,'0')
+  const url=(locale==='zh'?'/zh/':'/')+'#lesson-'+id.padStart(2,'0')
   const promoted=markdown.replace(/^##\s+[^\n]+/m, `# ${title}`)
   return promoted.replace(/^(#\s+[^\n]+\n)/m,`$1\n[${locale==='zh'?'打开本课交互实验与设备下载':'Open this interactive lesson and device downloads'}](${url})\n`)
 }
@@ -66,12 +66,10 @@ function indexPage(locale) {
   for (const chapter of map.chapters) {
     const text = locale === 'zh' ? chapter.zhTitle : chapter.enTitle
     const file = locale === 'zh' ? chapter.zh : chapter.en
-    const href = locale === 'en'
-      ? file.replace(/^en\//, '').replace(/\.md$/, '')
-      : file.replace(/\.md$/, '')
+    const href = path.basename(file).replace(/\.md$/, '')
     lines.push(`- [${text}](./${href})`)
   }
-  lines.push('')
+  lines.push('', isZh ? '## 硬件资料' : '## Hardware resources', '', `[${isZh ? '产品手册' : 'Product manual'}](/hardware/manual-${locale}.pdf) · [${isZh ? '原理图' : 'Schematic'}](/hardware/schematic-${locale}.pdf)`, '')
   return lines.join('\n')
 }
 
@@ -108,8 +106,8 @@ for (const chapter of map.chapters) {
   }
 }
 
-await writeFileEnsured('chapters.md', indexPage('zh'))
-await writeFileEnsured('en/chapters.md', indexPage('en'))
+await writeFileEnsured('zh/chapters.md', indexPage('zh'))
+await writeFileEnsured('chapters.md', indexPage('en'))
 
 if (missing.length > 0) {
   console.warn(`[split-docs] Missing chapters: ${missing.join(', ')}`)

@@ -78,7 +78,7 @@ jobs:
             esptool.py --chip esp32s3 write_flash 0x0 osrcore-<example>-full.bin
             ```
 
-            For browser-based flashing, run the local companion service described in LOCAL_LAB.md. Physical-board validation status is documented in EXAMPLE_REVIEW.md.
+            For browser-based flashing, run the local companion service described in docs/maintainers/local-development.md. Physical-board validation status is documented in docs/maintainers/validation.md.
           files: |
             firmware/osrcore-*.bin
             firmware/osrbot_ESP32S3_IDF_App.bin

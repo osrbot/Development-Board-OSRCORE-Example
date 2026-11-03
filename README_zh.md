@@ -19,7 +19,7 @@ npm --prefix docs run build
 node tools/lab-server.mjs
 ```
 
-打开 `http://localhost:5173/`。编译固件需要 ESP-IDF v6.0.1；USB 需要支持 Web Serial 的浏览器。详见 [本地使用说明](LOCAL_LAB.md)。
+打开 `http://localhost:5173/`。编译固件需要 ESP-IDF v6.0.1；USB 需要支持 Web Serial 的浏览器。详见 [本地使用说明](docs/maintainers/local-development.md)。
 
 ## 课程与源码
 
@@ -47,7 +47,7 @@ node --test tools/*.test.mjs docs/scripts/*.test.mjs
 npm --prefix docs run build
 ```
 
-例程复核记录：[EXAMPLE_REVIEW.md](EXAMPLE_REVIEW.md)。教材源文件位于 `docs/tutorial_zh.md` 和 `docs/en/tutorial.md`，目录与网页课程共用课程定义。
+例程复核记录：[docs/maintainers/validation.md](docs/maintainers/validation.md)。教材源文件位于 `docs/zh/tutorial.md` 和 `docs/tutorial.md`，目录与网页课程共用课程定义。
 
 ## 发布与历史
 

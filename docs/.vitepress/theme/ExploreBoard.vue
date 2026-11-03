@@ -1,13 +1,16 @@
 <script setup>
+import {useLanguage} from './language.mjs';
+const {en,t}=useLanguage();
 import {ref,watch,onMounted,onUnmounted,computed} from 'vue';
 import {withBase} from 'vitepress';
+import {hardwareInEnglish} from './hardware-en.mjs';
 import {hardware} from './hardware-map.mjs';
 import {headerPinPosition,headerPinNumberAt} from './header-pins.mjs';
 import {illustratedMaterial,studioExposure} from './board-materials.mjs';
 const props=defineProps({selection:String,running:Boolean,flow:Boolean,color:String,pin:String,ledLevel:Number});
 const emit=defineEmits(['select']);
 const host=ref(),failed=ref(false),ready=ref(false),hover=ref(''),path=ref(''),pinGuide=ref(null),zoomLevel=ref(1);
-const choices=computed(()=>hardware);
+const choices=computed(()=>en.value?hardware.map(hardwareInEnglish):hardware);
 
 let dispose=()=>{},invalidate=()=>{},reset=()=>{},flip=()=>{},setZoom=()=>{};
 watch(()=>[props.selection,props.running,props.flow,props.color,props.pin,props.ledLevel],()=>invalidate());
@@ -22,7 +25,7 @@ onMounted(async()=>{
   camera.position.set(0,0,150);camera.lookAt(0,0,0);
   const renderer=new T.WebGLRenderer({alpha:true,antialias:true,powerPreference:'high-performance'});
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=studioExposure;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;
-  host.value.appendChild(renderer.domElement);renderer.domElement.setAttribute('aria-label','拖动旋转板卡，点击元件查看引脚');
+  host.value.appendChild(renderer.domElement);renderer.domElement.setAttribute('aria-label',t("拖动旋转板卡，点击元件查看引脚"));
   const pmrem=new T.PMREMGenerator(renderer),room=new RoomEnvironment(),env=pmrem.fromScene(room,.05);scene.environment=env.texture;room.dispose();pmrem.dispose();
   scene.add(new T.HemisphereLight(0xfffaf1,0x607080,.8));
   for(const [x,y,z,p] of [[-60,80,100,2],[60,-20,50,.7]]){const l=new T.DirectionalLight(0xfff7e8,p);l.position.set(x,y,z);if(x<0){l.castShadow=true;l.shadow.mapSize.set(2048,2048);Object.assign(l.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:250});l.shadow.bias=-.0003;l.shadow.normalBias=.08;l.shadow.radius=3}scene.add(l)}
@@ -98,16 +101,16 @@ onUnmounted(()=>{dead=true;dispose()});
 
   <div class="explore-stage">
    <div ref="host" class="explore-canvas" v-show="!failed"></div>
-   <div v-if="!ready" class="explore-fallback" role="status"><span>{{failed?'三维暂不可用，请通过下方选择器查看元件':'正在加载三维板卡…'}}</span></div>
-   <svg v-if="ready&&pinGuide" class="pin-guide" aria-label="所选排针位置">
+   <div v-if="!ready" class="explore-fallback" role="status"><span>{{failed?t('三维暂不可用，请通过下方选择器查看元件'):t('正在加载三维板卡…')}}</span></div>
+   <svg v-if="ready&&pinGuide" class="pin-guide" :aria-label="t('所选排针位置')">
     <circle :cx="pinGuide.pin[0]" :cy="pinGuide.pin[1]" r="6" class="selected-pin"/>
     <path :d="`M${pinGuide.pin[0]} ${pinGuide.pin[1]}L${pinGuide.labelX+8} ${pinGuide.labelY}`" class="pin-leader"/>
    </svg>
    <div v-if="ready&&pinGuide" class="pin-location-label" :style="{left:pinGuide.labelX+'px',top:pinGuide.labelY+'px'}">{{pinGuide.label}}</div>
-   <svg v-if="ready&&path" class="board-signal" :class="{running}" aria-label="逻辑信号路径"><path :d="path"/><path :d="path" class="signal-dashes"/></svg>
+   <svg v-if="ready&&path" class="board-signal" :class="{running}" :aria-label="t('逻辑信号路径')"><path :d="path"/><path :d="path" class="signal-dashes"/></svg>
 
   </div>
-  <div class="explore-controls"><span title="Shift + 拖动或右键拖动可平移查看放大后的细节">{{failed?'此浏览器暂不支持三维，仍可选择元件':'拖动旋转 · 滚轮缩放'}}</span><div v-if="ready" class="zoom-controls"><button aria-label="缩小板卡" :disabled="zoomLevel<=.8" @click="setZoom(zoomLevel/1.25)">−</button><output aria-label="板卡缩放比例">{{Math.round(zoomLevel*100)}}%</output><button aria-label="放大板卡" :disabled="zoomLevel>=3.5" @click="setZoom(zoomLevel*1.25)">+</button></div><button v-if="ready" @click="flip()">翻转 ↔</button><button v-if="ready" @click="reset()">复位视角</button><label class="sr-only" for="hardware-select">选择板卡元件</label><select id="hardware-select" :value="selection" @change="emit('select',$event.target.value)"><option v-for="h in choices" :value="h.id" :key="h.id">{{h.name}}</option></select></div>
+  <div class="explore-controls"><span :title="t('Shift + 拖动或右键拖动可平移查看放大后的细节')">{{failed?t('此浏览器暂不支持三维，仍可选择元件'):t('拖动旋转 · 滚轮缩放')}}</span><div v-if="ready" class="zoom-controls"><button :aria-label="t('缩小板卡')" :disabled="zoomLevel<=.8" @click="setZoom(zoomLevel/1.25)">−</button><output :aria-label="t('板卡缩放比例')">{{Math.round(zoomLevel*100)}}%</output><button :aria-label="t('放大板卡')" :disabled="zoomLevel>=3.5" @click="setZoom(zoomLevel*1.25)">+</button></div><button v-if="ready" @click="flip()">{{t('翻转 ↔')}}</button><button v-if="ready" @click="reset()">{{t('复位视角')}}</button><label class="sr-only" for="hardware-select">{{t('选择板卡元件')}}</label><select id="hardware-select" :value="selection" @change="emit('select',$event.target.value)"><option v-for="h in choices" :value="h.id" :key="h.id">{{h.name}}</option></select></div>
  </section>
 </template>
 <style scoped>

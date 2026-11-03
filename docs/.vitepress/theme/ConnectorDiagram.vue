@@ -1,4 +1,6 @@
 <script setup>
+import {useLanguage} from './language.mjs';
+const {en,t}=useLanguage();
 import {computed} from 'vue';
 const props=defineProps({part:Object,selected:String});
 const emit=defineEmits(['pin']);
@@ -32,10 +34,10 @@ const xtPositions={'1':[116,116],'2':[64,116],'3':[90,78],'4':[90,38]};
      <template v-else><text :x="xtPositions[p.n][0]" y="159" class="number">{{p.n}}</text><text :x="xtPositions[p.n][0]" y="174" class="net">{{p.net}}</text></template>
     </g>
    </svg>
-   <figcaption>{{part.kind==='xt30'?'正面俯视 · 电源端朝上':'插座开口正视 · PCB 在下'}}</figcaption>
+   <figcaption>{{part.kind==='xt30'?t('正面俯视 · 电源端朝上'):t('插座开口正视 · PCB 在下')}}</figcaption>
   </figure>
-  <div v-if="pins.length<=4" class="pin-table" role="group" aria-label="引脚信号表">
-   <div class="table-heading"><span>引脚</span><span>信号</span><template v-if="pins.length>4"><span>引脚</span><span>信号</span></template></div>
+  <div v-if="pins.length<=4" class="pin-table" role="group" :aria-label="t('引脚信号表')">
+   <div class="table-heading"><span>{{t('引脚')}}</span><span>{{t('信号')}}</span><template v-if="pins.length>4"><span>{{t('引脚')}}</span><span>{{t('信号')}}</span></template></div>
    <button v-for="p in part.pins" :key="p.n" :aria-label="part.id+' '+p.n+' '+p.net" :aria-pressed="selected===p.n" @click="emit('pin',p.n)"><span>{{p.n}}</span><strong>{{p.net}}</strong></button>
   </div>
  </div>

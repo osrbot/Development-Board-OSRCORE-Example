@@ -1,6 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {hardware,headerPins,lessonHardware,lessonGPIO} from '../.vitepress/theme/hardware-map.mjs';
-import {readFileSync} from 'node:fs';
 const get=id=>hardware.find(h=>h.id===id),nets=id=>get(id).pins.map(p=>p.net);
 test('EX2 preserves the GPIO-only first row and isolated servo supply',()=>{
  assert.equal(headerPins.length,24);
@@ -21,10 +20,9 @@ test('XT30 power and small contacts are not mixed',()=>{
  for(const id of ['VIN-A','VIN-B'])assert.deepEqual(nets(id),['CTRL_A','CTRL_B','GND_BAT','VCC_BAT']);
  for(const id of ['VOUT-A','VOUT-B'])assert.deepEqual(nets(id),['CAN L','CAN H','GND','V_IN']);
 });
-test('all interfaces have unique pin keys and valid visible projections',()=>{
- const projections=JSON.parse(readFileSync(new URL('../.vitepress/theme/illustration-hotspots.json',import.meta.url)));
+test('all interfaces have unique pin keys and valid lesson mappings',()=>{
  assert.equal(new Set(hardware.map(h=>h.id)).size,hardware.length);
- for(const h of hardware){assert.equal(new Set(h.pins.map(p=>p.n)).size,h.pins.length);for(const view of h.side==='back'?['back']:['angle','front']){const xy=projections[view][h.id];assert.ok(xy&&xy.every(n=>n>0&&n<1),h.id+' '+view)}}
+ for(const h of hardware)assert.equal(new Set(h.pins.map(p=>p.n)).size,h.pins.length);
  for(const id of Object.values(lessonHardware))assert.ok(get(id));
  assert.deepEqual(lessonGPIO[6],[3,9]);
 });

@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README_zh.md) · [在线教程 / Website](https://osrbot.github.io/osrcore-learn/)
 
-Interactive learning for the OSRCORE ESP32-S3 board: a selectable 3D board, pin references, lesson simulations, and matching ESP-IDF examples.
+Interactive learning for the OSRCORE ESP32-S3 robot controller: a selectable 3D board, pin references, lesson simulations, and matching ESP-IDF examples.
 
 ## Status
 
@@ -19,7 +19,7 @@ npm --prefix docs run build
 node tools/lab-server.mjs
 ```
 
-Open `http://localhost:5173/`. Firmware compilation requires ESP-IDF v6.0.1; USB access requires a Web Serial capable browser. See [local service instructions](LOCAL_LAB.md).
+Open `http://localhost:5173/`. Firmware compilation requires ESP-IDF v6.0.1; USB access requires a Web Serial capable browser. See [local service instructions](docs/maintainers/local-development.md).
 
 ## Lessons and source
 
@@ -47,11 +47,11 @@ node --test tools/*.test.mjs docs/scripts/*.test.mjs
 npm --prefix docs run build
 ```
 
-See [EXAMPLE_REVIEW.md](EXAMPLE_REVIEW.md) for validation scope. Tutorial sources live in `docs/tutorial_zh.md` and `docs/en/tutorial.md`; navigation is generated from the same lesson definitions as the interactive app.
+See [docs/maintainers/validation.md](docs/maintainers/validation.md) for validation scope. Tutorial sources live in `docs/zh/tutorial.md` and `docs/tutorial.md`; navigation is generated from the same lesson definitions as the interactive app.
 
 ## Release and history
 
-The previous version is retained as `legacy-before-interactive`. The rewrite is reviewed on `refactor/interactive-learning` before merging into the default branch.
+The previous version is retained as `legacy-before-interactive`. The interactive rewrite is published from `main` to GitHub Pages. GitHub and Gitea retain the same release history.
 
 ## License
 

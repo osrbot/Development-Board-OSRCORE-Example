@@ -6,8 +6,8 @@ The OSRCORE documentation keeps long-form source tutorials and generates the pub
 
 Edit these source files:
 
-- Chinese: `tutorial_zh.md`
-- English: `en/tutorial.md`
+- Chinese: `zh/tutorial.md`
+- English: `tutorial.md`
 
 These files are source inputs for generation. They are not exposed as primary navigation entries on the site.
 
@@ -15,10 +15,10 @@ These files are source inputs for generation. They are not exposed as primary na
 
 Generated public pages:
 
-- Chinese root-locale chapters: `chapter-00.md` ... `chapter-11.md`
-- English chapters: `en/chapter-00.md` ... `en/chapter-11.md`
-- Chinese chapter index: `chapters.md`
-- English chapter index: `en/chapters.md`
+- Chinese chapters: `zh/chapter-00.md` ... `zh/chapter-13.md`
+- English root-locale chapters: `chapter-00.md` ... `chapter-13.md`
+- Chinese chapter index: `zh/chapters.md`
+- English chapter index: `chapters.md`
 
 Generate them manually with:
 

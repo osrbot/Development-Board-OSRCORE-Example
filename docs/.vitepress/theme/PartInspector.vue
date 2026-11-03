@@ -1,40 +1,43 @@
 <script setup>
+import {useLanguage} from './language.mjs';
+const {en,t}=useLanguage();
 import {computed,ref,watch} from 'vue';
 import ConnectorDiagram from './ConnectorDiagram.vue';
+import {hardwareInEnglish} from './hardware-en.mjs';
 import {hardware} from './hardware-map.mjs';
 const props=defineProps({id:String,running:Boolean,output:Object,flow:Boolean});const emit=defineEmits(['pin']);
-const part=computed(()=>hardware.find(h=>h.id===props.id)||hardware[6]);
+const part=computed(()=>{const h=hardware.find(h=>h.id===props.id)||hardware[6];return en.value?hardwareInEnglish(h):h;});
 const pin=ref('');watch(()=>props.id,()=>{pin.value=part.value.pins.find(p=>p.gpio!=null)?.n||part.value.pins[0]?.n||'';emit('pin',pin.value)},{immediate:true});
 watch(pin,p=>emit('pin',p),{immediate:true});
 const chosen=computed(()=>part.value.pins.find(p=>p.n===pin.value));
 const pins=computed(()=>part.value.reverse?[...part.value.pins].reverse():part.value.pins);
 const isSocket=computed(()=>['socket','xt30'].includes(part.value.kind));
-const typeLabel=computed(()=>part.value.kind==='xt30'?'电源 / 信号':part.value.kind==='socket'?part.value.pins.length+' PIN':part.value.kind==='header'?'3 × 8 PIN':'板载元件');
-const signal=computed(()=>props.id==='RGB'?'ESP32-S3 · GPIO45 → DIN → WS2812':props.id==='IMU'?'ESP32-S3 · GPIO10 / 11 ↔ I²C ↔ QMI8658A':props.id==='EX1'?(chosen.value?.gpio!=null?`ESP32-S3 · GPIO${chosen.value.gpio} → EX1 · PIN ${chosen.value.n}`:chosen.value?.net==='GND'?'板卡公共地 → EX1 · PIN 2':'5 V 外设电源 → EX1 · PIN 1'):'');
+const typeLabel=computed(()=>part.value.kind==='xt30'?t("电源 / 信号"):part.value.kind==='socket'?part.value.pins.length+' PIN':part.value.kind==='header'?'3 × 8 PIN':t("板载元件"));
+const signal=computed(()=>props.id==='RGB'?'ESP32-S3 · GPIO45 → DIN → WS2812':props.id==='IMU'?'ESP32-S3 · GPIO10 / 11 ↔ I²C ↔ QMI8658A':props.id==='EX1'?(chosen.value?.gpio!=null?`ESP32-S3 · GPIO${chosen.value.gpio} → EX1 · PIN ${chosen.value.n}`:chosen.value?.net==='GND'?t("板卡公共地 → EX1 · PIN 2"):t("5 V 外设电源 → EX1 · PIN 1")):'');
 </script>
 <template>
- <section class="part-inspector" :class="{'is-header':part.kind==='header'}" aria-label="元件与引脚">
+ <section class="part-inspector" :class="{'is-header':part.kind==='header'}" :aria-label="t('元件与引脚')">
   <header><div><small>{{part.ref}}</small><h2>{{part.name}}</h2></div><span class="part-supply">{{typeLabel}}</span></header>
   <div class="part-body">
    <div v-if="!isSocket && part.kind!=='header'" class="component-portrait" :class="'portrait-'+id">
-    <svg v-if="id==='IMU'" viewBox="0 0 240 100" aria-label="QMI8658A 惯性传感器示意"><path d="M68 17h99l14 10v59H68z" fill="#b99b55"/><rect x="61" y="10" width="106" height="72" rx="5" fill="#273138"/><g fill="#d7ad58"><rect v-for="i in 5" :x="70+i*14" y="17" width="8" height="7" rx="1"/><rect v-for="i in 5" :x="70+i*14" y="68" width="8" height="7" rx="1"/></g><rect x="90" y="29" width="46" height="32" rx="3" fill="#151d24" stroke="#83919a"/><text x="113" y="48" text-anchor="middle" fill="#dbe4e8" font-size="8">QMI8658A</text><path d="M195 64V24m0 40h28m-28 0-18 15" fill="none" stroke="#008cd1" stroke-width="2"/><text x="200" y="26" fill="#008cd1" font-size="9">Z</text><text x="221" y="60" fill="#008cd1" font-size="9">X</text><text x="173" y="90" fill="#008cd1" font-size="9">Y</text></svg>
-    <svg v-else-if="id==='RGB'" viewBox="0 0 240 100" aria-label="RGB 贴片灯珠：白色封装、中央透光窗口和四个触点"><g fill="#bca66c"><rect x="79" y="23" width="12" height="15" rx="1"/><rect x="79" y="58" width="12" height="15" rx="1"/><rect x="151" y="23" width="12" height="15" rx="1"/><rect x="151" y="58" width="12" height="15" rx="1"/></g><path d="M86 14h66l6 6v65H86z" fill="#d6cfbe"/><path d="M82 10h64l7 7v62H82z" fill="#f7f3e9" stroke="#b6b0a1"/><rect x="91" y="19" width="53" height="51" rx="9" fill="#a9b0a2" stroke="#8d9588"/><rect x="94" y="22" width="47" height="45" rx="7" :fill="running && output?.label!=='OFF' && output?.value>0?output.color:'#cbd0bd'"/><path d="M99 30l12 10m25-10-12 10m-25 19 12-8m25 8-12-8" fill="none" stroke="#b69c51" stroke-width="1"/><g fill="#6a7566"><rect x="110" y="37" width="7" height="7"/><rect x="120" y="37" width="7" height="7"/><rect x="115" y="48" width="7" height="7"/></g><path d="M82 69h8v10h-8" fill="#a99464"/><path d="M96 23h37" stroke="#ffffff88" stroke-width="3"/><text x="173" y="45" fill="#536777" font-size="10">RGB LED</text><text x="173" y="61" fill="#82939d" font-size="9">GPIO 45</text></svg>
-    <div v-else class="generic-part"><span>{{id==='CPU'?'ESP32-S3':part.name.split(' · ')[0]}}</span><small>{{part.kind==='header'?'3 × 8 PIN':part.kind==='xt30'?'电源 + 信号':'功能示意'}}</small></div>
+    <svg v-if="id==='IMU'" viewBox="0 0 240 100" :aria-label="t('QMI8658A 惯性传感器示意')"><path d="M68 17h99l14 10v59H68z" fill="#b99b55"/><rect x="61" y="10" width="106" height="72" rx="5" fill="#273138"/><g fill="#d7ad58"><rect v-for="i in 5" :x="70+i*14" y="17" width="8" height="7" rx="1"/><rect v-for="i in 5" :x="70+i*14" y="68" width="8" height="7" rx="1"/></g><rect x="90" y="29" width="46" height="32" rx="3" fill="#151d24" stroke="#83919a"/><text x="113" y="48" text-anchor="middle" fill="#dbe4e8" font-size="8">QMI8658A</text><path d="M195 64V24m0 40h28m-28 0-18 15" fill="none" stroke="#008cd1" stroke-width="2"/><text x="200" y="26" fill="#008cd1" font-size="9">Z</text><text x="221" y="60" fill="#008cd1" font-size="9">X</text><text x="173" y="90" fill="#008cd1" font-size="9">Y</text></svg>
+    <svg v-else-if="id==='RGB'" viewBox="0 0 240 100" :aria-label="t('RGB 贴片灯珠：白色封装、中央透光窗口和四个触点')"><g fill="#bca66c"><rect x="79" y="23" width="12" height="15" rx="1"/><rect x="79" y="58" width="12" height="15" rx="1"/><rect x="151" y="23" width="12" height="15" rx="1"/><rect x="151" y="58" width="12" height="15" rx="1"/></g><path d="M86 14h66l6 6v65H86z" fill="#d6cfbe"/><path d="M82 10h64l7 7v62H82z" fill="#f7f3e9" stroke="#b6b0a1"/><rect x="91" y="19" width="53" height="51" rx="9" fill="#a9b0a2" stroke="#8d9588"/><rect x="94" y="22" width="47" height="45" rx="7" :fill="running && output?.label!=='OFF' && output?.value>0?output.color:'#cbd0bd'"/><path d="M99 30l12 10m25-10-12 10m-25 19 12-8m25 8-12-8" fill="none" stroke="#b69c51" stroke-width="1"/><g fill="#6a7566"><rect x="110" y="37" width="7" height="7"/><rect x="120" y="37" width="7" height="7"/><rect x="115" y="48" width="7" height="7"/></g><path d="M82 69h8v10h-8" fill="#a99464"/><path d="M96 23h37" stroke="#ffffff88" stroke-width="3"/><text x="173" y="45" fill="#536777" font-size="10">RGB LED</text><text x="173" y="61" fill="#82939d" font-size="9">GPIO 45</text></svg>
+    <div v-else class="generic-part"><span>{{id==='CPU'?'ESP32-S3':part.name.split(' · ')[0]}}</span><small>{{part.kind==='header'?'3 × 8 PIN':part.kind==='xt30'?t('电源 + 信号'):t('功能示意')}}</small></div>
    </div>
    <ConnectorDiagram v-if="isSocket" :part="part" :selected="pin" @pin="pin=$event"/>
-   <p v-if="!isSocket" class="orientation">{{isSocket?'面向板端插座开口 · PCB 在下 · '+(part.reverse?'右起为 1 脚':'左起为 1 脚'):part.kind==='header'?'正面 USB-C 朝下：第 1 行靠电源端，第 8 行靠 USB-C':'信号定义，非封装焊盘顺序'}}</p>
-   <div v-if="part.kind==='header'" class="header-pinout" role="group" aria-label="EX2 排针：8 行，左中右三列">
-    <span class="column-title">行</span><span v-for="label in ['左列','中列','右列']" :key="label" class="column-title">{{label}}</span>
+   <p v-if="!isSocket" class="orientation">{{isSocket?'面向板端插座开口 · PCB 在下 · '+(part.reverse?'右起为 1 脚':'左起为 1 脚'):part.kind==='header'?t('正面 USB-C 朝下：第 1 行靠电源端，第 8 行靠 USB-C'):t('信号定义，非封装焊盘顺序')}}</p>
+   <div v-if="part.kind==='header'" class="header-pinout" role="group" :aria-label="t('EX2 排针：8 行，左中右三列')">
+    <span class="column-title">{{t('行')}}</span><span v-for="label in [t('左列'),t('中列'),t('右列')]" :key="label" class="column-title">{{label}}</span>
     <template v-for="row in 8" :key="row"><span class="row-number">{{row}}</span><button v-for="p in pins.filter(p=>p.row===row)" :key="p.n" :aria-label="part.id+' '+p.n+' '+p.net" :aria-pressed="pin===p.n" @click="pin=p.n"><i :class="{power:p.gpio==null&&!p.net.includes('GND'),ground:p.net.includes('GND')}"></i><span>{{p.net}}</span></button></template>
    </div>
    <div v-if="!isSocket && part.kind!=='header'" class="connector-pins" :class="{socket:isSocket,header:part.kind==='header'}" :style="{'--count':pins.length}">
     <button v-for="p in pins" :key="p.n" :aria-label="part.id+' '+p.n+' '+p.net" :aria-pressed="pin===p.n" @click="pin=p.n" :class="{active:pin===p.n,power:p.gpio==null&&/V|5/.test(p.net),ground:p.net.includes('GND')}"><small>PIN {{p.n}}</small><strong>{{p.net}}</strong></button>
    </div>
-   <div v-if="!isSocket || chosen?.note" class="pin-caption" aria-live="polite"><b>{{chosen?.net||part.name}}</b><span>{{chosen?.gpio!=null?'3.3 V 逻辑':chosen?.note||part.note}}</span></div>
+   <div v-if="!isSocket || chosen?.note" class="pin-caption" aria-live="polite"><b>{{chosen?.net||part.name}}</b><span>{{chosen?.gpio!=null?t('3.3 V 逻辑'):chosen?.note||part.note}}</span></div>
 
 
   </div>
-   <div v-if="signal" class="signal-summary" :class="{running}"><b>信号路径</b><span>{{signal}}</span></div>
+   <div v-if="signal" class="signal-summary" :class="{running}"><b>{{t('信号路径')}}</b><span>{{signal}}</span></div>
  </section>
 </template>
 <style scoped>

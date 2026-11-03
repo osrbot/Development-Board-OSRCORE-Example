@@ -7,8 +7,8 @@ const highlighter = await createHighlighter({
 const map = JSON.parse(await fs.readFile("i18n-map.json", "utf8"));
 const dirs = (await fs.readdir("..")).filter((x) => /^\d\d_/.test(x)).sort();
 const source = {
-  zh: await fs.readFile("tutorial_zh.md", "utf8"),
-  en: await fs.readFile("en/tutorial.md", "utf8"),
+  zh: await fs.readFile("zh/tutorial.md", "utf8"),
+  en: await fs.readFile("tutorial.md", "utf8"),
 };
 const courses = [];
 for (const chapter of map.chapters) {

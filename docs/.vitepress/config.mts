@@ -7,11 +7,11 @@ const repo = 'https://github.com/osrbot/osrcore-learn'
 
 const zhChapters = lessons.map(l => [String(l.id).padStart(2,'0')+' · '+l.zh, '/chapter-'+String(l.id).padStart(2,'0')])
 
-const enChapters = lessons.map(l => [String(l.id).padStart(2,'0')+' · '+l.en, '/en/chapter-'+String(l.id).padStart(2,'0')])
+const enChapters = lessons.map(l => [String(l.id).padStart(2,'0')+' · '+l.en, '/chapter-'+String(l.id).padStart(2,'0')])
 
 export default defineConfig({
   title: 'OSRCORE Learn',
-  description: 'OSRCORE development board ESP-IDF examples and robot tutorial',
+  description: 'Interactive lessons and ESP-IDF examples for the OSRCORE ESP32-S3 robot controller.',
   base,
   cleanUrls: false,
   appearance: false,
@@ -38,28 +38,80 @@ export default defineConfig({
   },
   locales: {
     root: {
-      label: '简体中文',
-      lang: 'zh-CN',
-      title: 'OSRCORE 文档',
-      description: 'OSRCORE 开发板 ESP-IDF 示例与机器人嵌入式教程',
+      label: 'English',
+      lang: 'en-US',
+      link: '/',
+      title: 'OSRCORE Learn',
+      description: 'Interactive lessons and ESP-IDF examples for the OSRCORE ESP32-S3 robot controller.',
       themeConfig: {
         nav: [
-          { text: '教程', link: '/chapters' },
-          { text: '连接与下载', link: '/updater' },
+          { text: 'Guide', link: '/chapters' },
+          { text: 'Connect & download', link: '/updater' },
+          { text: 'Examples', link: repo }
+        ],
+        sidebar: [
+          {
+            text: 'OSRCORE Guide',
+            items: [
+              { text: 'Overview', link: '/' },
+              { text: 'Chapter Index', link: '/chapters' },
+              { text: 'Connect & download', link: '/updater' }
+            ]
+          },
+          {
+            text: 'Chapters',
+            items: enChapters.map(([text, link]) => ({ text, link }))
+          }
+        ],
+        outline: {
+          level: [2, 3],
+          label: 'On this page'
+        },
+        footer: {
+          message: 'Learn, build and control robots with OSRCORE.',
+          copyright: 'MIT License'
+        },
+        docFooter: {
+          prev: 'Previous page',
+          next: 'Next page'
+        },
+        lastUpdated: {
+          text: 'Last updated',
+          formatOptions: {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          }
+        },
+        editLink: {
+          pattern: `${repo}/edit/main/docs/:path`,
+          text: 'Edit this page on GitHub'
+        }
+      }
+    },
+    zh: {
+      label: '简体中文',
+      lang: 'zh-CN',
+      link: '/zh/',
+      title: 'OSRCORE 文档',
+      description: 'OSRCORE ESP32-S3 机器人控制器交互教程与 ESP-IDF 例程',
+      themeConfig: {
+        nav: [
+          { text: '教程', link: '/zh/chapters' },
+          { text: '连接与下载', link: '/zh/updater' },
           { text: '示例仓库', link: repo }
         ],
         sidebar: [
           {
             text: 'OSRCORE 教程',
             items: [
-              { text: '首页', link: '/' },
-              { text: '章节索引', link: '/chapters' },
-              { text: '连接与下载', link: '/updater' }
+              { text: '首页', link: '/zh/' },
+              { text: '章节索引', link: '/zh/chapters' },
+              { text: '连接与下载', link: '/zh/updater' }
             ]
           },
           {
             text: '章节导航',
-            items: zhChapters.map(([text, link]) => ({ text, link }))
+            items: zhChapters.map(([text, link]) => ({ text, link: '/zh'+link }))
           }
         ],
         outline: {
@@ -70,7 +122,7 @@ export default defineConfig({
           provider: 'local',
           options: {
             locales: {
-              root: {
+              zh: {
                 translations: {
                   button: {
                     buttonText: '搜索文档',
@@ -93,7 +145,7 @@ export default defineConfig({
           }
         },
         footer: {
-          message: 'Built for OSRCORE robot development board.',
+          message: 'Learn, build and control robots with OSRCORE.',
           copyright: 'MIT License'
         },
         docFooter: {
@@ -110,57 +162,6 @@ export default defineConfig({
         editLink: {
           pattern: `${repo}/edit/main/docs/:path`,
           text: '在 GitHub 上编辑此页'
-        }
-      }
-    },
-    en: {
-      label: 'English',
-      lang: 'en-US',
-      link: '/en/',
-      title: 'OSRCORE Learn',
-      description: 'OSRCORE development board ESP-IDF examples and robot tutorial',
-      themeConfig: {
-        nav: [
-          { text: 'Guide', link: '/en/chapters' },
-          { text: 'Connect & download', link: '/en/updater' },
-          { text: 'Examples', link: repo }
-        ],
-        sidebar: [
-          {
-            text: 'OSRCORE Guide',
-            items: [
-              { text: 'Overview', link: '/en/' },
-              { text: 'Chapter Index', link: '/en/chapters' },
-              { text: 'Connect & download', link: '/en/updater' }
-            ]
-          },
-          {
-            text: 'Chapters',
-            items: enChapters.map(([text, link]) => ({ text, link }))
-          }
-        ],
-        outline: {
-          level: [2, 3],
-          label: 'On this page'
-        },
-        footer: {
-          message: 'Built for OSRCORE robot development board.',
-          copyright: 'MIT License'
-        },
-        docFooter: {
-          prev: 'Previous page',
-          next: 'Next page'
-        },
-        lastUpdated: {
-          text: 'Last updated',
-          formatOptions: {
-            dateStyle: 'medium',
-            timeStyle: 'short'
-          }
-        },
-        editLink: {
-          pattern: `${repo}/edit/main/docs/:path`,
-          text: 'Edit this page on GitHub'
         }
       }
     }

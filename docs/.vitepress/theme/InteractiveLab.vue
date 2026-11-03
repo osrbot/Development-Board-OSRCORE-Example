@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, provide } from "vue";
 import { withBase } from "vitepress";
 import {
   Home,
@@ -38,7 +38,7 @@ import {
 import ExploreBoard from "./ExploreBoard.vue";
 import PartInspector from "./PartInspector.vue";
 import DeviceLab from "./DeviceLab.vue";
-import {lessonGuide, firmwareParameters, firmwareValues, configHeader} from "./lesson-contract.mjs";
+import {lessonGuide, lessonHardwareEn, firmwareParameters, firmwareValues, configHeader} from "./lesson-contract.mjs";
 import { hardware, lessonHardware } from "./hardware-map.mjs";
 import sourceLessons from "./courses.json";
 import {
@@ -50,7 +50,8 @@ import {
 } from "./lab-simulation.mjs";
 import "./interactive.css";
 const props = defineProps({ locale: String });
-const en = ref(props.locale === "en");
+const en = ref(props.locale !== "zh");
+provide("osrcore-language",en);
 const tr = (zh, eng) => (en.value ? eng : zh);
 const hardwareSelection = ref("");
 const hardwarePin = ref("");
@@ -66,7 +67,7 @@ function selectHardware(id){
  output.value=null;logs.value=[];showSource.value=false;
 }
 
-const deviceOpen=ref(false), deviceStatus=ref("未连接");
+const deviceOpen=ref(false), deviceStatus=ref('');
 const selected = ref(0),
   values = ref(initialValues(0)),
   running = ref(false),
@@ -107,13 +108,13 @@ const icons = [
 ];
 
 const lesson = computed(() => lessons[selected.value]);
-const guide=computed(()=>lessonGuide[selected.value]);
+const guide=computed(()=>en.value?{goal:lesson.value.en,action:lesson.value.descriptionEn,result:lesson.value.descriptionEn,hardware:lessonHardwareEn[selected.value]}:lessonGuide[selected.value]);
 const parameterHeader=computed(()=>configHeader(selected.value,firmwareValues(selected.value,values.value)));
 const code = computed(() => {
- if(activeHardware.value!=='EX1')return lessonCode(selected.value, values.value);
+ if(activeHardware.value!=='EX1')return lessonCode(selected.value, values.value).map(line=>en.value?line.replace('教学节选','Teaching excerpt'):line);
  const gpio=selectedContact.value?.gpio;
- if(gpio==null)return ['// 此针脚为供电或接地，没有 GPIO 控制代码。','// 请先选择 EX1 的 GPIO 针脚。'];
- return ['// EX1 · GPIO 输出教学示例',`const gpio_num_t pin = GPIO_NUM_${gpio};`,'gpio_reset_pin(pin);','gpio_set_direction(pin, GPIO_MODE_OUTPUT);','while (1) {','  gpio_set_level(pin, 1);','  vTaskDelay(pdMS_TO_TICKS(500));','  gpio_set_level(pin, 0);','  vTaskDelay(pdMS_TO_TICKS(500));','}'];
+ if(gpio==null)return [tr('// 此针脚为供电或接地，没有 GPIO 控制代码。','// Power or ground pin; no GPIO control code.'),tr('// 请先选择 EX1 的 GPIO 针脚。','// Select an EX1 GPIO pin.')];
+ return [tr('// EX1 · GPIO 输出教学示例','// EX1 · GPIO output example'),`const gpio_num_t pin = GPIO_NUM_${gpio};`,'gpio_reset_pin(pin);','gpio_set_direction(pin, GPIO_MODE_OUTPUT);','while (1) {','  gpio_set_level(pin, 1);','  vTaskDelay(pdMS_TO_TICKS(500));','  gpio_set_level(pin, 0);','  vTaskDelay(pdMS_TO_TICKS(500));','}'];
 });
 const files = computed(
   () =>
@@ -486,19 +487,19 @@ const displayValue = computed(() =>
         />
         <div>
           <h1>
-            OSRCORE <span>{{ tr("入门", "LAB") }}</span>
+            OSRCORE <span>{{ tr("入门", "LEARN") }}</span>
           </h1>
           <p>{{ tr("探索 · 理解 · 动手", "EXPLORE · UNDERSTAND · BUILD") }}</p>
         </div>
       </div>
-      <nav class="lab-top-nav" aria-label="主菜单">
-       <button @click="choose(0)" aria-label="认识开发板"><Home/><span>开发板</span></button>
-       <button @click="sidebar=!sidebar" :aria-expanded="sidebar"><BookOpen/><span>课程</span></button>
-       <a :href="withBase(en?'/en/chapters.html':'/chapters.html')"><Layers/><span>资料</span></a>
-       <button @click="settings=!settings" aria-label="设置"><Settings2/><span>设置</span></button>
-       <button @click="en=!en" aria-label="切换语言"><Languages/><span>语言</span></button>
+      <nav class="lab-top-nav" :aria-label="tr('主菜单', 'Main navigation')">
+       <button @click="choose(0)" :aria-label="tr('认识开发板', 'Meet the controller')"><Home/><span>{{tr('开发板','Controller')}}</span></button>
+       <button @click="sidebar=!sidebar" :aria-expanded="sidebar"><BookOpen/><span>{{tr('课程','Lessons')}}</span></button>
+       <a :href="withBase(en?'/chapters.html':'/zh/chapters.html')"><Layers/><span>{{tr('资料','Resources')}}</span></a>
+       <button @click="settings=!settings" :aria-label="tr('设置', 'Settings')"><Settings2/><span>{{tr('设置','Settings')}}</span></button>
+       <button @click="en=!en" :aria-label="tr('切换语言', 'Switch language')"><Languages/><span>{{tr('语言','Language')}}</span></button>
       </nav>
-      <button class="connect-board" @click="deviceOpen=true"><PlugZap/><span>{{deviceStatus==='未连接'?'连接开发板':deviceStatus}}</span></button>
+      <button class="connect-board" @click="deviceOpen=true"><PlugZap/><span>{{!deviceStatus?tr('连接开发板','Connect controller'):deviceStatus}}</span></button>
       <div class="experiment-progress">
         <BookOpen />
         <div>
@@ -535,10 +536,10 @@ const displayValue = computed(() =>
       class="experiment-stage"
       :aria-label="tr('交互实验台', 'Interactive workbench')"
     >
-      <section class="experiment-info"><div class="info-content"><span class="lesson-eyebrow">{{tr('交互实验台','INTERACTIVE WORKBENCH')}}</span><h2>{{activeHardware==='EX1'?'EX1 · GPIO 实验':en?lesson.en:lesson.zh}}</h2><p>{{en?lesson.descriptionEn:guide.action}}</p></div></section>
-      <details class="lesson-guide"><summary>本课目标与接线</summary><strong>{{guide.goal}}</strong><p>{{guide.hardware}}</p><p>观察结果：{{guide.result}}</p></details>
+      <section class="experiment-info"><div class="info-content"><span class="lesson-eyebrow">{{tr('交互实验台','INTERACTIVE WORKBENCH')}}</span><h2>{{activeHardware==='EX1'?tr('EX1 · GPIO 实验','EX1 · GPIO lab'):en?lesson.en:lesson.zh}}</h2><p>{{en?lesson.descriptionEn:guide.action}}</p></div></section>
+      <details class="lesson-guide"><summary>{{tr('本课目标与接线','Goal & wiring')}}</summary><strong>{{guide.goal}}</strong><p>{{guide.hardware}}</p><p>{{tr('观察结果：','Expected result: ')}}{{guide.result}}</p></details>
       <div class="new-board-stage"><ExploreBoard :selection="activeHardware" :pin="hardwarePin" :running="running" :flow="flow" :color="output?.color" :led-level="output?.value" @select="selectHardware" /></div>
-      <div v-if="activeHardware!=='EX1' && lesson.params.length" class="inline-parameters"><label v-for="p in lesson.params.slice(0,2)" :key="p.key"><span>{{en?p.en:p.zh}} <small class="parameter-scope">{{firmwareParameters[selected]?.[p.key]?"固件参数":"模拟输入"}}</small><output>{{values[p.key]}} {{p.unit}}</output></span><input v-model.number="values[p.key]" type="range" :min="p.min" :max="p.max" :step="p.step" :aria-label="(en?p.en:p.zh)+' · 主面板'"/></label><button @click="inspector=true" aria-label="全部课程参数"><SlidersHorizontal/></button><button @click="hardwareSelection=lessonHardware[selected]" class="view-lesson-pins">{{tr('本课引脚','Lesson pins')}}<ArrowUpRight/></button></div>
+      <div v-if="activeHardware!=='EX1' && lesson.params.length" class="inline-parameters"><label v-for="p in lesson.params.slice(0,2)" :key="p.key"><span>{{en?p.en:p.zh}} <small class="parameter-scope">{{firmwareParameters[selected]?.[p.key]?tr('固件参数','Firmware parameter'):tr('模拟输入','Simulation input')}}</small><output>{{values[p.key]}} {{p.unit}}</output></span><input v-model.number="values[p.key]" type="range" :min="p.min" :max="p.max" :step="p.step" :aria-label="(en?p.en:p.zh)+tr(' · 主面板',' · Main panel')"/></label><button @click="inspector=true" :aria-label="tr('全部课程参数', 'All lesson parameters')"><SlidersHorizontal/></button><button @click="hardwareSelection=lessonHardware[selected]" class="view-lesson-pins">{{tr('本课引脚','Lesson pins')}}<ArrowUpRight/></button></div>
       <section
         v-if="output"
         class="instrument"
@@ -577,7 +578,7 @@ const displayValue = computed(() =>
         <header>
           <h2>{{ tr("动手试试", "Try it yourself") }}</h2>
           <div>
-            <button @click="deviceOpen=true" aria-label="下载到开发板" title="编译并下载到真实开发板"><Download/></button>
+            <button @click="deviceOpen=true" :aria-label="tr('下载到开发板', 'Download to controller')" :title="tr('编译并下载到真实开发板', 'Compile and download to the controller')"><Download/></button>
             <button
               @click="expanded = !expanded"
               :aria-label="

@@ -1,12 +1,12 @@
-# 编译与下载到开发板
+# Build and download to the board
 
-[打开交互课程](/#lesson-01)，选择课程后点击顶部的 **连接开发板**。
+[Open the interactive lessons](/#lesson-01), select a lesson, then open **Connect board**.
 
-1. 在网页运行本课，调整标为“固件参数”的选项。
-2. 连接 USB，编译当前参数，再下载对应固件。
-3. 重连设备日志，观察真实输出。参数改变后需要重新编译。
-4. Wi-Fi 首次使用需通过 USB 下载新版课程固件并配网，之后可在同一设备面板更新。
+1. Run the browser model and change firmware parameters.
+2. Connect USB, build current parameters, and download the resulting firmware.
+3. Reconnect device logs to observe real output. Parameter changes require a new build.
+4. Provision Wi-Fi over USB with the new lesson firmware first, then update through the same device panel.
 
-课程资料、完整源码和编译结果均以当前重构版本为准。这里不再提供旧版预编译固件、远端 URL 或整片恢复下载。
+Resources, source and build artifacts follow the current refactored curriculum. Legacy prebuilt firmware, remote URL downloads and full-flash recovery are no longer offered here.
 
-本地编译需启动仓库的 `tools/lab-server.mjs`；USB 请在接板电脑通过 localhost 访问。实板功能尚待硬件验收。
+Local compilation requires `tools/lab-server.mjs`. For USB, open localhost on the computer connected to the board. Hardware validation is still pending.
