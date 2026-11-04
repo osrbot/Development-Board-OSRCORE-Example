@@ -1,58 +1,40 @@
 # OSRCORE Learn
 
-[English](README.md) · [简体中文](README_zh.md) · [在线教程 / Website](https://osrbot.github.io/osrcore-learn/)
+[English](README.md) · [简体中文](README_zh.md)
 
-Interactive learning for the OSRCORE ESP32-S3 robot controller: a selectable 3D board, pin references, lesson simulations, and matching ESP-IDF examples.
+**Interactive tutorials and examples for the OSRCORE ESP32-S3 robot controller.**
 
-## Status
+Explore interfaces, read sensors and control motors, then combine these capabilities into a robot control program.
 
-- 14 lessons (00–13), including 13 buildable firmware examples.
-- Browser simulations model lesson behavior; they do not execute arbitrary ESP32 firmware.
-- Parameter compilation, USB flashing and Wi-Fi OTA use the local companion service, which is not included in static hosting.
-- Local builds and automated checks completed; physical-board USB, Wi-Fi and peripheral validation is pending.
+[**Open the interactive tutorials →**](https://osrbot.github.io/osrcore-learn/)
 
-## Run locally
+## Learn online
 
-```sh
-npm --prefix docs ci
-npm --prefix docs run build
-node tools/lab-server.mjs
-```
-
-Open `http://localhost:5173/`. Firmware compilation requires ESP-IDF v6.0.1; USB access requires a Web Serial capable browser. See [local service instructions](docs/maintainers/local-development.md).
+- **Explore the controller**: rotate and zoom the 3D model, select connectors, headers and onboard components, and inspect pin and signal definitions.
+- **Run lesson simulations**: adjust lesson parameters and observe changes in the code, indicators and output.
+- **Program a robot**: use the accompanying ESP-IDF examples to learn sensing, communication, motion control and multitasking.
 
 ## Lessons and source
 
-| # | Lesson | Source |
-|---|---|---|
-| 00 | Meet OSRCORE | [Hardware reference](materials/) |
-| 01 | Light up an LED | [01_blink_led](01_blink_led/) |
-| 02 | Make some sound | [02_buzzer](02_buzzer/) |
-| 03 | Servo & ESC | [03_pwm_servo](03_pwm_servo/) |
-| 04 | Read RC signals | [04_sbus_rc](04_sbus_rc/) |
-| 05 | Sense motion | [05_imu_i2c](05_imu_i2c/) |
-| 06 | Measure speed | [06_encoder](06_encoder/) |
-| 07 | Save settings | [07_nvs](07_nvs/) |
-| 08 | Run multiple tasks | [08_freertos](08_freertos/) |
-| 09 | Control motor speed | [09_pid_motor](09_pid_motor/) |
-| 10 | Estimate attitude | [10_ahrs](10_ahrs/) |
-| 11 | Find your heading | [11_mag_compass](11_mag_compass/) |
-| 12 | Build a robot | [12_full_example](12_full_example/) |
-| 13 | Factory check | [13_factory_demo](13_factory_demo/) |
+14 lessons, including 13 ESP-IDF firmware examples. Select a title to browse its source or hardware reference.
 
-## Validation
+| Lesson | Topic |
+|---|---|
+| 00 | [Meet OSRCORE](materials/) |
+| 01 | [Light up an RGB LED](01_blink_led/) |
+| 02 | [Make the buzzer sound](02_buzzer/) |
+| 03 | [Control servos and ESCs](03_pwm_servo/) |
+| 04 | [Receive RC signals](04_sbus_rc/) |
+| 05 | [Sense motion](05_imu_i2c/) |
+| 06 | [Measure rotational speed](06_encoder/) |
+| 07 | [Save parameters](07_nvs/) |
+| 08 | [Run multiple tasks](08_freertos/) |
+| 09 | [Closed-loop motor control](09_pid_motor/) |
+| 10 | [Estimate attitude](10_ahrs/) |
+| 11 | [Find your heading](11_mag_compass/) |
+| 12 | [Build a robot](12_full_example/) |
+| 13 | [Check controller functions](13_factory_demo/) |
 
-```sh
-node --test tools/*.test.mjs docs/scripts/*.test.mjs
-npm --prefix docs run build
-```
+## Hardware resources
 
-See [docs/maintainers/validation.md](docs/maintainers/validation.md) for validation scope. Tutorial sources live in `docs/zh/tutorial.md` and `docs/tutorial.md`; navigation is generated from the same lesson definitions as the interactive app.
-
-## Release and history
-
-The previous version is retained as `legacy-before-interactive`. The interactive rewrite is published from `main` to GitHub Pages. GitHub and Gitea retain the same release history.
-
-## License
-
-MIT
+[Product manual](https://osrbot.github.io/osrcore-learn/hardware/manual-en.pdf) · [Schematic](https://osrbot.github.io/osrcore-learn/hardware/schematic-en.pdf) · [PCB and interface references](materials/)
