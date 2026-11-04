@@ -1,12 +1,16 @@
+<p><img src="docs/public/brand/logo.svg" alt="OSRBOT — Open Source Robotics" width="180"></p>
+
 # OSRCORE Learn
 
-[English](README.md) · [简体中文](README_zh.md)
+[English](README.md) · **[在线教程](https://osrbot.github.io/osrcore-learn/zh/)** · [硬件资料](#硬件资料)
 
-**基于 ESP32-S3 的 OSRCORE 机器人控制器交互教程与例程。**
+OSRCORE 是基于 ESP32-S3 的机器人控制器。本仓库提供配套交互教程、接口资料与 ESP-IDF 例程。
 
 从认识接口、读取传感器到控制电机，把单个功能组合成机器人控制程序。
 
-[**打开在线教程 →**](https://osrbot.github.io/osrcore-learn/zh/)
+![OSRCORE 交互教程：三维控制器、接口引脚、课程代码与模拟参数](docs/images/interactive-lessons-en.png)
+
+*在线教程的英文界面；可切换简体中文。*
 
 ## 在线学习
 
@@ -38,3 +42,9 @@
 ## 硬件资料
 
 [产品手册](https://osrbot.github.io/osrcore-learn/hardware/manual-zh.pdf) · [原理图](https://osrbot.github.io/osrcore-learn/hardware/schematic-zh.pdf) · [PCB 与接口资料](materials/)
+
+---
+
+**OSRBOT · Open Source Robotics**
+
+[www.osrbot.com](https://www.osrbot.com) · [winter@osrbot.com](mailto:winter@osrbot.com)

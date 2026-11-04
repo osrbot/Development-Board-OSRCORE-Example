@@ -1,12 +1,16 @@
+<p><img src="docs/public/brand/logo.svg" alt="OSRBOT — Open Source Robotics" width="180"></p>
+
 # OSRCORE Learn
 
-[English](README.md) · [简体中文](README_zh.md)
+[简体中文](README.zh-CN.md) · **[Interactive tutorials](https://osrbot.github.io/osrcore-learn/)** · [Hardware resources](#hardware-resources)
 
-**Interactive tutorials and examples for the OSRCORE ESP32-S3 robot controller.**
+OSRCORE is an ESP32-S3 robot controller. This repository provides its interactive tutorials, interface references and ESP-IDF examples.
 
 Explore interfaces, read sensors and control motors, then combine these capabilities into a robot control program.
 
-[**Open the interactive tutorials →**](https://osrbot.github.io/osrcore-learn/)
+![OSRCORE interactive tutorials showing the 3D controller, connector pins, lesson code and simulation parameters](docs/images/interactive-lessons-en.png)
+
+*The interactive tutorial workspace, available in English and Simplified Chinese.*
 
 ## Learn online
 
@@ -38,3 +42,9 @@ Explore interfaces, read sensors and control motors, then combine these capabili
 ## Hardware resources
 
 [Product manual](https://osrbot.github.io/osrcore-learn/hardware/manual-en.pdf) · [Schematic](https://osrbot.github.io/osrcore-learn/hardware/schematic-en.pdf) · [PCB and interface references](materials/)
+
+---
+
+**OSRBOT · Open Source Robotics**
+
+[www.osrbot.com](https://www.osrbot.com) · [winter@osrbot.com](mailto:winter@osrbot.com)
