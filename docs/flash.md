@@ -3,9 +3,11 @@
 [Open the interactive lessons](/#lesson-01) in Chrome or Edge on a computer with USB access.
 
 1. Select a lesson and open **Connect controller**.
-2. Plug in a USB data cable and select the controller's USB serial port.
-3. Click **Flash controller**. The website downloads the published lesson firmware, verifies it and writes it over USB.
-4. The controller restarts. The page attempts to reconnect the console; if needed, select USB again to see the logs.
+2. Plug in a USB data cable, click **Connect and download lesson**, and select the controller's USB serial port.
+3. The website fetches and verifies the published lesson firmware, then writes and verifies it over USB. An existing connection is reused when downloading another lesson.
+4. The controller restarts and the page attempts to reconnect its console. Follow **Try it now** for this lesson’s physical actions and expected results.
+
+The device card identifies the running lesson only after the controller replies. A completed download or an open USB port alone does not confirm program startup. The console provides **Read device info**, **Restart controller** and command input; identity and restart require the updated course firmware. If a step fails, the panel shows the relevant troubleshooting instructions.
 
 No installation, ESP-IDF setup or local server is needed for these downloads. The published firmware uses the lesson's default parameters; simulation sliders do not change its contents.
 

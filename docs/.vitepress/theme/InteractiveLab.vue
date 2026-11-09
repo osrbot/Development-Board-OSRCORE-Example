@@ -578,7 +578,7 @@ const displayValue = computed(() =>
         <header>
           <h2>{{ tr("动手试试", "Try it yourself") }}</h2>
           <div>
-            <button @click="deviceOpen=true" :aria-label="tr('下载到开发板', 'Download to controller')" :title="tr('编译并下载到真实开发板', 'Compile and download to the controller')"><Download/></button>
+            <button @click="deviceOpen=true" :aria-label="tr('下载到开发板', 'Download to controller')" :title="tr('下载本课固件到真实开发板', 'Download lesson firmware to the controller')"><Download/></button>
             <button
               @click="expanded = !expanded"
               :aria-label="

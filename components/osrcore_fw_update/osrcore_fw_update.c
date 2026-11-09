@@ -8,6 +8,8 @@
 #include <string.h>
 
 #include "esp_ota_ops.h"
+#include "esp_app_desc.h"
+#include "cJSON.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -235,6 +237,27 @@ static void handle_fw_end(void)
 bool osrcore_fw_handle_line(const char *line)
 {
     if (!line) return false;
+    if (strcmp(line, "osrcore info") == 0) {
+        const esp_app_desc_t *app = esp_app_get_description();
+        cJSON *info = cJSON_CreateObject();
+        if (!info) return true;
+        cJSON_AddStringToObject(info, "board", "OSRCORE");
+        cJSON_AddNumberToObject(info, "protocol", 1);
+        cJSON_AddStringToObject(info, "project", app->project_name);
+        cJSON_AddStringToObject(info, "version", app->version);
+        char *json = cJSON_PrintUnformatted(info);
+        if (json) { printf("OSRCORE_INFO %s\n", json); cJSON_free(json); }
+        cJSON_Delete(info);
+        fflush(stdout);
+        return true;
+    }
+    if (strcmp(line, "osrcore reboot") == 0) {
+        printf("OK osrcore reboot\n");
+        fflush(stdout);
+        vTaskDelay(pdMS_TO_TICKS(200));
+        esp_restart();
+        return true;
+    }
     if (osrcore_wifi_handle_line(line)) return true;
 
     if (strcmp(line, "stream off") == 0 || strcmp(line, "stream legacy") == 0 ||
