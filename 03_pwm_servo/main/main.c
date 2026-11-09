@@ -1,20 +1,10 @@
 /**
- * 示例03：PWM 舵机 / ESC 控制
- *
- * 硬件：
- *   GPIO1 — 油门通道（ESC）
- *   GPIO2 — 转向通道（舵机）
- *
- * 原理：标准 RC PWM 协议，50Hz 周期（20ms），脉宽 1000-2000µs。
- *   1000µs = 最小（反转/左满舵）
- *   1500µs = 中立（停止/居中）
- *   2000µs = 最大（全速/右满舵）
- *
- * LEDC TIMER_0，14-bit 分辨率，80MHz APB 时钟：
- *   period = 80_000_000 / 50 = 1_600_000 ticks
- *   14-bit duty register: 0-16383 maps to 0-100% of period
- *   duty = pulse_us / 20000.0 * 16383
- *   e.g. 1500us → 1500/20000 * 16383 ≈ 1228
+ * Lesson 03: servo and ESC PWM.
+ * GPIO1 is the ESC throttle channel; GPIO2 is the steering servo channel.
+ * RC PWM uses a 50 Hz period (20 ms) and a 1000-2000 us pulse.
+ * 1500 us is the nominal neutral position; actual travel depends on the device.
+ * LEDC TIMER_0 uses 14-bit resolution and an 80 MHz APB clock.
+ * Only the steering pulse is adjustable in this lesson; throttle stays neutral.
  */
 
 #include <stdio.h>

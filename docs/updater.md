@@ -4,7 +4,7 @@
 
 ## Install a lesson
 
-Choose a lesson, open its **Download to controller** button and click **Connect and download lesson**. Select the controller's USB port. The website writes and verifies the published firmware, restarts the controller and attempts to reconnect. On completion, it returns to the course and opens **Device serial** at the bottom.
+Choose a lesson, open its **Install lesson** button and click **Connect and download lesson**. Select the controller's USB port. The website writes and verifies the published firmware, restarts the controller and attempts to reconnect. On completion, it returns to the course and opens **Device serial** at the bottom.
 
 Install the updated lesson firmware once to enable runtime parameters. Switching to another lesson requires installing that lesson's firmware. Changing supported parameters within the same lesson does not require another download.
 

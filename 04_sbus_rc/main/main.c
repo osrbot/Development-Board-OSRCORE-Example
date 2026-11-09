@@ -1,14 +1,10 @@
 /**
- * 示例04：SBUS 遥控接收
- *
- * 硬件：UART0，GPIO44(RX)，GPIO43(TX)
- *
- * SBUS 协议：
- *   波特率 100000，8E2（8数据位，偶校验，2停止位）
- *   信号电平反相（逻辑1=低电平）
- *   帧格式：0x0F + 22字节数据 + 1字节标志 + 0x00，共25字节
- *   16通道，每通道11位，范围 240-1810（中立约1024）
- *   标志字节 bit2=lost_frame，bit3=failsafe
+ * Lesson 04: SBUS receiver.
+ * Hardware: UART0, GPIO44 RX and GPIO43 TX.
+ * SBUS uses 100000 baud, 8 data bits, even parity, 2 stop bits and inverted signaling.
+ * A 25-byte frame contains 0x0F, 22 payload bytes, a flag byte and an end byte.
+ * Sixteen 11-bit channels typically range from 240 to 1810 (neutral around 1024).
+ * Flag bit 2 indicates a lost frame; bit 3 indicates failsafe.
  */
 
 #include <stdio.h>

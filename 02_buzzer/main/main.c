@@ -1,9 +1,7 @@
 /**
- * 示例02：可调频率与时长的蜂鸣器
- *
- * 硬件：GPIO42，无源蜂鸣器
- * 原理：LEDC TIMER_1 动态调整频率，50% 占空比驱动蜂鸣器发声。
- *       改变频率即改变音调，静音时将占空比置 0。
+ * Lesson 02: adjustable passive buzzer.
+ * Hardware: GPIO42. LEDC TIMER_1 generates a 50% duty-cycle tone.
+ * Changing frequency changes pitch; zero duty silences the buzzer.
  */
 
 #include "freertos/FreeRTOS.h"

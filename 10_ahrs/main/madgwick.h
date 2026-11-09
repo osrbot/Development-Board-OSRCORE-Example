@@ -1,7 +1,7 @@
 /**
- * Madgwick AHRS 滤波器（C 移植版）
- * 原作者：SOH Madgwick, http://www.x-io.co.uk/open-source-imu-and-ahrs-algorithms/
- * License: GNU GPL
+ * Madgwick AHRS filter, C port.
+ * Original author: SOH Madgwick.
+ * http://www.x-io.co.uk/open-source-imu-and-ahrs-algorithms/
  */
 
 #pragma once

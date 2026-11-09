@@ -2,13 +2,10 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, provide } from "vue";
 import { withBase } from "vitepress";
 import {
-  Home,
   BookOpen,
   Cpu,
   Play,
   Square,
-  Settings2,
-  Languages,
   X,
   ChevronRight,
   ChevronLeft,
@@ -33,8 +30,8 @@ import {
   PlugZap,
   RotateCcw,
   Save,
-  ArrowUpRight,
 } from "lucide-vue-next";
+import SiteHeader from "./SiteHeader.vue";
 import ExploreBoard from "./ExploreBoard.vue";
 import PartInspector from "./PartInspector.vue";
 import DeviceLab from "./DeviceLab.vue";
@@ -49,6 +46,14 @@ import {
   stepSimulation,
 } from "./lab-simulation.mjs";
 import "./interactive.css";
+const parameterPanel=ref(null);
+async function focusParameter(line='') {
+ await nextTick();
+ const key=lesson.value.params.find(p=>line.toLowerCase().replaceAll('_','').includes(p.key.toLowerCase()))?.key;
+ const inputs=[...(parameterPanel.value?.querySelectorAll('input')||[])];
+ const target=inputs.find(input=>input.dataset.parameter===key)||inputs[0];
+ target?.scrollIntoView({behavior:'smooth',block:'center'});target?.focus({preventScroll:true});
+}
 const props = defineProps({ locale: String });
 const en = ref(props.locale !== "zh");
 provide("osrcore-language",en);
@@ -57,14 +62,12 @@ const hardwareSelection = ref("");
 const hardwarePin = ref("");
 watch(hardwareSelection, () => { expanded.value = false; hardwarePin.value=""; });
 const activeHardware = computed(()=>hardwareSelection.value||lessonHardware[selected.value]||'CPU');
+const gpioLab = computed(()=>selected.value===0 && activeHardware.value==='EX1');
+const preferredGpio = computed(()=>({3:2,4:44,9:1,12:2})[selected.value]);
 const selectedContact = computed(()=>hardware.find(h=>h.id===activeHardware.value)?.pins.find(p=>p.n===hardwarePin.value));
 function selectHardware(id){
  const h=hardware.find(p=>p.id===id);if(!h)return;
- stop();
- if(id==='EX1'&&selected.value!==0)choose(0);
- else if(h.lesson!=null&&h.lesson!==selected.value)choose(h.lesson);
  hardwareSelection.value=id;
- output.value=null;logs.value=[];showSource.value=false;
 }
 
 const deviceOpen=ref(false), deviceStatus=ref('');
@@ -97,7 +100,6 @@ const selected = ref(0),
   elapsed = ref(0),
   output = ref(null),
   logs = ref([]),
-  inspector = ref(false),
   sidebar = ref(false),
   settings = ref(false),
   infoTab = ref("overview"),
@@ -133,10 +135,10 @@ const icons = [
 const lesson = computed(() => lessons[selected.value]);
 const guide=computed(()=>en.value?{goal:lesson.value.en,action:lesson.value.descriptionEn,result:lesson.value.descriptionEn,hardware:lessonHardwareEn[selected.value]}:lessonGuide[selected.value]);
 const code = computed(() => {
- if(activeHardware.value!=='EX1')return lessonCode(selected.value, values.value).map(line=>en.value?line.replace('教学节选','Teaching excerpt'):line);
+ if(!gpioLab.value)return lessonCode(selected.value, values.value);
  const gpio=selectedContact.value?.gpio;
- if(gpio==null)return [tr('// 此针脚为供电或接地，没有 GPIO 控制代码。','// Power or ground pin; no GPIO control code.'),tr('// 请先选择 EX1 的 GPIO 针脚。','// Select an EX1 GPIO pin.')];
- return [tr('// EX1 · GPIO 输出教学示例','// EX1 · GPIO output example'),`const gpio_num_t pin = GPIO_NUM_${gpio};`,'gpio_reset_pin(pin);','gpio_set_direction(pin, GPIO_MODE_OUTPUT);','while (1) {','  gpio_set_level(pin, 1);','  vTaskDelay(pdMS_TO_TICKS(500));','  gpio_set_level(pin, 0);','  vTaskDelay(pdMS_TO_TICKS(500));','}'];
+ if(gpio==null)return ['// Power or ground pin; no GPIO control code.','// Select an EX1 GPIO pin.'];
+ return ['// EX1 · GPIO output example',`const gpio_num_t pin = GPIO_NUM_${gpio};`,'gpio_reset_pin(pin);','gpio_set_direction(pin, GPIO_MODE_OUTPUT);','while (1) {','  gpio_set_level(pin, 1);','  vTaskDelay(pdMS_TO_TICKS(500));','  gpio_set_level(pin, 0);','  vTaskDelay(pdMS_TO_TICKS(500));','}'];
 });
 const files = computed(
   () =>
@@ -215,7 +217,7 @@ function sample() {
     Math.min(0.1, (now - last) / 1000),
     state,
   );
-  if(activeHardware.value==='EX1'){
+  if(gpioLab.value){
    const g=selectedContact.value?.gpio,high=Math.floor(elapsed.value/500)%2===0;
    output.value={value:g==null?0:Number(high),label:g==null?'供电 / 地':high?'HIGH':'LOW',unit:'',secondary:g==null?'请选择 GPIO 针脚':`GPIO${g} · ${high?'3.3 V':'0 V'}`,line:high?5:7,log:g==null?'电源和接地针脚不执行 GPIO 输出':`EX1 · GPIO${g} → ${high?'HIGH':'LOW'}`};
   }
@@ -233,7 +235,7 @@ function sample() {
     lastLog = output.value.log;
     lastLogAt = elapsed.value;
   }
-  if (activeHardware.value!=='EX1' && elapsed.value > 1800 && !progress.value.includes(selected.value)) {
+  if (!gpioLab.value && elapsed.value > 1800 && !progress.value.includes(selected.value)) {
     progress.value.push(selected.value);
     persist();
   }
@@ -250,7 +252,7 @@ function run() {
     addLog(tr("已停止", "Stopped"));
     return;
   }
-  if(activeHardware.value==='EX1'&&selectedContact.value?.gpio==null){addLog('请选择 GPIO 针脚后运行');return;}
+  if(gpioLab.value&&selectedContact.value?.gpio==null){addLog(tr('请选择 GPIO 针脚后运行','Select a GPIO pin before running'));return;}
   state = createState();
   if (selected.value === 7) {
     try {
@@ -291,11 +293,11 @@ function choose(i) {
   history = [];
   sourceIndex.value = 0;
   showSource.value = false;
-  inspector.value = false;
   sidebar.value = false;
   infoTab.value = "overview";
   if (typeof window !== "undefined") historyReplace(i);
   nextTick(() => {
+    window.scrollTo({top:0,behavior:"instant"});
     paint();
     const el = courseRow.value?.children[i];
     if (el && courseRow.value) {
@@ -440,15 +442,17 @@ function restartNvs() {
   }
 }
 function keydown(e) {
+  if (e.key === "Escape") {
+    settings.value = false;
+    sidebar.value = false;
+    expanded.value = false;
+    if (!deviceSession.value.busy) deviceOpen.value = false;
+    return;
+  }
   if (e.target.closest("input,select,textarea,button,a")) return;
   if (e.code === "Space") {
     e.preventDefault();
     run();
-  }
-  if (e.key === "Escape") {
-    inspector.value = false;
-    settings.value = false;
-    expanded.value = false;
   }
   if (e.key === "ArrowRight") choose(Math.min(13, selected.value + 1));
   if (e.key === "ArrowLeft") choose(Math.max(0, selected.value - 1));
@@ -500,43 +504,7 @@ const displayValue = computed(() =>
     :class="{ 'nav-open': sidebar, 'wide-code': expanded, 'console-open':consoleOpen }"
   >
     <DeviceLab ref="controller" :open="deviceOpen" :lesson="selected" :values="values" @close="deviceOpen=false" @status="deviceStatus=$event" @session="updateDeviceSession" @installed="openDeviceConsole" @show-console="openDeviceConsole" />
-    <header class="experiment-header">
-      <div class="experiment-brand">
-        <img
-          :src="withBase('/brand/logo.svg')"
-          alt="OSRBOT"
-          @error="$event.target.style.display = 'none'"
-        />
-        <div>
-          <h1>
-            OSRCORE <span>{{ tr("入门", "LEARN") }}</span>
-          </h1>
-          <p>{{ tr("探索 · 理解 · 动手", "EXPLORE · UNDERSTAND · BUILD") }}</p>
-        </div>
-      </div>
-      <nav class="lab-top-nav" :aria-label="tr('主菜单', 'Main navigation')">
-       <button @click="choose(0)" :aria-label="tr('认识开发板', 'Meet the controller')"><Home/><span>{{tr('开发板','Controller')}}</span></button>
-       <button @click="sidebar=!sidebar" :aria-expanded="sidebar"><BookOpen/><span>{{tr('课程','Lessons')}}</span></button>
-       <a :href="withBase(en?'/chapters.html':'/zh/chapters.html')"><Layers/><span>{{tr('资料','Resources')}}</span></a>
-       <button @click="settings=!settings" :aria-label="tr('设置', 'Settings')"><Settings2/><span>{{tr('设置','Settings')}}</span></button>
-       <button @click="en=!en" :aria-label="tr('切换语言', 'Switch language')"><Languages/><span>{{tr('语言','Language')}}</span></button>
-      </nav>
-      <button class="connect-board" :disabled="deviceSession.busy" @click="connectController"><PlugZap/><span>{{!deviceStatus?tr('连接开发板','Connect controller'):deviceStatus}}{{deviceSession.device?' · '+String(deviceSession.device.lesson>0?deviceSession.device.lesson:deviceSession.device.project).padStart(2,'0'):''}}</span></button>
-      <div class="experiment-progress">
-        <BookOpen />
-        <div>
-          <strong>{{ tr("学习进度", "PROGRESS") }}</strong
-          ><progress
-            :value="progress.length"
-            :max="lessons.length"
-            :aria-label="tr('学习进度', 'Learning progress')"
-          ></progress>
-        </div>
-        <b
-          >{{ progress.length }}<small>/{{ lessons.length }}</small></b
-        >
-      </div>
-    </header>
+    <SiteHeader :en="en" :device-busy="deviceSession.busy" :device-status="deviceStatus+(deviceSession.device?' · '+String(deviceSession.device.lesson>0?deviceSession.device.lesson:deviceSession.device.project).padStart(2,'0'):'')" @board="choose(0)" @lessons="sidebar=!sidebar" @help="settings=!settings" @language="en=!en" @connect="connectController" />
     <div v-if="sidebar" class="lesson-drawer">
       <header>
         <strong>{{ tr("全部课程", "All lessons") }}</strong
@@ -558,12 +526,15 @@ const displayValue = computed(() =>
       class="experiment-stage"
       :aria-label="tr('交互实验台', 'Interactive workbench')"
     >
-      <section class="experiment-info"><div class="info-content"><span class="lesson-eyebrow">{{tr('交互实验台','INTERACTIVE WORKBENCH')}}</span><h2>{{activeHardware==='EX1'?tr('EX1 · GPIO 实验','EX1 · GPIO lab'):en?lesson.en:lesson.zh}}</h2><p>{{en?lesson.descriptionEn:guide.action}}</p></div></section>
-      <details class="lesson-guide"><summary>{{tr('本课目标与接线','Goal & wiring')}}</summary><strong>{{guide.goal}}</strong><p>{{guide.hardware}}</p><p>{{tr('观察结果：','Expected result: ')}}{{guide.result}}</p></details>
-      <div class="new-board-stage"><ExploreBoard :selection="activeHardware" :pin="hardwarePin" :running="running" :flow="flow" :color="output?.color" :led-level="output?.value" @select="selectHardware" /></div>
-      <div v-if="activeHardware!=='EX1' && lesson.params.length" class="inline-parameters"><label v-for="p in lesson.params.slice(0,2)" :key="p.key"><span>{{en?p.en:p.zh}} <small class="parameter-scope">{{firmwareParameters[selected]?.[p.key]?tr('实板可调','Device parameter'):tr('模拟输入','Simulation input')}}</small><output>{{values[p.key]}} {{p.unit}}</output></span><input v-model.number="values[p.key]" type="range" :min="p.min" :max="p.max" :step="p.step" :aria-label="(en?p.en:p.zh)+tr(' · 主面板',' · Main panel')"/></label><button @click="inspector=true" :aria-label="tr('全部课程参数', 'All lesson parameters')"><SlidersHorizontal/></button><button @click="hardwareSelection=lessonHardware[selected]" class="view-lesson-pins">{{tr('本课引脚','Lesson pins')}}<ArrowUpRight/></button></div>
+      <section class="experiment-info"><div class="info-content"><span class="lesson-eyebrow">{{tr('交互实验台','INTERACTIVE WORKBENCH')}}</span><h1>{{gpioLab?tr('EX1 · GPIO 实验','EX1 · GPIO lab'):en?lesson.en:lesson.zh}}</h1><p>{{en?lesson.descriptionEn:guide.action}}</p></div></section>
+      <details class="lesson-guide"><summary>{{tr('本课目标与接线','Goal & wiring')}}</summary><strong>{{guide.goal}}</strong><p>{{guide.hardware}}</p><p>{{tr('观察结果：','Expected result: ')}}{{guide.result}}</p><a :href="withBase((en?'/':'/zh/')+'chapter-'+String(selected).padStart(2,'0')+'.html')">{{tr('阅读本课说明','Read the lesson guide')}} →</a></details>
+      <div class="new-board-stage"><ExploreBoard :selection="activeHardware" :pin="hardwarePin" :running="running" :flow="flow" :color="output?.color" :led-level="output?.value" @update:flow="flow=$event" @select="selectHardware" /></div>
+      <div ref="parameterPanel" v-if="!gpioLab && lesson.params.length" class="inline-parameters">
+       <label v-for="p in lesson.params" :key="p.key"><span class="parameter-heading"><span>{{en?p.en:p.zh}}</span><output>{{values[p.key]}}{{p.unit?' '+p.unit:''}}</output></span><small class="parameter-scope">{{firmwareParameters[selected]?.[p.key]?tr('实板可调','Device parameter'):tr('模拟输入','Simulation input')}}</small><input :data-parameter="p.key" v-model.number="values[p.key]" type="range" :min="p.min" :max="p.max" :step="p.step" :aria-label="(en?p.en:p.zh)+tr(' · 主面板',' · Main panel')"/></label>
+      </div>
+      <div class="lesson-actions"><button class="run-button" :class="{running}" @click="run" :aria-label="running?tr('停止模拟','Stop simulation'):tr('网页运行','Run simulation')"><Square v-if="running"/><Play v-else/>{{running?tr('停止','Stop'):tr('网页运行','Simulate')}}</button><button v-if="selected===2" @click="enableAudio" :aria-pressed="audioEnabled"><Volume2 v-if="audioEnabled"/><VolumeX v-else/>{{audioEnabled?tr('声音已开启','Sound on'):tr('开启声音','Enable sound')}}</button><template v-if="selected===7"><button @click="saveNvs"><Save/>{{tr('模拟保存','Simulate save')}}</button><button @click="restartNvs"><RotateCcw/>{{tr('模拟重启','Simulate restart')}}</button></template></div>
       <section v-if="runtimeParameters" class="runtime-controls" :aria-label="tr('实板参数','Controller parameters')">
-       <div class="runtime-actions"><button class="apply-device" :disabled="!deviceSession.canApply" @click="controller?.applyParameters(false)"><PlugZap/>{{tr('应用到开发板','Apply to controller')}}</button><button :disabled="!deviceSession.canApply||!deviceSession.parametersMatch||deviceSession.device?.parametersSaved" @click="controller?.applyParameters(true)"><Save/>{{tr('保存到开发板','Save to controller')}}</button><button v-if="!deviceSession.connected" :disabled="deviceSession.busy" @click="connectController">{{tr('连接 USB','Connect USB')}}</button><button v-else-if="!deviceSession.canApply&&!deviceSession.paramBusy" @click="deviceOpen=true">{{tr('安装本课','Install lesson')}}</button></div>
+       <div v-if="deviceSession.connected" class="runtime-actions"><button class="apply-device" :disabled="!deviceSession.canApply" @click="controller?.applyParameters(false)"><PlugZap/>{{tr('应用到开发板','Apply to controller')}}</button><button :disabled="!deviceSession.canApply||!deviceSession.parametersMatch||deviceSession.device?.parametersSaved" @click="controller?.applyParameters(true)"><Save/>{{tr('保存到开发板','Save to controller')}}</button><button v-if="!deviceSession.canApply&&!deviceSession.paramBusy" @click="deviceOpen=true">{{tr('安装本课','Install lesson')}}</button></div>
        <p role="status" :class="{'parameters-confirmed':deviceSession.parametersMatch}">{{parameterMessage}}</p><p v-if="actualParameterText" class="actual-parameters">{{tr('设备当前值：','Device values: ')}}{{actualParameterText}}</p><p v-if="selected===3" class="motion-note">{{tr('应用后舵机会动作；保存后重启也会使用该脉宽。','Applying moves the servo. Saving also restores this pulse width after restart.')}}</p><p v-if="deviceSession.paramError" class="runtime-error" role="alert">{{deviceSession.paramError}}</p>
       </section>
       <section
@@ -599,12 +570,12 @@ const displayValue = computed(() =>
       </section>
     </main>
     <aside class="experiment-aside">
-      <PartInspector :id="activeHardware" :running="running" :output="output" :flow="flow" @pin="hardwarePin=$event" />
+      <PartInspector :preferred-gpio="preferredGpio" :id="activeHardware" :running="running" :output="output" :flow="flow" @pin="hardwarePin=$event" />
       <section class="experiment-code">
         <header>
           <h2>{{ tr("动手试试", "Try it yourself") }}</h2>
           <div>
-            <button @click="deviceOpen=true" :aria-label="tr('下载到开发板', 'Download to controller')" :title="tr('下载本课固件到真实开发板', 'Download lesson firmware to the controller')"><Download/></button>
+            <button class="install-lesson" @click="deviceOpen=true" :aria-label="tr('下载到开发板', 'Download to controller')" :title="tr('下载本课固件到真实开发板', 'Download lesson firmware to the controller')"><Download/><span>{{tr('安装本课','Install lesson')}}</span></button>
             <button
               @click="expanded = !expanded"
               :aria-label="
@@ -616,31 +587,16 @@ const displayValue = computed(() =>
               <Minimize2 v-if="expanded" /><Maximize2 v-else /></button
             ><button @click="copy" :aria-label="tr('复制代码', 'Copy code')">
               <Check v-if="copied" /><Copy v-else /></button
-            ><button
-              class="run-button"
-              :class="{ running }"
-              @click="run"
-              :aria-label="
-                running
-                  ? tr('停止程序', 'Stop program')
-                  : tr('网页运行', 'Run simulation')
-              "
-            >
-              <Square v-if="running" /><Play v-else /><span>{{ running ? tr("停止", "Stop") : tr("网页运行", "Simulate") }}</span>
-            </button>
+>
           </div>
         </header>
         <div class="code-mode">
           <button :aria-pressed="!showSource" @click="showSource = false">
             {{ tr("关键逻辑", "Key logic") }}</button
-          ><button v-if="activeHardware!=='EX1'" :aria-pressed="showSource" @click="showSource = true">
+          ><button v-if="!gpioLab" :aria-pressed="showSource" @click="showSource = true">
             {{ tr("完整源码", "Full source") }}</button
-          ><button
-            @click="inspector = !inspector"
-            :aria-label="tr('调整参数', 'Adjust parameters')"
-          >
-            <SlidersHorizontal />
-          </button>
+>
+
         </div>
         <div
           v-if="!showSource"
@@ -663,7 +619,7 @@ const displayValue = computed(() =>
               ><button
                 v-if="/=\s*[-\d.]+;/.test(line)"
                 class="code-parameter"
-                @click="inspector = true"
+                @click="focusParameter(line)"
                 :aria-label="tr('修改参数：', 'Adjust parameter: ') + line"
               >
                 {{ line }}</button
@@ -704,20 +660,7 @@ const displayValue = computed(() =>
             </button>
           </div></template
         >
-        <footer>
-          {{
-            tr(
-              "课程行为模型 · 不执行固件",
-              "Guided model · no firmware execution",
-            )
-          }}<button
-            v-if="selected === 2"
-            @click="enableAudio"
-            :aria-label="tr('切换声音', 'Toggle sound')"
-          >
-            <Volume2 v-if="audioEnabled" /><VolumeX v-else />
-          </button>
-        </footer>
+
       </section>
     </aside>
     <section ref="unifiedConsole" class="workbench-console" :aria-label="tr('控制台','Console')">
@@ -775,79 +718,20 @@ const displayValue = computed(() =>
       </div>
     </section>
     <section
-      v-if="inspector"
-      class="component-inspector"
-      role="dialog"
-      :aria-label="tr('元件检查器', 'Component inspector')"
-    >
-      <header>
-        <component :is="icons[selected]" /><strong>{{ lesson.part }}</strong
-        ><button
-          @click="inspector = false"
-          :aria-label="tr('关闭参数', 'Close parameters')"
-        >
-          <X />
-        </button>
-      </header>
-      <p>{{ en ? lesson.descriptionEn : lesson.description }}</p>
-      <label v-for="p in lesson.params" :key="p.key"
-        ><span
-          >{{ en ? p.en : p.zh
-          }}<output>{{ values[p.key] }} {{ p.unit }}</output></span
-        ><input
-          v-model.number="values[p.key]"
-          type="range"
-          :min="p.min"
-          :max="p.max"
-          :step="p.step"
-          :aria-label="en ? p.en : p.zh"
-      /></label>
-      <p v-if="!lesson.params.length">
-        {{
-          tr(
-            "选择其他课程，开始调整外设。",
-            "Choose another lesson to adjust a peripheral.",
-          )
-        }}
-      </p>
-      <div v-if="selected === 7" class="nvs-actions">
-        <button @click="saveNvs"><Save />{{ tr("模拟保存", "Simulate save") }}</button
-        ><button @click="restartNvs">
-          <RotateCcw />{{ tr("模拟重启", "Restart") }}
-        </button>
-      </div>
-      <button v-if="selected === 2" class="sound-toggle" @click="enableAudio">
-        <Volume2 />{{
-          audioEnabled ? tr("关闭声音", "Mute") : tr("开启声音", "Enable sound")
-        }}</button
-      ><button class="inspector-run" @click="run">
-        <Square v-if="running" /><Play v-else />{{
-          running
-            ? tr("停止模拟", "Stop simulation")
-            : tr("运行模拟", "Run simulation")
-        }}
-      </button>
-    </section>
-    <section
       v-if="settings"
       class="experiment-settings"
       role="dialog"
-      :aria-label="tr('设置', 'Settings')"
+      :aria-label="tr('帮助', 'Help')"
     >
       <header>
-        <h2>{{ tr("设置", "Settings") }}</h2>
+        <h2>{{ tr("帮助", "Help") }}</h2>
         <button
           @click="settings = false"
-          :aria-label="tr('关闭设置', 'Close settings')"
+          :aria-label="tr('关闭帮助', 'Close help')"
         >
           <X />
         </button>
       </header>
-      <label
-        ><input type="checkbox" v-model="flow" />{{
-          tr("显示信号路径", "Show signal path")
-        }}</label
-      >
       <p>
         {{
           tr(

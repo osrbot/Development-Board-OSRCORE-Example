@@ -5,72 +5,26 @@
 
 ---
 
-## 第 0 章  入门：ESP-IDF 工具链与 OSRCORE 硬件
+## 第 0 章  认识开发板
 
-### 0.1 知识要点
+### 探索 OSRCORE
 
-- ESP-IDF 的安装方式（官方脚本 / VS Code 插件）
-- 项目目录结构与 CMakeLists.txt 的作用
-- `idf.py` 常用命令：`build`、`flash`、`monitor`、`menuconfig`
-- OSRCORE 开发板各外设的 GPIO 分配总览
-- USB CDC 作为调试控制台的配置方法
+OSRCORE 是基于 ESP32-S3 的机器人控制器。转动板卡、点击接口或板载元件，在右侧查看引脚定义；点击排针引脚可定位到板上的对应位置。
 
-### 0.2 课程内容
+### 先在网页中体验
 
-本章介绍如何在 Linux/macOS/Windows 上搭建 ESP-IDF 开发环境，并对 OSRCORE 开发板的硬件资源进行全面介绍。完成本章后，你将能够编译、烧录并监视一个最小示例程序，为后续各章的实验打下基础。
+选择课程，调整参数并点击“网页运行”。“模拟输入”只用于网页演示；“实板可调”参数可通过 USB 发送到安装了本课固件的开发板。网页模拟用于理解行为，不执行任意 C 程序。
 
-OSRCORE 是一块面向移动机器人的紧凑型控制板，搭载 ESP32-S3 双核 240 MHz 处理器，板载 WS2812B 彩灯、无源蜂鸣器、QMI8658 六轴 IMU、正交编码器接口、SBUS 遥控接收、ESC/舵机 PWM 输出以及 USB CDC 控制台，覆盖了小型轮式机器人所需的全部基础外设。
+### 连接真实开发板
 
-### 0.3 基础学习
+1. 用 USB 数据线连接开发板，在支持 Web Serial 的桌面浏览器中打开本站。
+2. 在 01–13 课中点击“安装本课”，选择 USB 设备并完成下载。首次连接失败时，按设备面板中的 BOOT 恢复说明操作。
+3. 等待自动重连，在“设备串口”查看启动日志。
+4. 修改“实板可调”参数后，点击“应用到开发板”；需要断电保留时，再点击“保存到开发板”。无需安装编译环境或重新下载。
 
-#### ESP-IDF 安装
+切换课程需要安装对应固件。同一课程内调参只发送参数，不会自动驱动开发板；以设备应答确认生效。外接舵机、电调或电机前，先检查供电额定值与共地连接。
 
-推荐使用官方一键安装脚本：
-
-```bash
-# Linux / macOS
-git clone --recursive https://github.com/espressif/esp-idf.git ~/esp/esp-idf
-cd ~/esp/esp-idf
-./install.sh esp32s3
-. ./export.sh          # 每次新终端都需要执行
-```
-
-Windows 用户可下载 ESP-IDF Windows Installer，安装后在 ESP-IDF CMD 终端中操作。
-
-#### 项目结构
-
-```
-my_project/
-├── CMakeLists.txt          # 顶层：cmake_minimum_required + project()
-├── sdkconfig.defaults      # 预设 menuconfig 选项
-└── main/
-    ├── CMakeLists.txt      # idf_component_register(SRCS "main.c")
-    └── main.c
-```
-
-顶层 `CMakeLists.txt` 最简形式：
-
-```cmake
-cmake_minimum_required(VERSION 3.16)
-include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(my_project)
-```
-
-#### idf.py 常用命令
-
-| 命令 | 说明 |
-|------|------|
-| `idf.py set-target esp32s3` | 设置目标芯片（首次必须执行） |
-| `idf.py menuconfig` | 图形化配置（波特率、分区表等） |
-| `idf.py build` | 编译项目 |
-| `idf.py flash` | 烧录到开发板（默认 `/dev/ttyUSB0`） |
-| `idf.py monitor` | 打开串口监视器（115200 baud） |
-| `idf.py flash monitor` | 烧录后立即监视 |
-| `idf.py fullclean` | 清除全部编译产物 |
-
-指定端口：`idf.py -p /dev/ttyACM0 flash monitor`
-
-#### OSRCORE 硬件资源总览
+### 硬件资源
 
 | 外设 | GPIO | 驱动/协议 | 备注 |
 |------|------|-----------|------|
@@ -88,56 +42,17 @@ project(my_project)
 | 电池使能 | GPIO16 | GPIO OUTPUT | 高电平使能 |
 | USB CDC | 内置 | USB Serial JTAG | 控制台 |
 
-#### USB CDC 控制台配置
+完整接口和供电说明见[产品手册](/hardware/manual-zh.pdf)与[原理图](/hardware/schematic-zh.pdf)。
 
-在 `sdkconfig.defaults` 中加入：
+### 阅读与修改源码
 
-```
-CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
-CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
-```
-
-或在代码中手动初始化：
-
-```c
-usb_serial_jtag_driver_config_t cfg = {
-    .rx_buffer_size = 256, .tx_buffer_size = 256
-};
-usb_serial_jtag_driver_install(&cfg);
-esp_vfs_usb_serial_jtag_use_driver();
-```
-
-### 0.4 程序学习
-
-ESP-IDF 应用程序的入口是 `app_main()`，运行在 FreeRTOS 任务中（默认栈 4 KB，优先级 1）。最小程序框架：
-
-```c
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_log.h"
-
-static const char *TAG = "main";
-
-void app_main(void)
-{
-    ESP_LOGI(TAG, "Hello OSRCORE!");
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-```
-
-`ESP_LOGI` 宏输出带时间戳和标签的日志，级别从低到高：`LOGV < LOGD < LOGI < LOGW < LOGE`。
-
-### 0.5 课程总结
-
-本章完成了 ESP-IDF 工具链的安装，掌握了 `idf.py` 的核心工作流，并对 OSRCORE 开发板的全部外设资源有了整体认识。从第 1 章起，每章聚焦一个外设，逐步构建完整的机器人控制系统。
+每课“完整源码”提供对应实现。需要修改程序逻辑时，可下载[示例源码](https://github.com/osrbot/osrcore-learn)，按仓库维护文档使用 ESP-IDF 构建；网页参数调整无需此步骤。
 
 ---
 
 ## 第 1 章  WS2812B 彩色 LED（RMT 驱动）
 
-> 📂 **示例代码**：[01_blink_led](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/01_blink_led)
+> 📂 **示例代码**：[01_blink_led](https://github.com/osrbot/osrcore-learn/tree/main/01_blink_led)
 
 ### 1.1 知识要点
 
@@ -241,7 +156,7 @@ static void led_set(uint8_t r, uint8_t g, uint8_t b)
 
 网页调整频率（220–1760 Hz）和时长（100–1000 ms），开启网页声音后运行。每次发声后静音 100 ms。实板使用 LEDC 产生 50% 占空比的方波，行为与本课参数一致。
 
-打开顶部“连接开发板”，编译当前参数后下载。默认 440 Hz、300 ms；修改参数需要重新编译。完整实现见 `02_buzzer/main/main.c`，默认参数见 `components/osrcore_fw_update/include/osrcore_lesson_config.h`。
+点击“安装本课”下载固件，默认 440 Hz、300 ms。连接 USB 后，修改频率或时长并点击“应用到开发板”；点击“保存到开发板”可断电保留。完整实现见 `02_buzzer/main/main.c`。
 
 ### 观察与练习
 
@@ -249,7 +164,7 @@ static void led_set(uint8_t r, uint8_t g, uint8_t b)
 
 ### 下载步骤
 
-在顶部连接 USB，编译当前参数，下载完成后重连日志；Wi-Fi 需先由 USB 配网。
+通过“安装本课”连接 USB 并下载。完成后自动重连，在“设备串口”查看日志；同课调参无需再次下载。
 
 ### 故障定位
 
@@ -269,13 +184,13 @@ EX2 第 8 行接 GPIO2、VCC_ESC、GND。舵机按其额定电压独立供电并
 
 ### 网页与实板
 
-网页角度只是常见舵机的近似映射，实际转角由舵机型号决定。先尝试 1500 µs，再少量调整。编译并下载后，板卡持续输出选定脉宽；仅拖动网页滑条不会立即驱动真板。
+网页角度只是常见舵机的近似映射，实际转角由舵机型号决定。先尝试 1500 µs，再少量调整。安装本课并连接 USB 后，点击“应用到开发板”，板卡持续输出选定脉宽；仅拖动网页滑条不会立即驱动真板。
 
 完整实现见 `03_pwm_servo/main/main.c`。连接设备后查看脉宽日志，确认运行版本。
 
 ### 代码入口
 
-PWM 初始化与占空比换算均在 main.c；编译参数 OSR_SERVO_PULSE 控制 GPIO2。
+PWM 初始化与占空比换算均在 main.c；GPIO2 的脉宽可通过网页参数实时更新。
 
 ### 验收
 
@@ -285,7 +200,7 @@ PWM 初始化与占空比换算均在 main.c；编译参数 OSR_SERVO_PULSE 控�
 
 ## 第 4 章  SBUS 遥控接收
 
-> 📂 **示例代码**：[04_sbus_rc](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/04_sbus_rc)
+> 📂 **示例代码**：[04_sbus_rc](https://github.com/osrbot/osrcore-learn/tree/main/04_sbus_rc)
 
 ### 4.1 知识要点
 
@@ -400,7 +315,7 @@ if (got == 24 && sbus_parse(buf, &data)) {
 
 ## 第 5 章  QMI8658 IMU（I2C 读取）
 
-> 📂 **示例代码**：[05_imu_i2c](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/05_imu_i2c)
+> 📂 **示例代码**：[05_imu_i2c](https://github.com/osrbot/osrcore-learn/tree/main/05_imu_i2c)
 
 ### 5.1 知识要点
 
@@ -516,7 +431,7 @@ if (qmi8658_read(&d)) {
 
 ## 第 6 章  正交编码器速度测量（PCNT）
 
-> 📂 **示例代码**：[06_encoder](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/06_encoder)
+> 📂 **示例代码**：[06_encoder](https://github.com/osrbot/osrcore-learn/tree/main/06_encoder)
 
 ### 6.1 知识要点
 
@@ -620,22 +535,22 @@ float speed = delta * DIST_PER_PULSE / 0.020f;  // m/s
 
 ### 操作顺序
 
-1. 设置 Kp（默认 2.5），编译并下载本课。
+1. 安装本课固件并连接 USB，设置 Kp（默认 2.5）。
 2. 连接设备日志，先查看 `Loaded Kp=...`；已有保存值会优先读出。
-3. 点击“保存 Kp”或发送 `save`，保存本次固件编译的 Kp，观察 `Saved Kp=...`。
-4. 点击“重启并读回”或发送 `reboot`，重新连接，确认读出的数值一致。
+3. 点击“应用到开发板”，确认设备当前值后，点击“保存到开发板”，等待保存成功应答。
+4. 在设备串口发送 `reboot`，重新连接后确认读出的数值一致。
 
-网页模拟使用浏览器存储；真实开发板使用 NVS 的 `lesson7` 命名空间，两者独立。USB 下载本课不擦除 NVS；修改网页参数必须重新编译下载后再保存。
+“模拟保存”和“模拟重启”使用浏览器存储；“保存到开发板”使用实板 NVS，两者独立。USB 下载保留已保存参数，同课修改参数无需重新下载。
 
-完整实现见 `07_nvs/main/main.c`。`nvs_set_blob()` 写值，`nvs_commit()` 提交，`nvs_get_blob()` 读回。
+完整实现见 `07_nvs/main/main.c`。参数服务使用 NVS 存储本课参数，重启后读回。
 
 ### 存储边界
 
-只读写 lesson7/kp，不清除其他课程或 Wi-Fi 的命名空间。
+本课参数独立保存，不清除其他课程或 Wi-Fi 的数据。
 
 ### 故障定位
 
-保存前确认当前运行的是07_nvs；仅重新编译不会改变板上的程序或保存值。
+保存前确认当前运行的是 07_nvs，且设备已确认应用后的值。仅修改网页滑条不会改变实板或保存值。
 
 ### 验收
 
@@ -651,7 +566,7 @@ float speed = delta * DIST_PER_PULSE / 0.020f;  // m/s
 
 ### 网页与实板
 
-默认 A 每 500 ms 输出一次、B 每 1000 ms 输出一次。分别调整周期、运行网页时间轴，再编译下载到板卡。真实设备日志会出现任务名和递增计数。
+默认 A 每 500 ms 输出一次、B 每 1000 ms 输出一次。先运行网页时间轴；安装本课并连接 USB 后，调整周期并点击“应用到开发板”。真实设备日志会出现任务名和递增计数。
 
 任务使用 `vTaskDelayUntil()` 相对上次唤醒时刻安排下一周期。网页展示周期行为，不模拟 ESP32 两核调度、抢占或实际执行耗时。
 
@@ -673,7 +588,7 @@ float speed = delta * DIST_PER_PULSE / 0.020f;  // m/s
 
 ## 第 9 章  PID 电机速度闭环控制
 
-> 📂 **示例代码**：[09_pid_motor](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/09_pid_motor)
+> 📂 **示例代码**：[09_pid_motor](https://github.com/osrbot/osrcore-learn/tree/main/09_pid_motor)
 
 ### 9.1 知识要点
 
@@ -829,7 +744,7 @@ alpha 越接近1，单次更新越依赖陀螺积分；本课权重按采样更�
 
 ## 第 12 章  完整机器人示例
 
-> 📂 **示例代码**：[12_full_example](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/12_full_example)
+> 📂 **示例代码**：[12_full_example](https://github.com/osrbot/osrcore-learn/tree/main/12_full_example)
 
 ### 12.1 知识要点
 
@@ -1071,7 +986,7 @@ void app_main(void)
 
 ## 第 11 章  QMC6309 磁力计与罗盘航向
 
-> 📂 **示例代码**：[11_mag_compass](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/11_mag_compass)
+> 📂 **示例代码**：[11_mag_compass](https://github.com/osrbot/osrcore-learn/tree/main/11_mag_compass)
 
 ### 11.1 知识要点
 
@@ -1267,7 +1182,7 @@ while (1) {
 
 ### 操作
 
-在第 13 课打开设备面板，编译并下载诊断例程。重新连接串口，查看启动检测和日志。先检查灯、蜂鸣器与传感器，再测试外部接口。
+在第 13 课点击“安装本课”，下载诊断例程。等待自动重连，在“设备串口”查看启动检测和日志。先检查灯、蜂鸣器与传感器，再测试外部接口。
 
 ### 源码与输出
 

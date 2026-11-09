@@ -25,7 +25,7 @@ export const lessons = [
     "认识开发板",
     "Meet OSRCORE",
     "从供电、主控到输入输出。点选板上的标记，查看对应接口；运行一次启动流程。",
-    "Explore the processor, power and I/O. Select a board marker and run the startup sequence.",
+    "Explore the processor, power and I/O. Select a component and run the startup sequence.",
     "ESP32-S3",
     "N16R8 · USB-C",
     [],
@@ -204,14 +204,14 @@ export function lessonCode(id, v) {
   switch (id) {
     case 0:
       return [
-        "// 启动流程 · Startup sequence",
+        "// Startup sequence",
         "board_init();",
         "usb_console_init();",
         'ESP_LOGI("boot", "OSRCORE ready");',
       ];
     case 1:
       return [
-        "// RMT helpers · 教学节选",
+        "// RMT helpers · Teaching excerpt",
         `const int interval_ms = ${v.interval};`,
         `const int brightness = ${v.brightness};`,
         "while (1) {",
@@ -227,7 +227,7 @@ export function lessonCode(id, v) {
       ];
     case 2:
       return [
-        "// LEDC helper · 教学节选",
+        "// LEDC helper · Teaching excerpt",
         `const int frequency_hz = ${v.frequency};`,
         `const int duration_ms = ${v.duration};`,
         "buzzer_tone(frequency_hz, duration_ms);",
@@ -243,7 +243,7 @@ export function lessonCode(id, v) {
       ];
     case 4:
       return [
-        "// 模拟接收值 · simulated receiver input",
+        "// simulated receiver input",
         `int channel = ${v.channel};`,
         `bool failsafe = ${!!v.failsafe};`,
         "int pulse_us = failsafe ? 1500 :",
@@ -252,7 +252,7 @@ export function lessonCode(id, v) {
       ];
     case 5:
       return [
-        "// 理想重力模型 · ideal gravity model",
+        "// ideal gravity model",
         `float tilt_deg = ${v.angle};`,
         "float angle = tilt_deg * PI / 180;",
         "float ax = sinf(angle);",
@@ -269,16 +269,16 @@ export function lessonCode(id, v) {
       ];
     case 7:
       return [
-        "// NVS helpers · 教学节选",
+        "// NVS helpers · Teaching excerpt",
         `float kp = ${v.kp};`,
         'nvs_set_blob(handle, "kp", &kp, sizeof(kp));',
         "nvs_commit(handle);",
-        "// 模拟重启后读取 · read after restart",
+        "// read after restart",
         'nvs_get_blob(handle, "kp", &kp, &size);',
       ];
     case 8:
       return [
-        "// 两个周期任务 · two periodic tasks",
+        "// two periodic tasks",
         `const int task_a_ms = ${v.taskA};`,
         `const int task_b_ms = ${v.taskB};`,
         "// Task A",
@@ -288,7 +288,7 @@ export function lessonCode(id, v) {
       ];
     case 9:
       return [
-        "// 简化 PI 电机模型 · simplified PI plant",
+        "// simplified PI plant",
         `float target = ${v.target};`,
         `float load = ${v.load / 100};`,
         "float error = target - speed;",
@@ -298,7 +298,7 @@ export function lessonCode(id, v) {
       ];
     case 10:
       return [
-        "// 互补滤波教学模型 · complementary filter",
+        "// complementary filter",
         `float target_tilt = ${v.angle};`,
         `float alpha = ${v.alpha};`,
         "estimate = alpha * estimate +",
@@ -307,7 +307,7 @@ export function lessonCode(id, v) {
       ];
     case 11:
       return [
-        "// 水平磁场教学模型 · horizontal field",
+        "// horizontal field",
         `float heading_deg = ${v.heading};`,
         `float hard_iron_x = ${v.offset};`,
         "float raw_x = 40 * cosf(rad(heading_deg)) + hard_iron_x;",
@@ -316,7 +316,7 @@ export function lessonCode(id, v) {
       ];
     case 12:
       return [
-        "// 遥控保护教学模型 · safety behaviour",
+        "// safety behaviour",
         `float command = ${v.target};`,
         `float steering = ${v.steering};`,
         `bool signal_lost = ${!!v.failsafe};`,
@@ -326,7 +326,7 @@ export function lessonCode(id, v) {
       ];
     default:
       return [
-        "// 模拟出厂检查 · simulated diagnostics",
+        "// simulated diagnostics",
         "check_rgb_led();",
         "check_buzzer();",
         `bool sensor_fault = ${!!v.fault};`,

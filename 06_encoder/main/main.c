@@ -1,15 +1,9 @@
 /**
- * 示例06：正交编码器速度测量
- *
- * 硬件：GPIO3(EA)，GPIO9(EB)，1024 PPR，减速比 10.55，轮径 42.5mm
- * 原理：ESP-IDF PCNT（脉冲计数）新 API，单边沿模式（EA 上升沿计数，EB 控制方向）。
- *       每 20ms 读取计数差，换算为线速度（m/s）。
- *       使用 accum_count=1 标志启用硬件级累加，pcnt_unit_get_count 直接返回真实累计值。
- *
- * 速度公式：
- *   pulses_per_rev = PPR * GEAR_RATIO = 1024 * 10.55 = 10803.2
- *   distance_per_pulse = circumference / pulses_per_rev
- *   speed = (delta_pulses * distance_per_pulse) / dt
+ * Lesson 06: quadrature encoder speed measurement.
+ * Hardware: GPIO3 (EA), GPIO9 (EB), 1024 PPR, 10.55 gear ratio, 42.5 mm wheel.
+ * PCNT counts EA rising edges; EB determines direction.
+ * Read the accumulated count every 20 ms and convert its delta to speed (m/s).
+ * The accum_count flag enables accumulation across hardware counter limits.
  */
 
 #include <stdio.h>

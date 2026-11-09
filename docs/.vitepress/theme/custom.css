@@ -1167,3 +1167,24 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Documentation shares the workbench header and brand typography. */
+.docs-shell{--line:#dce5eb;--muted:#526575;--blue:#0076df;--vp-nav-height:0px}
+.docs-shell>.docs-site-header{position:sticky;top:0;z-index:30;margin:0 auto;padding:16px 24px;max-width:1680px;background:#fbfdff}
+.docs-shell .VPNav{display:none}
+.docs-shell .VPSidebar{padding-top:24px;top:var(--docs-header-height);bottom:0}
+.docs-shell .VPDoc{padding-top:32px}
+.docs-shell .vp-doc h1{font-size:30px;line-height:1.35;color:#101820}
+.docs-shell .vp-doc h2{font-size:22px;color:#101820}
+.docs-shell .vp-doc h3{font-size:18px;color:#101820}
+.docs-shell .vp-doc{font-size:16px;line-height:1.75}
+.docs-shell .VPLocalNav{position:relative;top:auto}
+.docs-shell .experiment-header svg{width:20px;height:20px;flex-shrink:0}
+.docs-shell .experiment-header h1{margin:0}.docs-shell .experiment-header button,.docs-shell .experiment-header a{min-height:40px;cursor:pointer}
+.docs-shell .VPDocFooter .edit-link,.docs-shell .VPFooter{display:none}
+
+@media(max-width:600px){.docs-shell>.docs-site-header{padding:12px 16px}.docs-shell .vp-doc h1{font-size:26px}.docs-shell .VPDoc{padding-top:24px}}
+
+.docs-shell .aside-container{top:calc(var(--docs-header-height) + 24px)}
+.docs-shell .vp-doc h2{margin-top:32px;padding-top:24px}
+.docs-shell .vp-doc [id]{scroll-margin-top:calc(var(--docs-header-height) + 24px)}

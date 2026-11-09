@@ -51,7 +51,8 @@ function splitByChapter(content, locale) {
 function promoteChapterHeading(markdown, title, locale) {
   const id=markdown.match(/^##\s+(?:第\s*|Chapter\s+)(\d+)/m)?.[1] || '0'
   const url=(locale==='zh'?'/zh/':'/')+'#lesson-'+id.padStart(2,'0')
-  const promoted=markdown.replace(/^##\s+[^\n]+/m, `# ${title}`)
+  let fenced=false
+  const promoted=markdown.split('\n').map(line=>{if(/^```/.test(line)){fenced=!fenced;return line}return fenced?line:line.replace(/^##(#+)? /,(_,extra)=>'#'+(extra||'')+' ')}).join('\n').replace(/^# [^\n]+/, `# ${title}`)
   return promoted.replace(/^(#\s+[^\n]+\n)/m,`$1\n[${locale==='zh'?'打开本课交互实验与设备下载':'Open this interactive lesson and device downloads'}](${url})\n`)
 }
 
@@ -59,17 +60,17 @@ function indexPage(locale) {
   const isZh = locale === 'zh'
   const title = isZh ? '课程资料' : 'Course resources'
   const intro = isZh
-    ? '与交互课程一一对应：同样的编号、名称与顺序。选择课程阅读原理、接线与源码说明。'
+    ? '查阅接口与供电定义，或选择课程阅读原理、接线和源码说明。'
     : 'Start with the hardware, then explore peripheral drivers, sensors, and robot control.'
 
-  const lines = [`# ${title}`, '', intro, '']
+  const lines = ['---','sidebar: false','outline: false','---',`# ${title}`, '', intro, '',isZh?'## 硬件与连接':'## Hardware & connection','',`[${isZh?'产品手册':'Product manual'}](/hardware/manual-${locale}.pdf) · [${isZh?'原理图':'Schematic'}](/hardware/schematic-${locale}.pdf) · [${isZh?'USB 下载帮助':'USB download help'}](./updater)`, '',isZh?'## 课程说明':'## Lesson guides','']
   for (const chapter of map.chapters) {
     const text = locale === 'zh' ? chapter.zhTitle : chapter.enTitle
     const file = locale === 'zh' ? chapter.zh : chapter.en
     const href = path.basename(file).replace(/\.md$/, '')
     lines.push(`- [${text}](./${href})`)
   }
-  lines.push('', isZh ? '## 硬件资料' : '## Hardware resources', '', `[${isZh ? '产品手册' : 'Product manual'}](/hardware/manual-${locale}.pdf) · [${isZh ? '原理图' : 'Schematic'}](/hardware/schematic-${locale}.pdf)`, '')
+  lines.push('')
   return lines.join('\n')
 }
 

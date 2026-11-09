@@ -1,9 +1,9 @@
 /**
- * 示例05：QMI8658 IMU 读取
- *
- * 硬件：I2C，SDA=GPIO10，SCL=GPIO11，地址 0x6B
- * 配置：±4g 加速度计，±1024dps 陀螺仪，1000Hz ODR，5样本均值输出
- * 输出：加速度（g，水平校正）、角速度（deg/s，零偏校正）、温度（°C），每 50ms 打印一次
+ * Lesson 05: QMI8658 IMU sampling.
+ * Hardware: I2C, SDA=GPIO10, SCL=GPIO11, address 0x6B.
+ * Configuration: +/-4 g, +/-1024 dps, 1000 Hz ODR, five-sample averaging.
+ * Print corrected acceleration (g), angular velocity (deg/s) and temperature (C)
+ * every 50 ms.
  */
 
 #include <stdio.h>

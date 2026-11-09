@@ -1,13 +1,9 @@
 /**
- * 示例01：WS2812B LED 颜色循环
- *
- * 硬件：GPIO45，1颗 WS2812B
- * 原理：使用 ESP-IDF RMT TX 驱动，自定义编码器将 GRB 字节流转换为 RMT 符号。
- *
- * WS2812B 时序（80MHz RMT 时钟，12.5ns/tick）：
- *   T0H = 400/12.5 ticks (32)   T0L = 850/12.5 ticks (68)
- *   T1H = 800/12.5 ticks (64)   T1L = 450/12.5 ticks (36)
- *   Reset >= 50000/12.5 ticks (4000, 50us)
+ * Lesson 01: WS2812B RGB color cycle.
+ * Hardware: one WS2812B on GPIO45.
+ * The RMT TX driver encodes GRB bytes into pulse symbols.
+ * At 80 MHz, one tick is 12.5 ns: T0H=32, T0L=68, T1H=64, T1L=36.
+ * The reset interval is at least 50 us (4000 ticks).
  */
 
 #include <string.h>

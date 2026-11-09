@@ -41,19 +41,19 @@ for (const chapter of map.chapters) {
       errors.push(`Heading mismatch in ${file}; expected H1: ${title}`)
     }
 
-    const h3Count = countHeadings(content, 3)
-    if (h3Count < 5) {
-      warnings.push(`${file} has only ${h3Count} H3 sections; expected tutorial structure may be incomplete.`)
+    const h3Count = countHeadings(content, 2)
+    if (h3Count < 1) {
+      warnings.push(`${file} has only ${h3Count} H2 sections; expected tutorial structure may be incomplete.`)
     }
   }
 
   if ((await exists(chapter.zh)) && (await exists(chapter.en))) {
     const zh = await fs.readFile(path.join(root, chapter.zh), 'utf8')
     const en = await fs.readFile(path.join(root, chapter.en), 'utf8')
-    const zhH3 = countHeadings(zh, 3)
-    const enH3 = countHeadings(en, 3)
-    if (zhH3 !== enH3) {
-      warnings.push(`H3 count differs for chapter ${chapter.id}: zh=${zhH3}, en=${enH3}`)
+    const zhH2 = countHeadings(zh, 2)
+    const enH2 = countHeadings(en, 2)
+    if (zhH2 !== enH2) {
+      warnings.push(`H2 count differs for chapter ${chapter.id}: zh=${zhH2}, en=${enH2}`)
     }
   }
 }

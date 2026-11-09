@@ -1,9 +1,8 @@
 /**
- * 示例12：QMC6309 磁力计读取
- *
- * 硬件：I2C，SDA=GPIO10，SCL=GPIO11，地址 0x7C
- * 输出：航向角（度）、XYZ 磁场（Gauss），每 100ms 打印一次
- * 控制台：USB CDC，支持 cal / heading / help 命令
+ * Lesson 11: QMC6309 magnetometer.
+ * Hardware: I2C, SDA=GPIO10, SCL=GPIO11, address 0x7C.
+ * Print heading (degrees) and XYZ magnetic field (Gauss) every 100 ms.
+ * USB serial commands include cal, heading and help.
  */
 
 #include <stdio.h>

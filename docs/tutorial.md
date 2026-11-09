@@ -5,76 +5,26 @@
 
 ---
 
-## Chapter 0: ESP-IDF Toolchain and OSRCORE Hardware
+## Chapter 0: Explore the controller
 
-### 0.1 Key Points
+### Explore OSRCORE
 
-- ESP-IDF installation methods: official scripts and the VS Code extension
-- ESP-IDF project structure and the role of `CMakeLists.txt`
-- Common `idf.py` commands: `build`, `flash`, `monitor`, and `menuconfig`
-- OSRCORE peripheral and GPIO resource overview
-- USB CDC console configuration through USB Serial/JTAG
+OSRCORE is an ESP32-S3 robot controller. Rotate the board and select a connector or onboard component to inspect its pins. Selecting a header pin highlights its corresponding position on the board.
 
-### 0.2 Course Content
+### Try the browser simulation
 
-This chapter explains how to set up the ESP-IDF development environment on Linux, macOS, and Windows, then introduces the hardware resources of the OSRCORE board. After this chapter, you should be able to build, flash, and monitor a minimal ESP-IDF application.
+Choose a lesson, adjust its parameters and select “Simulate”. “Simulation input” values affect the browser only. “Device parameter” values can be sent over USB to a controller running that lesson. The simulation demonstrates behavior; it does not execute arbitrary C programs.
 
-OSRCORE is a compact mobile-robot control board based on the ESP32-S3 dual-core 240 MHz MCU. It integrates a WS2812B RGB LED, a passive buzzer, a QMI8658 six-axis IMU, a quadrature encoder interface, SBUS receiver input, ESC and servo PWM outputs, battery voltage sensing, and a USB CDC debug console. These peripherals cover the basic requirements of a small wheeled robot.
+### Connect a real controller
 
-### 0.3 Basic Learning
+1. Connect the controller with a USB data cable and open this site in a desktop browser that supports Web Serial.
+2. In lessons 01–13, select “Install lesson”, choose the USB device and complete the download. If the first connection fails, follow the BOOT recovery instructions in the device panel.
+3. Wait for automatic reconnection and check the startup log under “Device serial”.
+4. After changing a “Device parameter”, select “Apply to controller”. To retain it after power loss, then select “Save to controller”. No compiler installation or new download is required.
 
-#### ESP-IDF Installation
+Changing lessons requires installing the corresponding firmware. Within a lesson, adjustments send parameters only. Moving a slider does not automatically drive hardware; wait for the device acknowledgement. Before attaching a servo, ESC or motor, check its supply rating and common-ground wiring.
 
-The recommended installation method is the official script:
-
-```bash
-# Linux / macOS
-git clone --recursive https://github.com/espressif/esp-idf.git ~/esp/esp-idf
-cd ~/esp/esp-idf
-./install.sh esp32s3
-. ./export.sh          # Run this every time a new terminal is opened
-```
-
-On Windows, install ESP-IDF using the official Windows Installer and run commands in the ESP-IDF CMD terminal.
-
-#### Project Structure
-
-```text
-my_project/
-├── CMakeLists.txt          # Top level: cmake_minimum_required + project()
-├── sdkconfig.defaults      # Default menuconfig options
-└── main/
-    ├── CMakeLists.txt      # idf_component_register(SRCS "main.c")
-    └── main.c
-```
-
-A minimal top-level `CMakeLists.txt` looks like this:
-
-```cmake
-cmake_minimum_required(VERSION 3.16)
-include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(my_project)
-```
-
-#### Common idf.py Commands
-
-| Command | Description |
-|---|---|
-| `idf.py set-target esp32s3` | Set the target chip. Required for the first build. |
-| `idf.py menuconfig` | Open the configuration menu. |
-| `idf.py build` | Build the project. |
-| `idf.py flash` | Flash the firmware to the board. |
-| `idf.py monitor` | Open the serial monitor. |
-| `idf.py flash monitor` | Flash and then immediately monitor. |
-| `idf.py fullclean` | Remove all build artifacts. |
-
-Specify the serial port when needed:
-
-```bash
-idf.py -p /dev/ttyACM0 flash monitor
-```
-
-#### OSRCORE Hardware Resource Overview
+### Hardware resources
 
 | Peripheral | GPIO | Driver / Protocol | Notes |
 |---|---:|---|---|
@@ -92,57 +42,17 @@ idf.py -p /dev/ttyACM0 flash monitor
 | Battery enable | GPIO16 | GPIO output | Active high |
 | USB CDC | Internal | USB Serial/JTAG | Console |
 
-#### USB CDC Console Configuration
+See the [product manual](/hardware/manual-en.pdf) and [schematic](/hardware/schematic-en.pdf) for connector and power details.
 
-Add the following to `sdkconfig.defaults`:
+### Read and modify the source
 
-```text
-CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
-CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
-```
-
-Or initialize USB Serial/JTAG in code:
-
-```c
-usb_serial_jtag_driver_config_t cfg = {
-    .rx_buffer_size = 256,
-    .tx_buffer_size = 256,
-};
-usb_serial_jtag_driver_install(&cfg);
-esp_vfs_usb_serial_jtag_use_driver();
-```
-
-### 0.4 Program Study
-
-The entry point of an ESP-IDF application is `app_main()`. It runs in a FreeRTOS task. A minimal OSRCORE application is:
-
-```c
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_log.h"
-
-static const char *TAG = "main";
-
-void app_main(void)
-{
-    ESP_LOGI(TAG, "Hello OSRCORE!");
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-```
-
-`ESP_LOGI` prints a timestamped log line with a tag. Log levels are ordered as `LOGV < LOGD < LOGI < LOGW < LOGE`.
-
-### 0.5 Summary
-
-This chapter covered ESP-IDF installation, the basic `idf.py` workflow, and the OSRCORE hardware resource map. The following chapters focus on one peripheral at a time and gradually build a complete robot control system.
+Each lesson’s “Full source” tab contains its implementation. To change program logic, download the [example source](https://github.com/osrbot/osrcore-learn) and follow the repository’s maintainer instructions for ESP-IDF builds. Browser parameter adjustments do not require this step.
 
 ---
 
 ## Chapter 1: WS2812B RGB LED (RMT)
 
-> 📂 **Example Code**: [01_blink_led](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/01_blink_led)
+> 📂 **Example Code**: [01_blink_led](https://github.com/osrbot/osrcore-learn/tree/main/01_blink_led)
 
 ### 1.1 Key Points
 
@@ -238,7 +148,7 @@ Drive the GPIO42 passive buzzer with a configurable tone. Only the board and a U
 
 Frequency is 220–1760 Hz; duration is 100–1000 ms, followed by 100 ms of silence. Defaults are 440 Hz and 300 ms. Enable browser audio for the simulation. Hardware uses LEDC with a 50% duty cycle.
 
-Open Connect board, build the current parameters, and download. Slider changes require a new build before they affect hardware. Source: `02_buzzer/main/main.c`.
+Select “Install lesson” to download the firmware. Connect over USB, adjust frequency or duration, then select “Apply to controller”. Select “Save to controller” to retain these values after power loss. Source: `02_buzzer/main/main.c`.
 
 ### Exercise
 
@@ -246,7 +156,7 @@ Double the frequency and compare pitch, then change only duration. The browser a
 
 ### Download
 
-Connect USB, build current parameters, download, then reconnect logs. Wi-Fi needs initial USB provisioning.
+Use “Install lesson” to connect and download over USB. After automatic reconnection, open “Device serial” for logs. Adjusting this lesson’s parameters does not require another download.
 
 ### Troubleshooting
 
@@ -264,7 +174,7 @@ Set a fixed servo pulse instead of sweeping automatically. GPIO2 produces 50 Hz 
 
 Use EX2 row 8: GPIO2, VCC_ESC, GND. Power the servo according to its rating and share ground with the board. VCC_ESC is separate from the ordinary 5 V supply domain. Check connector orientation in the board view.
 
-Start at 1500 µs and make small adjustments. Browser angles approximate a typical servo; actual travel depends on the device. Build and download to change the physical pulse. Moving a slider alone does not drive hardware.
+Start at 1500 µs and make small adjustments. Browser angles approximate a typical servo; actual travel depends on the device. Install this lesson, connect over USB and select “Apply to controller” to change the physical pulse. Moving a slider alone does not drive hardware.
 
 Source: `03_pwm_servo/main/main.c`. Check the pulse in the device log.
 
@@ -274,7 +184,7 @@ Compare one parameter change at a time and record the observed hardware result.
 
 ### Code
 
-PWM setup and duty conversion are in main.c. OSR_SERVO_PULSE controls GPIO2.
+PWM setup and duty conversion are in main.c. The GPIO2 pulse width can be updated through the browser parameters.
 
 ### Verification
 
@@ -284,7 +194,7 @@ Check pulse width before attaching a mechanical load. The servo determines wheth
 
 ## Chapter 4: SBUS RC Receiver
 
-> 📂 **Example Code**: [04_sbus_rc](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/04_sbus_rc)
+> 📂 **Example Code**: [04_sbus_rc](https://github.com/osrbot/osrcore-learn/tree/main/04_sbus_rc)
 
 ### 4.1 Key Points
 
@@ -305,8 +215,8 @@ SBUS is a digital RC protocol widely used in RC vehicles and robots. It transmit
 Byte 0:  0x0F frame header
 Byte 1-22: packed channel data, 16 channels × 11 bits = 176 bits
 Byte 23: flags
-  bit2 = failsafe
-  bit3 = lost_frame
+  bit2 = frame lost
+  bit3 = failsafe
 Byte 24: 0x00 frame end
 ```
 
@@ -377,7 +287,7 @@ This chapter covered SBUS framing, channel unpacking, UART 8E2 configuration, an
 
 ## Chapter 5: QMI8658 IMU over I2C
 
-> 📂 **Example Code**: [05_imu_i2c](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/05_imu_i2c)
+> 📂 **Example Code**: [05_imu_i2c](https://github.com/osrbot/osrcore-learn/tree/main/05_imu_i2c)
 
 ### 5.1 Key Points
 
@@ -472,7 +382,7 @@ This chapter explained the ESP-IDF I2C master API and how to initialize and read
 
 ## Chapter 6: Quadrature Encoder Speed Measurement
 
-> 📂 **Example Code**: [06_encoder](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/06_encoder)
+> 📂 **Example Code**: [06_encoder](https://github.com/osrbot/osrcore-learn/tree/main/06_encoder)
 
 ### 6.1 Key Points
 
@@ -563,22 +473,22 @@ Save one Kp value and read it after reboot. This lesson does not run a robot con
 
 ### Procedure
 
-1. Set Kp (default 2.5), build, and download.
+1. Install this lesson, connect over USB and set Kp (default 2.5).
 2. Read `Loaded Kp=...`; an existing saved value takes precedence.
-3. Use Save Kp or send `save` to store the value compiled into this firmware. Check `Saved Kp=...`.
-4. Reboot, reconnect, and verify the loaded value.
+3. Select “Apply to controller”, confirm the device value, then select “Save to controller” and wait for the save acknowledgement.
+4. Send `reboot` in “Device serial”, reconnect, and verify the loaded value.
 
-Browser storage and board NVS are independent. The firmware uses the `lesson7` namespace. USB downloads preserve NVS. After changing a parameter, build and download before saving it.
+“Simulate save” and “Simulate restart” use browser storage; “Save to controller” uses board NVS. These stores are independent. USB downloads preserve saved parameters. Adjustments within this lesson require no new download.
 
-Source: `07_nvs/main/main.c`. The example uses `nvs_set_blob()`, `nvs_commit()`, and `nvs_get_blob()`.
+Source: `07_nvs/main/main.c`. The parameter service stores this lesson’s values in NVS and restores them on startup.
 
 ### Storage scope
 
-Only lesson7/kp is accessed; other lesson and Wi-Fi namespaces are preserved.
+This lesson’s parameters are stored separately. Other lessons and Wi-Fi data are preserved.
 
 ### Troubleshooting
 
-Confirm the running project is 07_nvs before saving. Building alone does not change the flashed program or stored value.
+Confirm the running project is 07_nvs and the device has acknowledged the applied value before saving. Moving a browser slider alone changes neither the device nor its stored value.
 
 ### Verification
 
@@ -594,7 +504,7 @@ Observe two independent periodic tasks without robot drivers or sensor initializ
 
 ### Simulation and hardware
 
-Task A defaults to 500 ms and B to 1000 ms. Change their periods, run the browser timeline, then build and download. Real logs show task names and increasing counters.
+Task A defaults to 500 ms and B to 1000 ms. Run the browser timeline first. After installing this lesson and connecting over USB, change their periods and select “Apply to controller”. Real logs show task names and increasing counters.
 
 `vTaskDelayUntil()` schedules relative to the previous wake time. The browser models periods, not dual-core scheduling or execution time. Simultaneous prints have no guaranteed order.
 
@@ -616,7 +526,7 @@ Compare count ratios over a longer interval rather than inferring missed tasks f
 
 ## Chapter 9: PID Motor Speed Control
 
-> 📂 **Example Code**: [09_pid_motor](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/09_pid_motor)
+> 📂 **Example Code**: [09_pid_motor](https://github.com/osrbot/osrcore-learn/tree/main/09_pid_motor)
 
 ### 9.1 Key Points
 
@@ -711,7 +621,7 @@ Test flat, slow side-to-side tilt, and slow forward/back tilt. Errors during rap
 
 ## Chapter 12: Complete Robot Example
 
-> 📂 **Example Code**: [12_full_example](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/12_full_example)
+> 📂 **Example Code**: [12_full_example](https://github.com/osrbot/osrcore-learn/tree/main/12_full_example)
 
 ### 12.1 Key Points
 
@@ -807,7 +717,7 @@ This final chapter integrates LED, buzzer, SBUS, I2C IMU, encoder, NVS, FreeRTOS
 
 ## Chapter 11: QMC6309 Magnetometer and Compass Heading
 
-> 📂 **Example Code**: [11_mag_compass](https://github.com/osrbot/Development-Board-OSRCORE-Example/tree/main/11_mag_compass)
+> 📂 **Example Code**: [11_mag_compass](https://github.com/osrbot/osrcore-learn/tree/main/11_mag_compass)
 
 ### 11.1 Key Points
 
@@ -966,7 +876,7 @@ Use the board and a USB data cable. External receivers, motors and servos requir
 
 ### Procedure
 
-Open the device panel in lesson 13, build and download the diagnostic example, then reconnect the serial log. Check the LED, buzzer and sensors before external interfaces.
+Select “Install lesson” in lesson 13 to download the diagnostic example. After automatic reconnection, open “Device serial”. Check the LED, buzzer and sensors before external interfaces.
 
 ### Source and output
 

@@ -1,18 +1,10 @@
 /**
- * 示例09：PID 电机速度闭环控制
- *
- * 硬件：
- *   编码器  GPIO3(EA) / GPIO9(EB)，1024 PPR，减速比 10.55，轮径 42.5mm
- *   ESC     GPIO1，LEDC 50Hz 14-bit，脉宽 1000-2000µs
- *
- * 控制逻辑（20ms 周期）：
- *   1. 读编码器计数差 → 换算线速度（m/s），一阶低通滤波
- *   2. PID 计算输出（单位：µs 偏移量）
- *   3. 输出 = THROTTLE_NEUTRAL(1500) + pid_out，钳位到 [1000, 2000]
- *
- * 目标速度通过 USB CDC 串口命令设置：
- *   v <speed_m_s>   — 设置目标速度（-6.0 ~ 6.0 m/s）
- *   stop            — 停止
+ * Lesson 09: closed-loop motor speed control.
+ * Encoder: GPIO3 (EA), GPIO9 (EB), 1024 PPR, 10.55 gear ratio, 42.5 mm wheel.
+ * ESC: GPIO1, 50 Hz LEDC PWM, 14-bit resolution, 1000-2000 us pulse.
+ * Every 20 ms, convert the encoder delta to speed, low-pass filter it,
+ * and use PID output as a pulse offset from the 1500 us neutral signal.
+ * USB commands: v <speed_m_s> sets the target (-6.0 to 6.0 m/s); stop stops it.
  */
 
 #include <stdio.h>

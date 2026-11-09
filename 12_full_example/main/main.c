@@ -1,25 +1,12 @@
 /**
- * 示例11：完整机器人示例 (osrcore 架构)
- *
- * 三任务双核架构：
- *   Core 1  task_imu     P5  1ms   — QMI8658 采样 → Madgwick AHRS → 里程计积分
- *   Core 1  task_control P4  20ms  — 编码器测速 → PID → ESC 输出 → ADC 电压监测
- *   Core 0  task_comm    P3  1ms   — SBUS 解码 / USB CDC 命令 / 数据上报
- *
- * 控制优先级：SBUS 遥控 > USB CDC 串口命令
- *   SBUS CH7（index 6）< 1500 → 遥控模式
- *   SBUS CH7（index 6）≥ 1500 → 串口控制模式
- *   SBUS CH8（index 7）< 1500 → 限速 15%
- *
- * USB CDC 命令：
- *   v <vx> <steer_deg>  — 设置速度(m/s)和转向角度(deg)
- *   i                   — 打印 IMU
- *   o                   — 打印里程计
- *   status              — 完整状态
- *   kp/ki/kd <val>      — 修改 PID 参数
- *   kr                  — 重置 PID
- *   reset               — 重启
- *   help                — 命令列表
+ * Lesson 12: integrated robot controller.
+ * Core 1: task_imu (priority 5, 1 ms) samples QMI8658, updates AHRS and odometry.
+ * Core 1: task_control (priority 4, 20 ms) reads encoders, runs PID and monitors voltage.
+ * Core 0: task_comm (priority 3, 1 ms) handles SBUS, USB commands and telemetry.
+ * SBUS channel 7 (index 6) selects RC below 1500 and serial control otherwise.
+ * SBUS channel 8 (index 7) below 1500 selects a 15% speed limit.
+ * USB commands: v <vx> <steer_deg>, i (IMU), o (odometry), status,
+ * kp/ki/kd <value>, kr (reset PID), reset (restart) and help.
  */
 
 #include <stdio.h>

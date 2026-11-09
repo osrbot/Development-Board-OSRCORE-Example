@@ -1,8 +1,8 @@
 /**
- * QMI8658 6-DOF IMU 驱动（I2C，ESP-IDF 新 API）
- *
- * 配置：±4g 加速度计，±1024dps 陀螺仪，1000Hz ODR
- * 特性：5 样本均值、10 样本静止检测、陀螺仪零偏校准、水平偏移补偿
+ * QMI8658 six-axis IMU driver using the ESP-IDF I2C API.
+ * Configuration: +/-4 g, +/-1024 dps, 1000 Hz ODR.
+ * Features: five-sample averaging, ten-sample stationary detection,
+ * gyroscope bias calibration and level-offset compensation.
  */
 
 #pragma once

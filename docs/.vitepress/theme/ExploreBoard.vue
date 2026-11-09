@@ -8,12 +8,12 @@ import {hardware} from './hardware-map.mjs';
 import {headerPinPosition,headerPinNumberAt} from './header-pins.mjs';
 import {illustratedMaterial,studioExposure} from './board-materials.mjs';
 const props=defineProps({selection:String,running:Boolean,flow:Boolean,color:String,pin:String,ledLevel:Number});
-const emit=defineEmits(['select']);
+const emit=defineEmits(['select','update:flow']);
 const host=ref(),failed=ref(false),ready=ref(false),hover=ref(''),path=ref(''),pinGuide=ref(null),zoomLevel=ref(1);
 const choices=computed(()=>en.value?hardware.map(hardwareInEnglish):hardware);
 
 let dispose=()=>{},invalidate=()=>{},reset=()=>{},flip=()=>{},setZoom=()=>{};
-watch(()=>[props.selection,props.running,props.flow,props.color,props.pin,props.ledLevel],()=>invalidate());
+watch(()=>[props.selection,props.running,props.flow,props.color,props.pin,props.ledLevel,en.value],()=>{host.value?.querySelector('canvas')?.setAttribute('aria-label',t("拖动旋转板卡，点击元件查看引脚"));invalidate()});
 let dead=false;
 onMounted(async()=>{
  try{
@@ -57,7 +57,7 @@ onMounted(async()=>{
    selectionUniforms.headerMode.value=active?.id==='EX2'&&headerPin?1:0;
    selectionUniforms.selectedPinNumber.value=headerPin?(headerPin.row-1)*3+headerPin.col+1:0;
    pinGuide.value=null;
-   if(props.selection==='EX2'&&headerPin&&f){const pinPoint=point(new T.Vector3(...headerPinPosition(headerPin)).sub(center));pinGuide.value={pin:pinPoint,label:`第 ${headerPin.row} 行 · ${['左','中','右'][headerPin.col]}列 · ${headerPin.net}`,labelX:Math.max(8,Math.min(w-210,pinPoint[0]+24)),labelY:Math.max(30,Math.min(h-34,pinPoint[1]+40))};}
+   if(props.selection==='EX2'&&headerPin&&f){const pinPoint=point(new T.Vector3(...headerPinPosition(headerPin)).sub(center));pinGuide.value={pin:pinPoint,label:en.value?`Row ${headerPin.row} · ${['Left','Middle','Right'][headerPin.col]} · ${headerPin.net}`:`第 ${headerPin.row} 行 · ${['左','中','右'][headerPin.col]}列 · ${headerPin.net}`,labelX:Math.max(8,Math.min(w-210,pinPoint[0]+24)),labelY:Math.max(30,Math.min(h-34,pinPoint[1]+40))};}
    const selected=hardware.find(x=>x.id===props.selection),cpu=hardware.find(x=>x.id==='CPU');path.value='';
    if(props.flow&&selected&&['EX1','IMU','RGB'].includes(selected.id)&&(selected.id!=='EX1'||selected.pins.find(p=>p.n===props.pin)?.gpio!=null)&&f){const a=point(location(cpu)),b=point(selected.id==='RGB'?ledPosition:location(selected));if(selected.id==='RGB'){const dx=a[0]-b[0],dy=a[1]-b[1],distance=Math.hypot(dx,dy)||1;b[0]+=dx/distance*12;b[1]+=dy/distance*12}path.value=`M ${a[0]} ${a[1]} C ${a[0]} ${b[1]}, ${b[0]} ${a[1]}, ${b[0]} ${b[1]}`}
    const ledColor=selectionUniforms.ledColor.value;ledColor.set(props.color||'#000000');const maximum=Math.max(ledColor.r,ledColor.g,ledColor.b);const level=props.running&&props.selection==='RGB'&&maximum>0?Math.max(0,Math.min(1,(props.ledLevel||0)/255)):0;if(maximum>0)ledColor.multiplyScalar(1/maximum);selectionUniforms.ledStrength.value=level*5;ledLight.color.copy(ledColor);ledLight.intensity=level*1.8;lensMaterial.emissive.copy(ledColor);lensMaterial.color.copy(level>0?ledColor:new T.Color('#bdb681'));lensMaterial.emissiveIntensity=level*1.2;composer.render();
@@ -110,7 +110,7 @@ onUnmounted(()=>{dead=true;dispose()});
    <svg v-if="ready&&path" class="board-signal" :class="{running}" :aria-label="t('逻辑信号路径')"><path :d="path"/><path :d="path" class="signal-dashes"/></svg>
 
   </div>
-  <div class="explore-controls"><span :title="t('Shift + 拖动或右键拖动可平移查看放大后的细节')">{{failed?t('此浏览器暂不支持三维，仍可选择元件'):t('拖动旋转 · 滚轮缩放')}}</span><div v-if="ready" class="zoom-controls"><button :aria-label="t('缩小板卡')" :disabled="zoomLevel<=.8" @click="setZoom(zoomLevel/1.25)">−</button><output :aria-label="t('板卡缩放比例')">{{Math.round(zoomLevel*100)}}%</output><button :aria-label="t('放大板卡')" :disabled="zoomLevel>=3.5" @click="setZoom(zoomLevel*1.25)">+</button></div><button v-if="ready" @click="flip()">{{t('翻转 ↔')}}</button><button v-if="ready" @click="reset()">{{t('复位视角')}}</button><label class="sr-only" for="hardware-select">{{t('选择板卡元件')}}</label><select id="hardware-select" :value="selection" @change="emit('select',$event.target.value)"><option v-for="h in choices" :value="h.id" :key="h.id">{{h.name}}</option></select></div>
+  <div class="explore-controls"><div class="board-view-tools"><span :title="t('Shift + 拖动或右键拖动可平移查看放大后的细节')">{{failed?t('此浏览器暂不支持三维，仍可选择元件'):t('拖动旋转 · 滚轮缩放')}}</span><div v-if="ready" class="zoom-controls"><button :aria-label="t('缩小板卡')" :disabled="zoomLevel<=.8" @click="setZoom(zoomLevel/1.25)">−</button><output :aria-label="t('板卡缩放比例')">{{Math.round(zoomLevel*100)}}%</output><button :aria-label="t('放大板卡')" :disabled="zoomLevel>=3.5" @click="setZoom(zoomLevel*1.25)">+</button></div><button v-if="ready" @click="flip()">{{t('翻转 ↔')}}</button><button v-if="ready" @click="reset()">{{t('复位视角')}}</button></div><div class="board-selection-tools"><button v-if="['EX1','IMU','RGB'].includes(selection)" :title="en?'Logical signal connection, not PCB routing':'逻辑信号连接，不代表 PCB 走线'" class="flow-toggle" :aria-pressed="flow" @click="emit('update:flow',!flow)">{{en?'Signal path':'信号路径'}}</button><label class="sr-only" for="hardware-select">{{t('选择板卡元件')}}</label><select id="hardware-select" :value="selection" @change="emit('select',$event.target.value)"><option v-for="h in choices" :value="h.id" :key="h.id">{{h.name}}</option></select></div></div>
  </section>
 </template>
 <style scoped>
