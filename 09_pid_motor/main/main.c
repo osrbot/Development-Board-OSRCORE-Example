@@ -27,6 +27,7 @@
 #include "driver/usb_serial_jtag_vfs.h"
 #include "esp_log.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_console.h"
 #include "osrcore_lesson_config.h"
 #include "pid.h"
 
@@ -150,8 +151,9 @@ static void task_control(void *arg)
 static void task_cmd(void *arg)
 {
     char line[384];
+    osrcore_console_reader_t reader = {0};
     while (1) {
-        if (!fgets(line, sizeof(line), stdin)){vTaskDelay(pdMS_TO_TICKS(20));continue;}
+        if (!osrcore_console_read_line(&reader, stdin, line, sizeof(line))){vTaskDelay(pdMS_TO_TICKS(20));continue;}
         line[strcspn(line, "\r\n")] = '\0';
         if (osrcore_fw_handle_line(line)) continue;
 

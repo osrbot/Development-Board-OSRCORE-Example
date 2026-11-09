@@ -1,3 +1,4 @@
+#include "osrcore_console.h"
 #include "osrcore_fw_update.h"
 #include "osrcore_params.h"
 
@@ -298,8 +299,9 @@ static void fw_update_task(void *arg)
 {
     (void)arg;
     char line[FW_LINE_MAX];
+    osrcore_console_reader_t reader = {0};
     while (1) {
-        if (!fgets(line, sizeof(line), stdin)) {
+        if (!osrcore_console_read_line(&reader, stdin, line, sizeof(line))) {
             vTaskDelay(pdMS_TO_TICKS(20));
             continue;
         }

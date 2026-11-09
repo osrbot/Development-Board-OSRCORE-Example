@@ -27,6 +27,7 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_console.h"
 #include "osrcore_lesson_config.h"
 
 #define LED_PIN       45
@@ -544,9 +545,10 @@ static void print_rc(void) {
 static void serial_task(void *arg) {
     (void)arg;
     char line[384];
+    osrcore_console_reader_t reader = {0};
     print_help();
     while (1) {
-        if (fgets(line, sizeof(line), stdin) == NULL) {
+        if (!osrcore_console_read_line(&reader, stdin, line, sizeof(line))) {
             vTaskDelay(pdMS_TO_TICKS(20));
             continue;
         }

@@ -8,6 +8,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_console.h"
 #include "osrcore_params.h"
 #include "osrcore_lesson_config.h"
 bool osrcore_lesson_command(const char *line){
@@ -30,8 +31,9 @@ void app_main(void) {
     osrcore_fw_network_start();
     ESP_LOGI("nvs", "Loaded Kp=%.2f. Commands: save, reboot", osrcore_param_get("kp",OSR_NVS_KP));
     char line[384];
+    osrcore_console_reader_t reader = {0};
     while(1) {
-        if(!fgets(line,sizeof(line),stdin)){vTaskDelay(pdMS_TO_TICKS(20));continue;}
+        if(!osrcore_console_read_line(&reader, stdin, line, sizeof(line))){vTaskDelay(pdMS_TO_TICKS(20));continue;}
         line[strcspn(line,"\r\n")]=0;
         if(osrcore_fw_handle_line(line))continue;
         if(osrcore_lesson_command(line))continue;
