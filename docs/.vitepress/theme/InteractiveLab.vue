@@ -38,7 +38,7 @@ import {
 import ExploreBoard from "./ExploreBoard.vue";
 import PartInspector from "./PartInspector.vue";
 import DeviceLab from "./DeviceLab.vue";
-import {lessonGuide, lessonHardwareEn, firmwareParameters, firmwareValues, configHeader} from "./lesson-contract.mjs";
+import {lessonGuide, lessonHardwareEn, firmwareParameters} from "./lesson-contract.mjs";
 import { hardware, lessonHardware } from "./hardware-map.mjs";
 import sourceLessons from "./courses.json";
 import {
@@ -68,6 +68,29 @@ function selectHardware(id){
 }
 
 const deviceOpen=ref(false), deviceStatus=ref('');
+const controller=ref(null),deviceSession=ref({logs:[]}),consoleOpen=ref(false),consoleTab=ref('simulation'),serialCommand=ref(''),unifiedConsole=ref(null);
+const runtimeParameters=computed(()=>Object.keys(firmwareParameters[selected.value]||{}).length>0);
+const parameterMessage=computed(()=>{
+ const session=deviceSession.value;
+ if(!session.connected)return tr('连接 USB 后可将这些参数应用到实板，无需编译。','Connect over USB to apply these parameters without compiling.');
+ if(session.transport!=='usb')return tr('实时参数请使用 USB 连接。','Use USB to apply runtime parameters.');
+ if(!session.device)return tr('正在等待设备身份；旧固件请先更新本课。','Waiting for device identity. Update this lesson if using older firmware.');
+ if(session.device.lesson!==selected.value)return tr('实板运行的是另一课，请先安装本课固件。','The controller is running another lesson. Install this lesson first.');
+ if(session.device.runtimeParameters!==1)return tr('当前固件不支持实时参数，请更新本课固件。','Update this lesson firmware to enable runtime parameters.');
+ if(session.paramBusy)return tr('正在等待设备确认…','Waiting for the controller…');
+ if(session.parametersMatch)return session.device.parametersSaved?tr('设备参数一致 · 已保存，重启后保留','Parameters match · saved across restarts'):tr('设备参数一致 · 未保存，重启后恢复已保存值或默认值','Parameters match · not saved; restart restores saved values or defaults');
+ return tr('网页参数尚未应用到实板。','These page parameters have not been applied to the controller.');
+});
+const actualParameterText=computed(()=>{
+ const device=deviceSession.value.device;
+ if(device?.lesson!==selected.value||!device.parameters)return '';
+ return lesson.value.params.filter(p=>Object.hasOwn(device.parameters,p.key)).map(p=>(en.value?p.en:p.zh)+': '+device.parameters[p.key]+(p.unit?' '+p.unit:'')).join(' · ');
+});
+async function openConsole(tab){consoleTab.value=tab;consoleOpen.value=true;await nextTick();unifiedConsole.value?.scrollIntoView({behavior:'smooth',block:'end'});}
+function openDeviceConsole(){return openConsole('device');}
+function toggleConsole(){if(consoleOpen.value)consoleOpen.value=false;else openConsole(consoleTab.value);}
+function updateDeviceSession(next){const previous=deviceSession.value;deviceSession.value=next;if(next.error&&next.error!==previous.error&&!deviceOpen.value)openDeviceConsole();}
+function connectController(){if(deviceSession.value.connected)deviceOpen.value=true;else controller.value?.connectUSB();}
 const selected = ref(0),
   values = ref(initialValues(0)),
   running = ref(false),
@@ -109,7 +132,6 @@ const icons = [
 
 const lesson = computed(() => lessons[selected.value]);
 const guide=computed(()=>en.value?{goal:lesson.value.en,action:lesson.value.descriptionEn,result:lesson.value.descriptionEn,hardware:lessonHardwareEn[selected.value]}:lessonGuide[selected.value]);
-const parameterHeader=computed(()=>configHeader(selected.value,firmwareValues(selected.value,values.value)));
 const code = computed(() => {
  if(activeHardware.value!=='EX1')return lessonCode(selected.value, values.value).map(line=>en.value?line.replace('教学节选','Teaching excerpt'):line);
  const gpio=selectedContact.value?.gpio;
@@ -360,7 +382,7 @@ async function enableAudio() {
   updateAudio();
 }
 async function copy() {
-  const text = showSource.value ? parameterHeader.value+(source.value?.code||'') : code.value.join("\n");
+  const text = showSource.value ? (source.value?.code||'') : code.value.join("\n");
   if (!text) return;
   try {
     if (navigator.clipboard && window.isSecureContext)
@@ -387,7 +409,7 @@ async function copy() {
 function download() {
   if (!source.value) return;
   const url = URL.createObjectURL(
-    new Blob([parameterHeader.value,source.value.code], { type: "text/plain" }),
+    new Blob([source.value.code], { type: "text/plain" }),
   );
   const a = document.createElement("a");
   a.href = url;
@@ -475,9 +497,9 @@ const displayValue = computed(() =>
 <template>
   <div
     class="interactive-lab hardware-lab"
-    :class="{ 'nav-open': sidebar, 'wide-code': expanded }"
+    :class="{ 'nav-open': sidebar, 'wide-code': expanded, 'console-open':consoleOpen }"
   >
-    <DeviceLab :open="deviceOpen" :lesson="selected" :values="values" @close="deviceOpen=false" @status="deviceStatus=$event" />
+    <DeviceLab ref="controller" :open="deviceOpen" :lesson="selected" :values="values" @close="deviceOpen=false" @status="deviceStatus=$event" @session="updateDeviceSession" @installed="openDeviceConsole" @show-console="openDeviceConsole" />
     <header class="experiment-header">
       <div class="experiment-brand">
         <img
@@ -499,7 +521,7 @@ const displayValue = computed(() =>
        <button @click="settings=!settings" :aria-label="tr('设置', 'Settings')"><Settings2/><span>{{tr('设置','Settings')}}</span></button>
        <button @click="en=!en" :aria-label="tr('切换语言', 'Switch language')"><Languages/><span>{{tr('语言','Language')}}</span></button>
       </nav>
-      <button class="connect-board" @click="deviceOpen=true"><PlugZap/><span>{{!deviceStatus?tr('连接开发板','Connect controller'):deviceStatus}}</span></button>
+      <button class="connect-board" :disabled="deviceSession.busy" @click="connectController"><PlugZap/><span>{{!deviceStatus?tr('连接开发板','Connect controller'):deviceStatus}}{{deviceSession.device?' · '+String(deviceSession.device.lesson>0?deviceSession.device.lesson:deviceSession.device.project).padStart(2,'0'):''}}</span></button>
       <div class="experiment-progress">
         <BookOpen />
         <div>
@@ -539,7 +561,11 @@ const displayValue = computed(() =>
       <section class="experiment-info"><div class="info-content"><span class="lesson-eyebrow">{{tr('交互实验台','INTERACTIVE WORKBENCH')}}</span><h2>{{activeHardware==='EX1'?tr('EX1 · GPIO 实验','EX1 · GPIO lab'):en?lesson.en:lesson.zh}}</h2><p>{{en?lesson.descriptionEn:guide.action}}</p></div></section>
       <details class="lesson-guide"><summary>{{tr('本课目标与接线','Goal & wiring')}}</summary><strong>{{guide.goal}}</strong><p>{{guide.hardware}}</p><p>{{tr('观察结果：','Expected result: ')}}{{guide.result}}</p></details>
       <div class="new-board-stage"><ExploreBoard :selection="activeHardware" :pin="hardwarePin" :running="running" :flow="flow" :color="output?.color" :led-level="output?.value" @select="selectHardware" /></div>
-      <div v-if="activeHardware!=='EX1' && lesson.params.length" class="inline-parameters"><label v-for="p in lesson.params.slice(0,2)" :key="p.key"><span>{{en?p.en:p.zh}} <small class="parameter-scope">{{firmwareParameters[selected]?.[p.key]?tr('固件参数','Firmware parameter'):tr('模拟输入','Simulation input')}}</small><output>{{values[p.key]}} {{p.unit}}</output></span><input v-model.number="values[p.key]" type="range" :min="p.min" :max="p.max" :step="p.step" :aria-label="(en?p.en:p.zh)+tr(' · 主面板',' · Main panel')"/></label><button @click="inspector=true" :aria-label="tr('全部课程参数', 'All lesson parameters')"><SlidersHorizontal/></button><button @click="hardwareSelection=lessonHardware[selected]" class="view-lesson-pins">{{tr('本课引脚','Lesson pins')}}<ArrowUpRight/></button></div>
+      <div v-if="activeHardware!=='EX1' && lesson.params.length" class="inline-parameters"><label v-for="p in lesson.params.slice(0,2)" :key="p.key"><span>{{en?p.en:p.zh}} <small class="parameter-scope">{{firmwareParameters[selected]?.[p.key]?tr('实板可调','Device parameter'):tr('模拟输入','Simulation input')}}</small><output>{{values[p.key]}} {{p.unit}}</output></span><input v-model.number="values[p.key]" type="range" :min="p.min" :max="p.max" :step="p.step" :aria-label="(en?p.en:p.zh)+tr(' · 主面板',' · Main panel')"/></label><button @click="inspector=true" :aria-label="tr('全部课程参数', 'All lesson parameters')"><SlidersHorizontal/></button><button @click="hardwareSelection=lessonHardware[selected]" class="view-lesson-pins">{{tr('本课引脚','Lesson pins')}}<ArrowUpRight/></button></div>
+      <section v-if="runtimeParameters" class="runtime-controls" :aria-label="tr('实板参数','Controller parameters')">
+       <div class="runtime-actions"><button class="apply-device" :disabled="!deviceSession.canApply" @click="controller?.applyParameters(false)"><PlugZap/>{{tr('应用到开发板','Apply to controller')}}</button><button :disabled="!deviceSession.canApply||!deviceSession.parametersMatch||deviceSession.device?.parametersSaved" @click="controller?.applyParameters(true)"><Save/>{{tr('保存到开发板','Save to controller')}}</button><button v-if="!deviceSession.connected" :disabled="deviceSession.busy" @click="connectController">{{tr('连接 USB','Connect USB')}}</button><button v-else-if="!deviceSession.canApply&&!deviceSession.paramBusy" @click="deviceOpen=true">{{tr('安装本课','Install lesson')}}</button></div>
+       <p role="status" :class="{'parameters-confirmed':deviceSession.parametersMatch}">{{parameterMessage}}</p><p v-if="actualParameterText" class="actual-parameters">{{tr('设备当前值：','Device values: ')}}{{actualParameterText}}</p><p v-if="selected===3" class="motion-note">{{tr('应用后舵机会动作；保存后重启也会使用该脉宽。','Applying moves the servo. Saving also restores this pulse width after restart.')}}</p><p v-if="deviceSession.paramError" class="runtime-error" role="alert">{{deviceSession.paramError}}</p>
+      </section>
       <section
         v-if="output"
         class="instrument"
@@ -662,7 +688,7 @@ const displayValue = computed(() =>
               <Download />
             </button>
           </div>
-          <div v-if="source" class="full-source"><pre v-if="Object.keys(firmwareParameters[selected]||{}).length" class="build-parameters">{{parameterHeader}}</pre><div v-html="source.html"></div></div>
+          <div v-if="source" class="full-source"><div v-html="source.html"></div></div>
           <div v-else class="source-message">
             {{
               files.length
@@ -678,21 +704,6 @@ const displayValue = computed(() =>
             </button>
           </div></template
         >
-        <div v-if="logs.length" class="simulation-console">
-          <header>
-            <span class="live-dot" :class="{ running }"></span
-            >{{ tr("模拟日志", "Simulation log")
-            }}<span>{{
-              running ? tr("运行中", "Running") : tr("已停止", "Stopped")
-            }}</span>
-          </header>
-          <div>
-            <p v-for="(log, i) in logs.slice(-4)" :key="i">
-              <time>{{ log.time }}</time
-              >{{ log.text }}
-            </p>
-          </div>
-        </div>
         <footer>
           {{
             tr(
@@ -709,6 +720,18 @@ const displayValue = computed(() =>
         </footer>
       </section>
     </aside>
+    <section ref="unifiedConsole" class="workbench-console" :aria-label="tr('控制台','Console')">
+     <header><div class="console-tabs" role="tablist" :aria-label="tr('输出来源','Output source')"><button id="simulation-tab" role="tab" aria-controls="simulation-output" :aria-selected="consoleTab==='simulation'" @click="openConsole('simulation')">{{tr('仿真输出','Simulation output')}}</button><button id="device-tab" role="tab" aria-controls="device-output" :aria-selected="consoleTab==='device'" @click="openConsole('device')">{{tr('设备串口','Device serial')}}</button></div><span class="console-status">{{consoleTab==='device'?(deviceStatus||tr('未连接','Disconnected')):(running?tr('模拟运行中','Simulation running'):tr('模拟已停止','Simulation stopped'))}}</span><button :aria-expanded="consoleOpen" :aria-label="consoleOpen?tr('收起控制台','Collapse console'):tr('展开控制台','Expand console')" @click="toggleConsole">{{consoleOpen?tr('收起','Collapse'):tr('展开','Expand')}}</button></header>
+     <div v-show="consoleOpen" class="console-body">
+      <section v-show="consoleTab==='simulation'" id="simulation-output" role="tabpanel" aria-labelledby="simulation-tab"><div class="console-tools"><span>{{tr('仅显示网页仿真，不是实板数据。','Browser simulation only; not controller data.')}}</span><button @click="logs=[]">{{tr('清空','Clear')}}</button></div><pre role="log" :aria-label="tr('仿真输出','Simulation output')">{{logs.map(log=>log.time+'  '+log.text).join('\n')||tr('运行仿真后在此查看输出。','Run a simulation to see its output here.')}}</pre></section>
+      <section v-show="consoleTab==='device'" id="device-output" role="tabpanel" aria-labelledby="device-tab"><div class="console-tools"><span>{{deviceSession.device?deviceSession.device.project+' · '+deviceSession.device.version:tr('等待设备身份应答','Waiting for device identity')}}</span><button v-if="!deviceSession.connected" :disabled="deviceSession.busy" @click="connectController">{{tr('连接 USB','Connect USB')}}</button><template v-else><button :disabled="deviceSession.busy" @click="controller?.queryInfo()">{{tr('读取设备信息','Read device info')}}</button><button :disabled="deviceSession.busy||!deviceSession.device" @click="controller?.restartController()">{{tr('重启','Restart')}}</button><button :disabled="deviceSession.busy" @click="controller?.disconnect()">{{tr('断开','Disconnect')}}</button></template><button @click="controller?.clearLogs()">{{tr('清空','Clear')}}</button></div>
+       <details v-if="deviceSession.physicalGuide" class="console-guide"><summary>{{tr('实板操作与预期表现','Physical actions and expected results')}} · {{String(deviceSession.guideLesson).padStart(2,'0')}}</summary><p>{{deviceSession.physicalGuide[0]}} {{deviceSession.physicalGuide[1]}}</p><p v-if="!deviceSession.device">{{tr('尚未确认程序启动。','Application startup is not confirmed.')}}</p></details>
+       <p v-if="deviceSession.error" class="runtime-error" role="alert">{{deviceSession.error}}</p>
+       <pre role="log" :aria-label="tr('设备串口日志','Device serial log')">{{deviceSession.logs?.join('\n')||tr('连接实板后显示设备日志，不混入仿真输出。','Connect a controller to see device logs. Simulation output stays separate.')}}</pre>
+       <form v-if="deviceSession.connected&&deviceSession.transport==='usb'" @submit.prevent="controller?.sendCommand(serialCommand);serialCommand=''"><input v-model="serialCommand" :disabled="deviceSession.busy" :aria-label="tr('串口命令','Serial command')" :placeholder="tr('串口命令，如 status','Serial command, e.g. status')"/><button :disabled="deviceSession.busy||!serialCommand.trim()">{{tr('发送','Send')}}</button></form>
+      </section>
+     </div>
+    </section>
     <section
       class="experiment-courses"
       :aria-label="tr('课程选择', 'Choose a lesson')"
@@ -788,7 +811,7 @@ const displayValue = computed(() =>
         }}
       </p>
       <div v-if="selected === 7" class="nvs-actions">
-        <button @click="saveNvs"><Save />{{ tr("保存参数", "Save") }}</button
+        <button @click="saveNvs"><Save />{{ tr("模拟保存", "Simulate save") }}</button
         ><button @click="restartNvs">
           <RotateCcw />{{ tr("模拟重启", "Restart") }}
         </button>

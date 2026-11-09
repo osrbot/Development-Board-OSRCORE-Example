@@ -5,7 +5,7 @@ export function parseDeviceInfo(line){
  if(!line.startsWith('OSRCORE_INFO '))return null;
  try{const info=JSON.parse(line.slice(13));
   if(info.board!=='OSRCORE'||info.protocol!==1||typeof info.project!=='string'||typeof info.version!=='string')return null;
-  return {board:info.board,protocol:1,project:info.project,version:info.version,lesson:exampleDirs.indexOf(info.project)};
+  return {board:info.board,protocol:1,project:info.project,version:info.version,lesson:exampleDirs.indexOf(info.project),...(info.runtimeParameters===1?{runtimeParameters:1,parameters:info.parameters,parametersSaved:info.parametersSaved===true}:{})};
  }catch{return null;}
 }
 export function deviceProblem(message){
@@ -33,7 +33,7 @@ export const physicalLessons=[null,
  {zh:['接入兼容的 SBUS 接收机，操作遥控器。','日志中的 ch 通道值随操作改变，同时报告丢帧和失联状态。'],en:['Connect a compatible SBUS receiver and move the transmitter controls.','The ch values change with the controls; logs also report lost frames and failsafe state.']},
  {zh:['启动时保持板子静止；校准完成后轻轻转动。','ax/ay/az、gx/gy/gz 和温度随实测更新。'],en:['Keep the board still at startup, then gently rotate it after calibration.','ax/ay/az, gx/gy/gz and temperature update with measured data.']},
  {zh:['接入编码器，手动转动输出轴。','count、delta 和 rpm 更新，反向转动会改变方向符号；转速换算取决于固件的每转计数。'],en:['Connect the encoder and turn its output shaft by hand.','count, delta and rpm update; reversing changes the sign. RPM depends on the counts-per-revolution value compiled into firmware.']},
- {zh:['点击“保存 Kp”，再重启控制器查看日志。','Saved 与重启后的 Loaded 数值一致；网页滑条不会覆盖已保存值。'],en:['Click Save Kp, then restart the controller and inspect the console.','Saved matches Loaded after restart. Simulation sliders do not overwrite the stored value.']},
+ {zh:['调整 Kp，点击“应用到开发板”和“保存到开发板”，再重启查看日志。','保存确认值与重启后的 Loaded 数值一致；只改网页滑条不会改变实板。'],en:['Adjust Kp, click Apply to controller and Save to controller, then restart and inspect the console.','The confirmed saved value matches Loaded after restart. Moving a slider alone does not change the controller.']},
  {zh:['观察日志中 A、B 两个任务的输出。','task、count 和 tick 按各自周期更新。'],en:['Watch the console output from tasks A and B.','task, count and tick update at each task’s own interval.']},
  {zh:['先观察中位输出和编码器反馈。需要驱动时按本课接线说明操作。','日志显示 target、actual 和 pulse；控制指令超过 1 秒未更新会归零，stop 可停止。'],en:['First inspect neutral output and encoder feedback. Follow this lesson’s wiring instructions before driving.','Logs show target, actual and pulse. Commands expire after 1 second; stop halts output.']},
  {zh:['静置完成校准，再缓慢倾斜板子。','roll 和 pitch 随倾斜改变；本课不提供绝对航向。'],en:['Keep the board still for calibration, then tilt it slowly.','roll and pitch change with tilt; this lesson does not provide absolute heading.']},

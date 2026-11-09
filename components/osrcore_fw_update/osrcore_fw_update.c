@@ -1,4 +1,5 @@
 #include "osrcore_fw_update.h"
+#include "osrcore_params.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -237,6 +238,7 @@ static void handle_fw_end(void)
 bool osrcore_fw_handle_line(const char *line)
 {
     if (!line) return false;
+    if (osrcore_params_handle_line(line)) return true;
     if (strcmp(line, "osrcore info") == 0) {
         const esp_app_desc_t *app = esp_app_get_description();
         cJSON *info = cJSON_CreateObject();
@@ -245,6 +247,7 @@ bool osrcore_fw_handle_line(const char *line)
         cJSON_AddNumberToObject(info, "protocol", 1);
         cJSON_AddStringToObject(info, "project", app->project_name);
         cJSON_AddStringToObject(info, "version", app->version);
+        osrcore_params_add_info(info);
         char *json = cJSON_PrintUnformatted(info);
         if (json) { printf("OSRCORE_INFO %s\n", json); cJSON_free(json); }
         cJSON_Delete(info);

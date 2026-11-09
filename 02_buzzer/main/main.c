@@ -12,6 +12,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_params.h"
 #include "osrcore_lesson_config.h"
 
 #define BUZZER_PIN      42
@@ -77,10 +78,17 @@ static void buzzer_tone(uint32_t freq_hz, uint32_t duration_ms)
 void app_main(void)
 {
     buzzer_init();
+    static const osrcore_param_t parameters[] = {
+        {"frequency", 220, 1760, 10, OSR_BUZZER_FREQUENCY},
+        {"duration", 100, 1000, 50, OSR_BUZZER_DURATION},
+    };
+    osrcore_params_init(parameters, sizeof(parameters)/sizeof(parameters[0]));
     osrcore_fw_update_start();
     while (1) {
-        ESP_LOGI(TAG, "tone=%d Hz duration=%d ms", OSR_BUZZER_FREQUENCY, OSR_BUZZER_DURATION);
-        buzzer_tone(OSR_BUZZER_FREQUENCY, OSR_BUZZER_DURATION);
-        vTaskDelay(pdMS_TO_TICKS(OSR_BUZZER_DURATION + 100));
+        int frequency = (int)osrcore_param_get("frequency", OSR_BUZZER_FREQUENCY);
+        int duration = (int)osrcore_param_get("duration", OSR_BUZZER_DURATION);
+        ESP_LOGI(TAG, "tone=%d Hz duration=%d ms", frequency, duration);
+        buzzer_tone(frequency, duration);
+        vTaskDelay(pdMS_TO_TICKS(duration + 100));
     }
 }

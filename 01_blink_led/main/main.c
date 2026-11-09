@@ -17,6 +17,7 @@
 #include "driver/rmt_tx.h"
 #include "esp_log.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_params.h"
 #include "osrcore_lesson_config.h"
 
 #define LED_PIN      45
@@ -158,22 +159,21 @@ static void led_set(uint8_t r, uint8_t g, uint8_t b)
 void app_main(void)
 {
     led_init();
+    static const osrcore_param_t parameters[] = {
+        {"interval", 100, 2000, 50, OSR_LED_INTERVAL},
+        {"brightness", 0, 255, 1, OSR_LED_BRIGHTNESS},
+    };
+    osrcore_params_init(parameters, sizeof(parameters)/sizeof(parameters[0]));
     osrcore_fw_update_start();
     ESP_LOGI(TAG, "WS2812B ready on GPIO%d", LED_PIN);
 
-    /* Cycle: red -> green -> blue -> off */
-    const struct { uint8_t r, g, b; const char *name; } colors[] = {
-        { OSR_LED_BRIGHTNESS, 0, 0, "red"   },
-        { 0, OSR_LED_BRIGHTNESS, 0, "green" },
-        { 0, 0, OSR_LED_BRIGHTNESS, "blue"  },
-        {  0,  0,  0, "off"   },
-    };
+    const char *names[] = {"red", "green", "blue", "off"};
     int idx = 0;
-
     while (1) {
-        ESP_LOGI(TAG, "%s", colors[idx].name);
-        led_set(colors[idx].r, colors[idx].g, colors[idx].b);
+        uint8_t brightness = (uint8_t)osrcore_param_get("brightness", OSR_LED_BRIGHTNESS);
+        ESP_LOGI(TAG, "%s", names[idx]);
+        led_set(idx==0?brightness:0, idx==1?brightness:0, idx==2?brightness:0);
         idx = (idx + 1) % 4;
-        vTaskDelay(pdMS_TO_TICKS(OSR_LED_INTERVAL));
+        vTaskDelay(pdMS_TO_TICKS((int)osrcore_param_get("interval", OSR_LED_INTERVAL)));
     }
 }

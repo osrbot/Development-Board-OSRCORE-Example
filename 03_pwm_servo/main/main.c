@@ -23,6 +23,7 @@
 #include "driver/ledc.h"
 #include "esp_log.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_params.h"
 #include "osrcore_lesson_config.h"
 
 #define THROTTLE_PIN  1
@@ -87,6 +88,10 @@ static void set_pulse(ledc_channel_t ch, uint32_t pulse_us)
 void app_main(void)
 {
     pwm_init();
+    static const osrcore_param_t parameters[] = {
+        {"pulse", 1000, 2000, 10, OSR_SERVO_PULSE},
+    };
+    osrcore_params_init(parameters, sizeof(parameters)/sizeof(parameters[0]));
     osrcore_fw_update_start();
     ESP_LOGI(TAG, "PWM ready — throttle GPIO%d, steering GPIO%d", THROTTLE_PIN, STEERING_PIN);
 
@@ -97,9 +102,10 @@ void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(2000));
 
     /* Only steering moves. ESC stays neutral. */
-    set_pulse(CH_STEERING, OSR_SERVO_PULSE);
     while (1) {
-        ESP_LOGI(TAG, "steering=%d us, throttle=1500 us", OSR_SERVO_PULSE);
+        int pulse = (int)osrcore_param_get("pulse", OSR_SERVO_PULSE);
+        set_pulse(CH_STEERING, pulse);
+        ESP_LOGI(TAG, "steering=%d us, throttle=1500 us", pulse);
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

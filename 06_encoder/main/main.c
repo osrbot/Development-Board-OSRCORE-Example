@@ -19,6 +19,7 @@
 #include "driver/pulse_cnt.h"
 #include "esp_log.h"
 #include "osrcore_fw_update.h"
+#include "osrcore_params.h"
 #include "osrcore_lesson_config.h"
 
 #define EA              3
@@ -28,7 +29,7 @@
 #define WHEEL_RADIUS    0.0425f
 #define CALC_INTERVAL   20   /* ms */
 
-#define PULSES_PER_REV  ((float)OSR_ENCODER_CPR)
+#define PULSES_PER_REV  ((float)osrcore_param_get("ppr", OSR_ENCODER_CPR))
 #define CIRCUMFERENCE   (2.0f * 3.14159265f * WHEEL_RADIUS)
 #define DIST_PER_PULSE  (CIRCUMFERENCE / PULSES_PER_REV)
 
@@ -75,6 +76,10 @@ static int32_t encoder_get_count(void)
 void app_main(void)
 {
     encoder_init();
+    static const osrcore_param_t parameters[] = {
+        {"ppr", 100, 20000, 100, OSR_ENCODER_CPR},
+    };
+    osrcore_params_init(parameters, sizeof(parameters)/sizeof(parameters[0]));
     osrcore_fw_update_start();
     ESP_LOGI(TAG, "Encoder ready EA=GPIO%d EB=GPIO%d", EA, EB);
 

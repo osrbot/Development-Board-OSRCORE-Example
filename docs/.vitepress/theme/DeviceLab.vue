@@ -1,20 +1,43 @@
 <script setup>
 import {resetS3ToApplication,reconnectAuthorizedUSB,closeFlashTransport,withDeadline} from './usb-session.mjs';
 import {withBase} from 'vitepress';
+import {createParameterChannel,sameParameters} from './runtime-parameters.mjs';
 import {parseDeviceInfo,deviceProblem,troubleshooting,physicalLessons} from './device-experience.mjs';
 import {fetchCourseFirmware,fetchFlashFiles} from './firmware-download.mjs';
 import {useLanguage} from './language.mjs';
 const {en,t}=useLanguage();
 import {ref,computed,onMounted,onUnmounted,watch,nextTick} from 'vue';
-import {X,Usb,Wifi,Download,RefreshCw} from 'lucide-vue-next';
+import {X,Usb,Wifi,Download} from 'lucide-vue-next';
 import {exampleDirs,lessonHardwareEn,firmwareValues,firmwareParameters,lessonGuide} from './lesson-contract.mjs';
 const panel=ref(null);let previousFocus;
-const preset=ref(null),presetLoading=ref(false),presetError=ref(''),useCustom=ref(false),recovery=ref(false);let presetToken=0;
+const preset=ref(null),presetLoading=ref(false),presetError=ref(''),recovery=ref(false);let presetToken=0;
 const say=(zh,enText)=>en.value?enText:zh;
 const props=defineProps({open:Boolean,lesson:Number,values:Object});
-const emit=defineEmits(['close','status']);
-const transport=ref('usb'),connected=ref(false),busy=ref(false),error=ref(''),activity=ref(''),logs=ref([]),job=ref(null),buildInput=ref(''),available=ref(false),progress=ref(0),address=ref(''),token=ref(''),ssid=ref(''),password=ref(''),device=ref(null),command=ref('');
-const lastFlash=ref(null),consoleSection=ref(null),nextSection=ref(null);
+const emit=defineEmits(['close','status','session','installed','show-console']);
+const transport=ref('usb'),connected=ref(false),busy=ref(false),error=ref(''),activity=ref(''),logs=ref([]),available=ref(false),progress=ref(0),address=ref(''),token=ref(''),ssid=ref(''),password=ref(''),device=ref(null),command=ref('');
+const lastFlash=ref(null),nextSection=ref(null);
+const paramBusy=ref(false),paramError=ref('');
+const parameterChannel=createParameterChannel(sendLine);
+const desiredParameters=computed(()=>firmwareValues(props.lesson,props.values||{}));
+const hasParameters=computed(()=>Object.keys(firmwareParameters[props.lesson]||{}).length>0);
+const canApply=computed(()=>connected.value&&!busy.value&&!paramBusy.value&&transport.value==='usb'&&device.value?.runtimeParameters===1&&confirmedLesson.value===props.lesson&&hasParameters.value);
+const parametersMatch=computed(()=>confirmedLesson.value===props.lesson&&sameParameters(desiredParameters.value,device.value?.parameters));
+async function applyParameters(save=false){
+ if(!canApply.value||(save&&!parametersMatch.value))return;
+ paramError.value='';paramBusy.value=true;const epoch=monitorEpoch;
+ try{const reply=await parameterChannel.request(props.lesson,{...desiredParameters.value},save);if(epoch!==monitorEpoch)return;
+  device.value={...device.value,parameters:reply.values,parametersSaved:reply.saved===true};
+  log(say(save?'课程参数已保存，重启后保留。':'课程参数已应用。',save?'Lesson parameters saved across restarts.':'Lesson parameters applied.'));
+ }catch(e){paramError.value=say('未确认成功：','Not confirmed: ')+parameterError(e.message);}
+ finally{paramBusy.value=false;}
+}
+function parameterError(message){
+ const messages={response_timeout:['设备应答超时，请读取设备信息确认当前值后再试。','Device reply timed out. Read device info to check current values before retrying.'],device_disconnected:['设备已断开，请重新连接。','Device disconnected. Reconnect and retry.'],lesson_mismatch:['实板课程与请求不一致。','The device lesson does not match.'],response_mismatch:['设备返回值与请求不一致，请读取设备信息。','Device values differ from the request. Read device info.'],save_failed:['参数保存失败，未确认断电保留。','Saving failed; persistence is not confirmed.'],parameter_out_of_range:['参数超出设备允许范围。','A parameter is outside the device range.']};
+ return messages[message]?.[en.value?1:0]||say('设备拒绝参数，请检查固件版本和参数范围。','The device rejected the request. Check firmware version and parameter ranges.');
+}
+function clearLogs(){logs.value=[];}
+
+defineExpose({connectUSB,disconnect,queryInfo,restartController,sendCommand,applyParameters,clearLogs});
 let infoTimers=[];
 const confirmedLesson=computed(()=>device.value?exampleDirs.indexOf(device.value.project):-1);
 const guideLesson=computed(()=>device.value?(confirmedLesson.value>0?confirmedLesson.value:null):lastFlash.value?.lesson);
@@ -29,31 +52,25 @@ function queryInfo(){
   try{await withDeadline(()=>sendLine('osrcore info'),1500,'Device query timed out');}catch(e){log(e.message);}
  },delay));
 }
-function showConsole(){consoleSection.value?.scrollIntoView({behavior:'smooth',block:'start'});}
+function showConsole(){emit('close');emit('show-console');}
 let monitorEpoch=0;
-let port,reader,writer,readTask,pollTimer,buildTimer,networkAfter=0,disposed=false,reading=false;
-const signature=computed(()=>JSON.stringify({lesson:props.lesson,parameters:firmwareValues(props.lesson,props.values||{})}));
-const selectedBuild=computed(()=>useCustom.value?job.value:preset.value);
-const readyBuild=computed(()=>!busy.value&&selectedBuild.value?.state==='ready'&&selectedBuild.value.example===exampleDirs[props.lesson]&&(!useCustom.value||buildInput.value===signature.value)&&(transport.value==='usb'||useCustom.value));
+let port,reader,writer,readTask,pollTimer,networkAfter=0,disposed=false,reading=false;
+const selectedBuild=computed(()=>preset.value);
+const readyBuild=computed(()=>!busy.value&&!paramBusy.value&&preset.value?.state==='ready'&&preset.value.example===exampleDirs[props.lesson]&&transport.value==='usb');
 const canFlash=computed(()=>connected.value&&readyBuild.value);
 const canDownload=computed(()=>readyBuild.value&&(transport.value==='usb'?supportedUSB.value&&secure.value:connected.value));
 async function downloadLesson(){if(!canDownload.value)return;if(!connected.value)await connectUSB();if(connected.value)await flash();}
 async function loadPreset(){const token=++presetToken;preset.value=null;presetError.value='';if(!props.lesson){presetLoading.value=false;return;}presetLoading.value=true;try{const result=await fetchCourseFirmware(withBase('/firmware/'),exampleDirs[props.lesson]);if(token===presetToken)preset.value=result;}catch(e){if(token===presetToken)presetError.value=say('课程固件暂时不可用，请重试。','Course firmware is unavailable. Please retry.');}finally{if(token===presetToken)presetLoading.value=false;}}
 const supportedUSB=ref(false),secure=ref(false);
-const requestingBuild=ref(false);
-const building=computed(()=>requestingBuild.value||['queued','building'].includes(job.value?.state));
-const parameterText=computed(()=>Object.keys(firmwareParameters[props.lesson]||{}).length?t("当前可下载参数会在编译时写入程序。标为“模拟输入”的参数不会发送给真板。"):t("本课下载真实传感器／控制例程；网页输入仅用于模拟。"));
 function log(line){logs.value.push(String(line).replace(/\x1b\[[0-9;]*m/g,''));if(logs.value.length>160)logs.value.splice(0,logs.value.length-160);}
 async function api(route,body){const r=await fetch('/api/lab/'+route,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json','X-OSRCORE-Lab':'1'}:{},body:body?JSON.stringify(body):undefined});const d=await r.json();if(!r.ok)throw Error(d.error||`HTTP ${r.status}`);return d;}
 async function health(){if(location.hostname.endsWith('.github.io')){available.value=false;return;}try{const r=await api('health');available.value=r.local===true;}catch{available.value=false;}}
-async function compile(){if(building.value)return;requestingBuild.value=true;error.value='';job.value=null;buildInput.value=signature.value;try{job.value=await api('builds',JSON.parse(buildInput.value));await pollBuild();}catch(e){error.value=e.message;}finally{requestingBuild.value=false;}}
-async function pollBuild(){if(disposed||!job.value)return;try{job.value=await api('builds/'+job.value.id);if(['queued','building'].includes(job.value.state))buildTimer=setTimeout(pollBuild,1200);else if(job.value.state==='error')error.value=job.value.error;}catch(e){error.value=e.message;}}
 function status(){emit('status',connected.value?(transport.value==='usb'?t("USB 已连接"):t("Wi-Fi 已连接")):'');}
-async function closeUSB(){stopInfoQuery();device.value=null;monitorEpoch++;reading=false;const oldReader=reader,oldWriter=writer,oldTask=readTask,oldPort=port;reader=null;writer=null;try{await withDeadline(()=>oldReader?.cancel(),1000,'USB cancel timed out');}catch{}try{oldReader?.releaseLock();}catch{}try{await withDeadline(()=>oldTask,1000,'USB reader timed out');}catch{}try{oldWriter?.releaseLock();}catch{}try{await withDeadline(()=>oldPort?.close(),2000,'USB close timed out');}catch{}}
+async function closeUSB(){parameterChannel.cancel();stopInfoQuery();device.value=null;monitorEpoch++;reading=false;const oldReader=reader,oldWriter=writer,oldTask=readTask,oldPort=port;reader=null;writer=null;try{await withDeadline(()=>oldReader?.cancel(),1000,'USB cancel timed out');}catch{}try{oldReader?.releaseLock();}catch{}try{await withDeadline(()=>oldTask,1000,'USB reader timed out');}catch{}try{oldWriter?.releaseLock();}catch{}try{await withDeadline(()=>oldPort?.close(),2000,'USB close timed out');}catch{}}
 async function disconnect(){clearTimeout(pollTimer);if(transport.value==='usb')await closeUSB();connected.value=false;device.value=null;status();}
-async function readLoop(sourceReader,epoch){const decoder=new TextDecoder();let pending='';try{while(reading&&epoch===monitorEpoch){const r=await sourceReader.read();if(r.done)break;pending+=decoder.decode(r.value,{stream:true});if(pending.length>8192)pending=pending.slice(-8192);const lines=pending.split(/\r?\n/);pending=lines.pop();for(const line of lines){const match=line.match(/WIFI ip=([\d.]+) token=([a-f0-9]{32})/);if(match){address.value=match[1]==='0.0.0.0'?'':match[1];token.value=match[2];log(address.value?t("Wi-Fi 已获取地址：")+address.value:t("Wi-Fi 尚未获取地址，请稍后再次读取。"));}else if(line.trim()){const info=parseDeviceInfo(line);if(info){device.value=info;stopInfoQuery();}log(line);}}}}catch(e){if(reading&&epoch===monitorEpoch)log(t("USB 断开：")+e.message);}finally{try{sourceReader.releaseLock();}catch{}if(epoch===monitorEpoch)reader=null;if(reading&&epoch===monitorEpoch){connected.value=false;device.value=null;stopInfoQuery();status();}}}
+async function readLoop(sourceReader,epoch){const decoder=new TextDecoder();let pending='';try{while(reading&&epoch===monitorEpoch){const r=await sourceReader.read();if(r.done)break;pending+=decoder.decode(r.value,{stream:true});if(pending.length>8192)pending=pending.slice(-8192);const lines=pending.split(/\r?\n/);pending=lines.pop();for(const line of lines){const match=line.match(/WIFI ip=([\d.]+) token=([a-f0-9]{32})/);if(match){address.value=match[1]==='0.0.0.0'?'':match[1];token.value=match[2];log(address.value?t("Wi-Fi 已获取地址：")+address.value:t("Wi-Fi 尚未获取地址，请稍后再次读取。"));}else if(line.trim()){if(parameterChannel.receive(line))continue;const info=parseDeviceInfo(line);if(info){device.value=info;paramError.value='';stopInfoQuery();}log(line);}}}}catch(e){if(reading&&epoch===monitorEpoch)log(t("USB 断开：")+e.message);}finally{try{sourceReader.releaseLock();}catch{}if(epoch===monitorEpoch)reader=null;if(reading&&epoch===monitorEpoch){connected.value=false;device.value=null;parameterChannel.cancel();stopInfoQuery();status();}}}
 async function openMonitor(){const epoch=monitorEpoch,candidate=port;await candidate.open({baudRate:460800});if(epoch!==monitorEpoch||disposed){try{await candidate.close();}catch{}throw Error('USB connection cancelled');}writer=candidate.writable.getWriter();reader=candidate.readable.getReader();reading=true;readTask=readLoop(reader,epoch);connected.value=true;status();queryInfo();}
-async function connectUSB(){error.value='';busy.value=true;try{await closeUSB();const previous=(await navigator.serial.getPorts()).includes(port)?port:null;if(!previous)lastFlash.value=null;port=previous||await navigator.serial.requestPort({filters:[{usbVendorId:0x303a},{usbVendorId:0x10c4},{usbVendorId:0x1a86}]});await openMonitor();recovery.value=false;log(t("USB 串口已连接。"));}catch(e){if(e.name!=='NotFoundError')error.value=e.message;await closeUSB();connected.value=false;status();}finally{busy.value=false;}}
+async function connectUSB(){if(paramBusy.value)return;if(!supportedUSB.value||!secure.value){error.value=say('请在桌面 Chrome 或 Edge 中打开 HTTPS 正式站以连接 USB。','Open the HTTPS website in desktop Chrome or Edge to connect over USB.');return;}error.value='';busy.value=true;try{await closeUSB();const previous=(await navigator.serial.getPorts()).includes(port)?port:null;if(!previous)lastFlash.value=null;port=previous||await navigator.serial.requestPort({filters:[{usbVendorId:0x303a},{usbVendorId:0x10c4},{usbVendorId:0x1a86}]});await openMonitor();recovery.value=false;log(t("USB 串口已连接。"));}catch(e){if(e.name!=='NotFoundError')error.value=e.message;await closeUSB();connected.value=false;status();}finally{busy.value=false;}}
 async function sendLine(line){if(!writer)throw Error(t("请先连接 USB"));const target=writer;await withDeadline(()=>target.write(new TextEncoder().encode(line+'\n')),2000,'USB command timed out');}
 function hex(text){return Array.from(new TextEncoder().encode(text)).map(b=>b.toString(16).padStart(2,'0')).join('')||'-';}
 async function configureWifi(){error.value='';try{if(new TextEncoder().encode(ssid.value).length>32||!ssid.value)throw Error(t("Wi-Fi 名称必须为 1–32 字节"));if(new TextEncoder().encode(password.value).length>63)throw Error(t("Wi-Fi 密码过长"));await sendLine(`wifi config ${hex(ssid.value)} ${hex(password.value)}`);password.value='';log(t("已发送配网信息；几秒后点击“读取配对信息”。"));}catch(e){error.value=e.message;}}
@@ -65,9 +82,9 @@ async function flash(){if(!canFlash.value)return;const build=selectedBuild.value
  if(transport.value==='wifi'){activity.value=t("通过 Wi-Fi 写入并校验固件");const r=await deviceApi('flash',{build:build.id});if(!r.ok)throw Error(t("开发板未确认写入完成"));lastFlash.value={lesson:flashingLesson,example:build.example};progress.value=100;log(t("写入成功，开发板正在重启。重启后重新连接 Wi-Fi 验证程序版本。"));connected.value=false;status();}
  else {const otherPorts=(await navigator.serial.getPorts()).filter(p=>p!==port);activity.value=say('正在获取并校验课程固件','Downloading and verifying course firmware');const fileArray=await fetchFlashFiles(build.files);await closeUSB();const {ESPLoader,Transport}=await import('esptool-js');const connection=new Transport(port);try{const loader=new ESPLoader({transport:connection,baudrate:460800,terminal:{clean(){},write:log,writeLine:log}});activity.value=t("进入下载模式");let chip;try{chip=await loader.main();}catch(e){recovery.value=true;throw e;}if(!chip.startsWith('ESP32-S3'))throw Error(t("仅支持 ESP32-S3，已停止写入")); activity.value=t("USB 写入固件");await loader.writeFlash({fileArray,flashSize:'keep',flashMode:'keep',flashFreq:'keep',eraseAll:false,compress:true,reportProgress:(file,written,total)=>progress.value=Math.round((file+written/total)/fileArray.length*90)});progress.value=90;activity.value=t("校验开发板 Flash");log(activity.value);for(const f of build.files){if(!f.md5||await withDeadline(()=>loader.flashMd5sum(f.address,f.size),15000,say('Flash 校验超时，尚未确认下载成功。','Flash verification timed out; download is not confirmed.'))!==f.md5)throw Error(t("开发板 Flash 校验失败，请重新下载"));}lastFlash.value={lesson:flashingLesson,example:build.example};progress.value=95;activity.value=say('正在重启控制器','Restarting controller');try{await resetS3ToApplication(loader,connection);}catch(e){log(say('固件校验成功，但复位应答中断；将尝试自动重连。','Firmware verified; reset acknowledgement interrupted. Attempting reconnection.'));}progress.value=98;log(t("固件已写入并通过 Flash 校验；NVS 参数与配网信息保留。"));}finally{activity.value=say('正在释放 USB 烧录连接','Releasing USB flasher connection');log(activity.value);await closeFlashTransport(connection);}connected.value=false;status();activity.value=say('下载完成，正在重新连接','Download complete; reconnecting');const previous=port;const resumed=await reconnectAuthorizedUSB({serial:navigator.serial,previous,excluded:otherPorts,open:async candidate=>{port=candidate;await openMonitor();},cleanup:closeUSB,cancelled:()=>disposed});progress.value=100;activity.value=resumed?say('下载完成，已自动连接日志','Download complete; console reconnected'):say('下载完成，设备尚未重新出现。检查 USB 连接后重连。','Download complete; device has not returned. Check USB and reconnect.');}
 
- }catch(e){error.value=e.message;log(error.value);activity.value=say('下载流程已停止，请查看提示。','Download process stopped. See the message below.');await closeUSB();connected.value=false;status();}finally{busy.value=false;if(!error.value&&lastFlash.value&&props.open){await nextTick();nextSection.value?.scrollIntoView({behavior:'smooth',block:'start'});}}}
+ }catch(e){error.value=e.message;log(error.value);activity.value=say('下载流程已停止，请查看提示。','Download process stopped. See the message below.');await closeUSB();connected.value=false;status();}finally{busy.value=false;if(!error.value&&lastFlash.value){emit('installed');emit('close');}}}
 async function restartController(){
- if(!connected.value||busy.value||!device.value)return;
+ if(!connected.value||busy.value||paramBusy.value||!device.value)return;
  error.value='';busy.value=true;
  try{
   if(transport.value==='wifi'){await deviceApi('command',{command:'reboot'});await disconnect();log(say('已请求重启，请重新连接 Wi-Fi。','Restart requested. Reconnect over Wi-Fi.'));return;}
@@ -80,12 +97,14 @@ async function restartController(){
  }catch(e){error.value=e.message;}finally{busy.value=false;}
 }
 async function sendCommand(text){error.value='';try{if(transport.value==='wifi')await deviceApi('command',{command:text});else await sendLine(text);log('> '+text);}catch(e){error.value=e.message;}}
-async function switchTransport(next){if(busy.value)return;await disconnect();transport.value=next;lastFlash.value=null;useCustom.value=next==='wifi';error.value='';}
+async function switchTransport(next){if(busy.value||paramBusy.value)return;await disconnect();transport.value=next;lastFlash.value=null;error.value='';}
 function keyboard(event){if(!props.open)return;if(event.key==='Escape'&&!busy.value){emit('close');return;}if(event.key==='Tab'){const items=Array.from(panel.value?.querySelectorAll('button:not(:disabled),input:not(:disabled),a[href],summary')||[]).filter(el=>el.getClientRects().length);if(!items.length)return;const first=items[0],last=items.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}}
 watch(()=>props.open,async open=>{if(open){if(!preset.value&&!presetLoading.value)loadPreset();previousFocus=document.activeElement;await nextTick();panel.value?.querySelector('button')?.focus();}else previousFocus?.focus();});
-watch(()=>props.lesson,()=>{error.value='';if(props.open)loadPreset();else{presetToken++;preset.value=null;presetLoading.value=false;}});
+watch(()=>props.lesson,()=>{paramError.value='';error.value='';if(props.open)loadPreset();else{presetToken++;preset.value=null;presetLoading.value=false;}});
+watch(()=>({connected:connected.value,busy:busy.value||paramBusy.value,transport:transport.value,device:device.value,logs:logs.value,error:error.value,paramError:paramError.value,canApply:canApply.value,parametersMatch:parametersMatch.value,paramBusy:paramBusy.value,physicalGuide:physicalGuide.value,guideLesson:guideLesson.value}),value=>emit('session',value),{deep:true});
+watch(()=>en.value,status);
 onMounted(()=>{document.addEventListener('keydown',keyboard);secure.value=window.isSecureContext;supportedUSB.value='serial' in navigator;health();});
-onUnmounted(()=>{document.removeEventListener('keydown',keyboard);disposed=true;clearTimeout(buildTimer);clearTimeout(pollTimer);closeUSB();});
+onUnmounted(()=>{document.removeEventListener('keydown',keyboard);disposed=true;clearTimeout(pollTimer);closeUSB();});
 </script>
 <template>
  <section v-show="open" class="device-backdrop" @click.self="!busy&&emit('close')">
@@ -105,24 +124,17 @@ onUnmounted(()=>{document.removeEventListener('keydown',keyboard);disposed=true;
    <section class="device-build"><h3>{{t('本课固件 · ')}}{{exampleDirs[lesson]||t('认识开发板')}}</h3><p>{{en?lessonHardwareEn[lesson]:lessonGuide[lesson]?.hardware}}</p>
     <p v-if="!lesson">{{say('请先选择 01–13 中的一节课程。','Choose a lesson from 01 to 13 first.')}}</p>
     <template v-else>
-     <p v-if="!useCustom">{{say('下载本课默认固件；网页滑条仅影响模拟，不改变此固件的参数。','Installs this lesson’s default firmware. Simulation sliders do not change these firmware parameters.')}}</p>
-     <p v-if="presetLoading&&!useCustom" role="status">{{say('正在获取课程固件…','Loading course firmware…')}}</p>
-     <p v-if="presetError&&!useCustom" role="alert">{{presetError}} <button :disabled="busy" @click="loadPreset">{{say('重试','Retry')}}</button></p>
+     <p v-if="transport==='wifi'">{{say('课程安装请切换到 USB。','Switch to USB to install a lesson.')}}</p>
+     <p>{{say('安装本课固件后，回到课程点击“应用到开发板”发送参数，无需编译。已保存的课程参数会保留。','After installation, return to the lesson and click Apply to controller to send parameters. No compilation is needed. Saved lesson parameters are retained.')}}</p>
+     <p v-if="presetLoading" role="status">{{say('正在获取课程固件…','Loading course firmware…')}}</p>
+     <p v-if="presetError" role="alert">{{presetError}} <button :disabled="busy" @click="loadPreset">{{say('重试','Retry')}}</button></p>
      <button class="device-primary" :disabled="!canDownload" @click="downloadLesson"><Download/>{{busy?say('请稍候…','Please wait…'):connected?t('下载到开发板'):say('连接并下载本课','Connect and download lesson')}}</button>
-     <p v-if="preset&&!useCustom">{{say('固件版本','Firmware revision')}} · {{preset.revision.slice(0,8)}}</p>
-     <details v-if="available"><summary>{{say('高级：编译自定义参数','Advanced: compile custom parameters')}}</summary>
-      <label><input v-model="useCustom" type="checkbox" :disabled="busy||transport==='wifi'"/>{{say('使用本地编译固件','Use locally compiled firmware')}}</label>
-      <template v-if="useCustom"><p>{{parameterText}}</p><button :disabled="building||busy" @click="compile"><RefreshCw/>{{building?t('正在编译…'):t('编译当前参数')}}</button>
-      <p v-if="job" role="status">{{job.state}} · {{job.example}}</p><p v-if="job&&buildInput!==signature">{{t('课程或参数已改变，请重新编译后下载。')}}</p>
-      <details v-if="job?.log"><summary>{{t('构建日志')}}</summary><pre>{{job.log}}</pre></details></template>
-     </details>
+     <p v-if="preset">{{say('固件版本','Firmware revision')}} · {{preset.revision.slice(0,8)}}</p>
     </template>
     <details v-if="transport==='usb'" :open="recovery"><summary>{{say('无法连接？首次安装 / BOOT 恢复','Cannot connect? First installation / BOOT recovery')}}</summary><p>{{say('通常无需按键。若无法连接：按住 B（BOOT），按下并松开 R（RESET），再松开 B。重新选择 USB 设备后下载；写入完成后如未运行，再按一次 R。','Normally no buttons are needed. If connection fails: hold B (BOOT), press and release R (RESET), then release B. Select the USB device again and download. If the program does not start after flashing, press R once.')}}</p><p>{{say('仅下载 OSRCORE 对应固件。写入会替换当前程序，但不擦除本项目分区布局中的 NVS 参数。','Install OSRCORE firmware only. Downloading replaces the current program while preserving NVS for this project’s partition layout.')}}</p></details>
     <p v-if="activity">{{t(activity)}} <span v-if="progress">{{progress}}%</span></p>
    </section>
    <section v-if="error" class="device-error" role="alert"><h3>{{problem[0]}}</h3><p>{{problem[1]}}</p><details><summary>{{say('技术详情','Technical details')}}</summary><pre>{{error}}</pre></details></section>
-   <section v-if="physicalGuide" ref="nextSection" class="device-next"><span class="lesson-eyebrow">{{say('实板体验','ON YOUR CONTROLLER')}} · {{String(guideLesson).padStart(2,'0')}}</span><h3>{{say('接下来试一试','Try it now')}}</h3><p>{{physicalGuide[0]}}</p><p><strong>{{say('预期表现：','What to expect: ')}}</strong>{{physicalGuide[1]}}</p><p v-if="!device" class="device-unconfirmed">{{say('以下是这节课的预期表现，尚未确认设备程序已启动。','These are the expected results for this lesson; application startup has not been confirmed.')}}</p><p v-else>{{say('设备已响应身份查询；传感器和外设是否正常，请结合日志与实际表现判断。','The device has answered the identity query. Check logs and actual behavior to verify sensors and peripherals.')}}</p><button @click="showConsole">{{say('查看设备日志','View device console')}}</button></section>
-   <section ref="consoleSection" class="device-console"><header><h3>{{t('真实设备日志')}}</h3><button @click="logs=[]">{{t('清空')}}</button></header><div v-if="connected&&!busy"><button v-if="transport==='usb'" @click="queryInfo">{{say('读取设备信息','Read device info')}}</button><button :disabled="!device" @click="restartController"><RefreshCw/>{{say('重启控制器','Restart controller')}}</button></div><pre role="log" :aria-label="t('真实设备日志')">{{logs.join('\n')||t('连接后显示开发板日志；这里不显示网页模拟数据。')}}</pre><div v-if="connected&&!busy&&confirmedLesson===7"><button @click="sendCommand('save')">{{t('保存 Kp')}}</button></div><form v-if="connected&&!busy&&transport==='usb'" @submit.prevent="sendCommand(command);command=''"><input v-model="command" :placeholder="t('串口命令，如 status')" :aria-label="t('串口命令')"/><button :disabled="!command.trim()">{{t('发送')}}</button></form></section>
    <details class="device-help"><summary>{{say('连接与下载帮助','Connection and download help')}}</summary><section v-for="(item,key) in troubleshooting" :key="key"><h3>{{item[en?'en':'zh'][0]}}</h3><p>{{item[en?'en':'zh'][1]}}</p></section></details>
   </div>
  </section>

@@ -9,6 +9,7 @@
 #include <math.h>
 
 #include "osrcore_fw_update.h"
+#include "osrcore_params.h"
 #include "osrcore_lesson_config.h"
 
 #define I2C_SDA     10
@@ -32,11 +33,12 @@ static void task_imu(void *arg)
             previous = now;
             float gravity_roll=atan2f(d.accelY,d.accelZ)*57.2957795f;
             float gravity_pitch=atan2f(-d.accelX,sqrtf(d.accelY*d.accelY+d.accelZ*d.accelZ))*57.2957795f;
-            roll=OSR_AHRS_ALPHA*(roll+d.gyroX*dt)+(1-OSR_AHRS_ALPHA)*gravity_roll;
-            pitch=OSR_AHRS_ALPHA*(pitch+d.gyroY*dt)+(1-OSR_AHRS_ALPHA)*gravity_pitch;
+            float alpha = (float)osrcore_param_get("alpha", OSR_AHRS_ALPHA);
+            roll=alpha*(roll+d.gyroX*dt)+(1-alpha)*gravity_roll;
+            pitch=alpha*(pitch+d.gyroY*dt)+(1-alpha)*gravity_pitch;
             if (now - last_print >= 100000) {
                 last_print = now;
-                ESP_LOGI(TAG,"roll=%.2f pitch=%.2f alpha=%.2f",roll,pitch,(double)OSR_AHRS_ALPHA);
+                ESP_LOGI(TAG,"roll=%.2f pitch=%.2f alpha=%.2f",roll,pitch,(double)alpha);
             }
         }
         vTaskDelay(pdMS_TO_TICKS(5));
@@ -45,6 +47,10 @@ static void task_imu(void *arg)
 
 void app_main(void)
 {
+    static const osrcore_param_t parameters[] = {
+        {"alpha", 0.8, 0.99, 0.01, OSR_AHRS_ALPHA},
+    };
+    osrcore_params_init(parameters, sizeof(parameters)/sizeof(parameters[0]));
     osrcore_fw_update_start();
 
     i2c_master_bus_config_t bus_cfg = {

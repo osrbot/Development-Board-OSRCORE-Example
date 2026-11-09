@@ -1486,3 +1486,26 @@ body:has(.interactive-lab) {
 .hardware-lab .connect-board{margin-left:auto}
 @media(min-width:851px) and (max-width:1100px){.hardware-lab .lab-top-nav{margin-left:0;gap:0}.hardware-lab .lab-top-nav span{display:inline}.hardware-lab .lab-top-nav button,.hardware-lab .lab-top-nav a{font-size:13px;padding:8px 5px;gap:4px}.hardware-lab .lab-top-nav svg{width:18px!important;height:18px!important}}
 @media(max-width:850px){.hardware-lab .lab-top-nav{margin-left:0;gap:0;justify-content:space-between}.hardware-lab .lab-top-nav button,.hardware-lab .lab-top-nav a{font-size:14px;padding:8px 4px;gap:5px}.hardware-lab .lab-top-nav svg{width:20px!important;height:20px!important}}
+
+/* One output area, with explicit separation between simulation and physical USB. */
+.hardware-lab{grid-template-rows:82px minmax(0,1fr) auto 88px}
+.hardware-lab .experiment-courses{grid-row:4}
+.hardware-lab .workbench-console{grid-column:1/-1;grid-row:3;min-width:0;border-top:1px solid #dbe5ed;background:#f7fafc;border-radius:7px 7px 0 0;color:#233d50;font-size:12px}
+.workbench-console>header{display:flex;align-items:center;gap:14px;min-height:44px;padding:0 12px}
+.workbench-console .console-tabs{display:flex;gap:12px}
+.workbench-console button{min-height:34px;padding:5px 9px;border-radius:5px;font-size:12px}
+.workbench-console button[aria-selected=true]{color:#0076df;background:#e8f3ff}
+.console-status{margin-left:auto;color:#6a7f90;font-size:11px}
+.console-body{padding:0 14px 12px;border-top:1px solid #e2eaf0}
+.console-tools{display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:6px 0;color:#5d7384}
+.console-tools>span{margin-right:auto;overflow-wrap:anywhere}
+.workbench-console pre{height:145px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;border:1px solid #e0e8ef;border-radius:6px;background:white;padding:10px 12px;font:12px/1.6 monospace;color:#29495e}
+.workbench-console form{display:flex;gap:8px;margin-top:7px}.workbench-console input{flex:1;min-width:0;background:white;border:1px solid #cfdee9;border-radius:6px;padding:7px 10px;font:12px monospace}
+.console-guide{margin:5px 0 10px}.console-guide summary{cursor:pointer;color:#0076df}.console-guide p{padding:5px 0}
+.hardware-lab .runtime-controls{flex:none;padding:9px 0 0;font-size:11px;line-height:1.6}
+.runtime-actions{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:5px}.runtime-actions button{display:flex;align-items:center;gap:5px;min-height:32px;padding:5px 9px;border:1px solid #cddfea;border-radius:6px;background:white;font-size:11px}.runtime-actions svg{width:15px;height:15px}.runtime-actions .apply-device{background:#0076df;color:white;border-color:#0076df}.runtime-actions .apply-device:hover{color:white;background:#0062b9}
+.runtime-controls p{color:#5a7284}.runtime-controls .parameters-confirmed{color:#0076b8}.runtime-controls .actual-parameters{font-family:monospace;margin-top:3px}.runtime-controls .motion-note{color:#806021}.runtime-error{color:#a43d38!important}
+.hardware-lab .experiment-stage{overflow:auto}.hardware-lab .new-board-stage{min-height:210px}
+@media(min-width:851px){.hardware-lab.console-open{min-height:960px}}
+@media(max-width:850px){.hardware-lab{grid-template-rows:auto auto auto auto auto}.hardware-lab .workbench-console{grid-column:1;grid-row:4;order:3}.hardware-lab .experiment-courses{grid-row:5;order:4}.console-status{display:none}.workbench-console>header{gap:6px;justify-content:space-between}.runtime-actions{gap:5px}.hardware-lab .new-board-stage{min-height:0}}
+@media(min-width:851px){.hardware-lab .new-board-stage .explore-stage{min-height:150px}.hardware-lab .new-board-stage .explore-controls{flex-shrink:0}}

@@ -40,6 +40,17 @@ test('the device panel preserves connection across lessons and never guesses the
   assert.equal(state.confirmedLesson,7);assert.equal(state.guideLesson,7);assert.equal(opens,1);assert.equal(state.connected,true);
   stream.enqueue(new TextEncoder().encode('OSRCORE_INFO {"board":"OSRCORE","protocol":1,"project":"custom-app","version":"test"}\n'));
   await new Promise(r=>setTimeout(r,0));assert.equal(state.guideLesson,null);
+  app._instance.props.lesson=1;app._instance.props.values={interval:100,brightness:80};await nextTick();
+  stream.enqueue(new TextEncoder().encode('OSRCORE_INFO {"board":"OSRCORE","protocol":1,"project":"01_blink_led","version":"test","runtimeParameters":1,"parameters":{"interval":500,"brightness":32},"parametersSaved":false}\n'));
+  await new Promise(r=>setTimeout(r,0));assert.equal(state.canApply,true);assert.equal(state.parametersMatch,false);
+  const applying=state.applyParameters();await new Promise(r=>setTimeout(r,0));
+  const request=JSON.parse(sent.at(-1).slice('osrcore params '.length));
+  assert.equal(state.paramBusy,true);assert.equal(state.parametersMatch,false);
+  app._instance.props.values={interval:200,brightness:80};await nextTick();
+  stream.enqueue(new TextEncoder().encode('OSRCORE_PARAMS '+JSON.stringify({id:request.id,project:request.lesson,ok:true,values:request.values,saved:false})+'\n'));
+  await applying;assert.equal(state.paramBusy,false);assert.equal(state.device.parameters.interval,100);
+  assert.equal(state.parametersMatch,false); // Sliders changed in flight; never label their new values applied.
+  const countBeforeSave=sent.length;await state.applyParameters(true);assert.equal(sent.length,countBeforeSave);
   await state.disconnect();assert.equal(state.device,null);assert.equal(state.connected,false);assert.ok(closes>0);
   assert.equal(state.guideLesson,1); // Last written lesson remains an unconfirmed guide, not a device identity.
  }finally{app.unmount();for(const [key,value] of Object.entries(saved)){if(value)Object.defineProperty(globalThis,key,value);else delete globalThis[key];}}
