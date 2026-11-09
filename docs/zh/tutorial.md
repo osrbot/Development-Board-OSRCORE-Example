@@ -252,7 +252,7 @@ ch[13] = ((buf[18] >> 7 | buf[19] << 1 | buf[20] << 9) & 0x07FF);
 ch[14] = ((buf[20] >> 2 | buf[21] << 6) & 0x07FF);
 ch[15] = ((buf[21] >> 5 | buf[22] << 3) & 0x07FF);
 
-/* 标志字节：bit2=lost_frame，bit3=failsafe */
+/* Flags: bit2=lost_frame, bit3=failsafe */
 bool lost_frame = (buf[23] & (1 << 2)) != 0;
 bool failsafe   = (buf[23] & (1 << 3)) != 0;
 ```
@@ -283,7 +283,7 @@ uart_set_line_inverse(UART_NUM_0, UART_SIGNAL_RXD_INV | UART_SIGNAL_TXD_INV);
 **帧同步与解析：**
 
 ```c
-// 同步到帧头 0x0F
+// Synchronize on the 0x0F frame header
 uint8_t byte;
 do {
     uart_read_bytes(UART_NUM_0, &byte, 1, portMAX_DELAY);
@@ -295,7 +295,7 @@ if (got == 24 && sbus_parse(buf, &data)) {
     // data.lost_frame = (buf[23] & (1<<2)) != 0
     // data.failsafe   = (buf[23] & (1<<3)) != 0
     if (!data.failsafe && !data.lost_frame) {
-        // 处理通道数据
+        // Process channel data
     }
 }
 ```
@@ -303,7 +303,7 @@ if (got == 24 && sbus_parse(buf, &data)) {
 **SBUS 通道值转换为 PWM 脉宽（µs）：**
 
 ```c
-// SBUS 范围 240-1810 → PWM 1000-2000 µs
+// SBUS range 240-1810 -> PWM 1000-2000 us
 #define SBUS_TO_US(v) ((uint32_t)(((v) - 240) * 1000 / 1570 + 1000))
 ```
 
@@ -405,18 +405,18 @@ static esp_err_t qmi_read(i2c_master_dev_handle_t dev,
 **读取并换算 IMU 数据：**
 
 ```c
-/* 初始化时写入量程寄存器 */
+/* Configure range registers during initialization */
 write_reg(QMI_REG_CTRL2, 0x13);  // ±4g，1000 Hz ODR
 write_reg(QMI_REG_CTRL3, 0x63);  // ±1024 dps，1000 Hz ODR
-write_reg(QMI_REG_CTRL7, 0x03);  // 使能加速度计 + 陀螺仪
+write_reg(QMI_REG_CTRL7, 0x03);  // Enable accelerometer and gyroscope
 
-/* 启动后执行一次静止校准（需保持静止约 100ms） */
+/* Calibrate once at startup; keep the board stationary for about 100 ms */
 qmi8658_calibrate_bias();
 
-/* 读取数据（内部 5 样本平均，每 5 次调用才返回 true） */
+/* Read data; average five samples and return true every fifth call */
 qmi8658_data_t d;
 if (qmi8658_read(&d)) {
-    // d.accelX/Y/Z 单位 g，d.gyroX/Y/Z 单位 dps（已减去偏置）
+    // d.accelX/Y/Z are in g; d.gyroX/Y/Z are bias-corrected degrees per second
     printf("ax=%.3f ay=%.3f az=%.3f  gx=%.2f gy=%.2f gz=%.2f  T=%.1f\n",
            d.accelX, d.accelY, d.accelZ,
            d.gyroX,  d.gyroY,  d.gyroZ, d.temp);
@@ -477,7 +477,7 @@ PCNT 配置为：A 相（EA）上升沿计数，B 相（EB）电平控制方向�
 pcnt_unit_config_t unit_cfg = {
     .low_limit  = -30000,
     .high_limit =  30000,
-    .flags.accum_count = 1,  // 启用硬件级累加，无需软件溢出回调
+    .flags.accum_count = 1,  // Enable driver accumulation without an application overflow callback
 };
 pcnt_new_unit(&unit_cfg, &s_unit);
 
@@ -488,13 +488,13 @@ pcnt_chan_config_t chan_a = {
 pcnt_channel_handle_t ch_a;
 pcnt_new_channel(s_unit, &chan_a, &ch_a);
 pcnt_channel_set_edge_action(ch_a,
-    PCNT_CHANNEL_EDGE_ACTION_INCREASE,  // 上升沿 +1
-    PCNT_CHANNEL_EDGE_ACTION_HOLD);     // 下降沿不计
+    PCNT_CHANNEL_EDGE_ACTION_INCREASE,  // Increment on rising edges
+    PCNT_CHANNEL_EDGE_ACTION_HOLD);     // Ignore falling edges
 pcnt_channel_set_level_action(ch_a,
-    PCNT_CHANNEL_LEVEL_ACTION_KEEP,     // EB 高：正方向
-    PCNT_CHANNEL_LEVEL_ACTION_INVERSE); // EB 低：反方向
+    PCNT_CHANNEL_LEVEL_ACTION_KEEP,     // EB high: forward direction
+    PCNT_CHANNEL_LEVEL_ACTION_INVERSE); // EB low: reverse direction
 
-/* watch point 供硬件累加器使用 */
+/* Watch points used by the counter accumulator */
 pcnt_unit_add_watch_point(s_unit,  30000);
 pcnt_unit_add_watch_point(s_unit, -30000);
 
@@ -510,7 +510,7 @@ static int32_t encoder_get_count(void)
 {
     int raw = 0;
     pcnt_unit_get_count(s_unit, &raw);
-    return raw;  // 硬件已累加，直接返回真实计数
+    return raw;  // Return the accumulated count
 }
 ```
 
@@ -645,7 +645,7 @@ typedef struct {
     float integral, last_error;
 } pid_ctrl_t;
 
-/* 返回 int（pulse_us），内部已加 neutral 并钳位到 [1000, 2000] */
+/* Return pulse_us as int, including neutral offset and a [1000, 2000] clamp */
 int pid_update(pid_ctrl_t *p, float target, float current,
                int neutral, float dt_sec)
 {
@@ -663,7 +663,7 @@ int pid_update(pid_ctrl_t *p, float target, float current,
     int pulse = neutral + (int)output;
     if (pulse < 1000) pulse = 1000;
     if (pulse > 2000) pulse = 2000;
-    return pulse;  // 直接可用的 ESC 脉宽（µs）
+    return pulse;  // ESC pulse width in microseconds
 }
 
 void pid_reset(pid_ctrl_t *p)
@@ -696,11 +696,11 @@ static void task_control(void *arg)
 
         float target = s_target_speed;
 
-        /* 目标为零时重置积分，防止重启冲击 */
+        /* Reset the integral at zero target to avoid a restart impulse */
         if (fabsf(target) < 0.05f)
             pid_reset(&pid);
 
-        /* pid_update 直接返回 pulse_us，内含 neutral+clamp */
+        /* pid_update returns pulse_us including neutral offset and clamping */
         int pulse = pid_update(&pid, target, filtered_speed,
                                THROTTLE_NEUTRAL, 0.020f);
         esc_set((uint32_t)pulse);
@@ -845,7 +845,7 @@ typedef struct {
     int    rc_ch[10];
     bool   remote_active;
     bool   failsafe;
-    bool   speed_full_mode;       // CH8 ≥ 1500 → 全速
+    bool   speed_full_mode;       // CH8 >= 1500 enables full speed
     bool   serial_control_active;
     unsigned long last_serial_cmd_ms;
 } app_state_t;
@@ -874,7 +874,7 @@ static void serial_tx_task_fn(void *arg)
     }
 }
 
-/* 任何任务调用此函数发送，不阻塞调用方 */
+/* Any task can enqueue output without blocking */
 static void serial_tx_printf(const char *fmt, ...)
 {
     serial_tx_msg_t msg;
@@ -889,22 +889,22 @@ static void serial_tx_printf(const char *fmt, ...)
 **task_comm 中的模式仲裁（核心逻辑）：**
 
 ```c
-// SBUS 解码后的模式判断
+// Select the operating mode after SBUS decoding
 if (rc_ch[CONTROL_MODE_CH] < 1500) {
-    /* 遥控模式 */
-    bool full = (rc_ch[SPEED_MODE_CH] >= 1500);  // CH8 控制限速
-    float spd = /* 从 CH3 映射 */;
-    if (!full) spd *= 0.15f;                      // 限速 15%
+    /* RC mode */
+    bool full = (rc_ch[SPEED_MODE_CH] >= 1500);  // CH8 selects the speed limit
+    float spd = /* Map from CH3 */;
+    if (!full) spd *= 0.15f;                      // Limit speed to 15%
 
     portENTER_CRITICAL(&g_mux);
     g_state.remote_active    = true;
     g_state.speed_full_mode  = full;
     g_state.target_speed     = spd;
-    g_state.steering_pulse   = /* 从 CH1 映射 */;
+    g_state.steering_pulse   = /* Map from CH1 */;
     portEXIT_CRITICAL(&g_mux);
 }
 
-// RC 超时（200ms）
+// RC timeout (200 ms)
 if (rc_initialized && g_state.remote_active) {
     if (now_ms - last_rc_ok_ms >= RC_TIMEOUT_MS) {  // RC_TIMEOUT_MS = 200
         portENTER_CRITICAL(&g_mux);
@@ -917,7 +917,7 @@ if (rc_initialized && g_state.remote_active) {
     }
 }
 
-// 串口超时（500ms）
+// Serial command timeout (500 ms)
 if (g_state.serial_control_active && !g_state.remote_active) {
     if (g_state.last_serial_cmd_ms > 0 &&
         now_ms - g_state.last_serial_cmd_ms > SERIAL_TIMEOUT_MS) {  // 500ms
@@ -937,26 +937,26 @@ void app_main(void)
     // USB CDC
     usb_serial_jtag_driver_install(&usb_cfg);
 
-    // serial_tx 队列 + TX 任务
+    // serial_tx queue and TX task
     serial_tx_init();
 
-    // 电池使能：GPIO16 置 LOW（osrcore 硬件约定）
+    // Set GPIO16 LOW for the OSRCORE battery-enable circuit
     gpio_set_direction(IO_CTRL_BAT, GPIO_MODE_OUTPUT);
     gpio_set_level(IO_CTRL_BAT, 0);
 
     ESP_ERROR_CHECK(nvs_flash_init());
 
-    init_i2c_imu();   // 含 qmi8658_calibrate_bias()
+    init_i2c_imu();   // Includes qmi8658_calibrate_bias()
     init_encoder();
     init_pwm();
     init_sbus();
-    init_adc();       // ADC1 CH3，查找表电压监测
+    init_adc();       // ADC1 CH3, lookup-table voltage monitoring
 
     madgwick_init(&g_ahrs, 0.1f);
     pid_init(&g_pid, PID_KP_DEFAULT, PID_KI_DEFAULT, PID_KD_DEFAULT,
              PID_MAX_INTEGRAL, PID_DEADBAND);
 
-    // ESC 解锁
+    // Arm the ESC
     set_throttle(THROTTLE_NEUTRAL);
     set_steering(STEERING_CENTER);
     vTaskDelay(pdMS_TO_TICKS(2000));
@@ -964,7 +964,7 @@ void app_main(void)
     xTaskCreatePinnedToCore(task_imu,     "imu",  4096, NULL, 5, NULL, 1);
     xTaskCreatePinnedToCore(task_control, "ctrl", 4096, NULL, 4, NULL, 1);
     xTaskCreatePinnedToCore(task_comm,    "comm", 8192, NULL, 3, NULL, 0);
-    // serial_tx 任务（P1）已在 serial_tx_init() 中创建
+    // serial_tx_init() already created the priority-1 TX task
 }
 ```
 
@@ -1031,9 +1031,9 @@ XY 轴量程不等时，磁场轨迹为椭圆。用对角缩放矩阵将其拉�
 
 ```c
 float avg_range = (range_x + range_y) / 2.0f;
-soft_iron[0] = avg_range / range_x;   // X 缩放
-soft_iron[4] = avg_range / range_y;   // Y 缩放
-soft_iron[8] = 1.0f;                  // Z 不变（地面车辆）
+soft_iron[0] = avg_range / range_x;   // X scale
+soft_iron[4] = avg_range / range_y;   // Y scale
+soft_iron[8] = 1.0f;                  // Keep Z unchanged for a ground vehicle
 ```
 
 #### 倾斜补偿
@@ -1056,10 +1056,10 @@ if (heading < 0) heading += 360.0f;
 磁力计噪声大但无累积误差；陀螺仪短期精准但有漂移。互补滤波取长补短：
 
 ```c
-// 静止时 alpha=0.98，运动时 alpha=0.995
+// Use alpha=0.98 when stationary and alpha=0.995 when moving
 yaw_cf += gyro_z * dt;
 float err = mag_heading - yaw_cf;
-// 角度差归一化到 [-π, π]
+// Normalize the angle difference to [-pi, pi]
 yaw_cf += (1.0f - alpha) * err;
 ```
 
@@ -1073,23 +1073,23 @@ void qmc6309_init(i2c_master_dev_handle_t dev) {
     memset(s_hard_iron, 0, sizeof(s_hard_iron));
     memcpy(s_soft_iron, k_identity, sizeof(s_soft_iron));
 
-    // 软复位
+    // Soft reset
     write_reg(QMC_REG_CTRL2, CTRL2_SOFT_RST);
     vTaskDelay(pdMS_TO_TICKS(20));
     write_reg(QMC_REG_CTRL2, 0x00);
     vTaskDelay(pdMS_TO_TICKS(20));
 
-    // 验证 CHIP_ID
+    // Verify CHIP_ID
     uint8_t id = 0;
     read_reg(QMC_REG_CHIP_ID, &id, 100);
     if (id != 0x90) printf("WARN: QMC6309 CHIP_ID=0x%02X\n", id);
 
-    // OSR2=4, OSR1=3, 单次模式（后续切换为连续）
+    // OSR2=4, OSR1=3, single-shot mode; switch to continuous mode below
     uint8_t ctrl1 = CTRL1_OSR2(4) | CTRL1_OSR1(3) | CTRL1_MODE(0);
     write_reg(QMC_REG_CTRL1, ctrl1);
     // ODR=4 (200Hz), RNG=2 (8G)
     write_reg(QMC_REG_CTRL2, CTRL2_ODR(4) | CTRL2_RNG(2));
-    // 切换为连续测量模式
+    // Switch to continuous measurement mode
     ctrl1 = (ctrl1 & ~0x03) | CTRL1_MODE(3);
     write_reg(QMC_REG_CTRL1, ctrl1);
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -1110,7 +1110,7 @@ bool qmc6309_read(qmc6309_data_t *out) {
     float ry = (int16_t)((data[3] << 8) | data[2]) / s_sensitivity;
     float rz = (int16_t)((data[5] << 8) | data[4]) / s_sensitivity;
 
-    // 应用硬铁 + 软铁校准
+    // Apply hard-iron and soft-iron calibration
     float dx = rx - s_hard_iron[0];
     float dy = ry - s_hard_iron[1];
     float dz = rz - s_hard_iron[2];
@@ -1128,16 +1128,16 @@ bool qmc6309_read(qmc6309_data_t *out) {
 
 ```c
 void qmc6309_calibrate(uint32_t duration_ms) {
-    // 初始化 min/max
+    // Initialize min/max
     for (int i = 0; i < 3; i++) { s_min_val[i] = 1e6f; s_max_val[i] = -1e6f; }
 
     int64_t start = esp_timer_get_time();
     while ((esp_timer_get_time() - start) < (int64_t)duration_ms * 1000) {
-        // 读取原始高斯值并更新 min/max
+        // Read raw gauss values and update min/max
         // ...
         vTaskDelay(pdMS_TO_TICKS(10));
     }
-    // 计算硬铁偏移和软铁缩放
+    // Compute hard-iron offsets and soft-iron scale factors
     for (int i = 0; i < 3; i++)
         s_hard_iron[i] = (s_max_val[i] + s_min_val[i]) / 2.0f;
     float avg_xy = ((s_max_val[0]-s_min_val[0]) + (s_max_val[1]-s_min_val[1])) / 2.0f;
@@ -1156,10 +1156,10 @@ while (1) {
                d.heading, d.x, d.y, d.z);
     }
 
-    // 非阻塞 USB CDC 命令解析
+    // Parse USB CDC commands without blocking
     uint8_t byte;
     if (usb_serial_jtag_read_bytes(&byte, 1, 0) == 1) {
-        // 积累到换行符后处理命令
+        // Accumulate input until a newline, then process the command
         // cal [sec] / heading / help
     }
     vTaskDelay(pdMS_TO_TICKS(100));

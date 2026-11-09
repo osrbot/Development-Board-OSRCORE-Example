@@ -30,9 +30,13 @@ test('header selection follows the lesson GPIO and preserves manual selection wh
  } finally {app.unmount();}
 });
 
-test('every displayed lesson code excerpt uses English comments',()=>{
+test('every displayed lesson code excerpt uses English comments',async()=>{
  for(const lesson of lessons){
   const code=lessonCode(lesson.id,initialValues(lesson.id)).join('\n');
   assert.doesNotMatch(code,/\p{Script=Han}/u,`Lesson ${lesson.id} contains untranslated code`);
+ }
+ for(const file of ['../tutorial.md','../zh/tutorial.md']){
+  const tutorial=await readFile(new URL(file,import.meta.url),'utf8');
+  for(const [block] of tutorial.matchAll(/```c\n[\s\S]*?```/g))assert.doesNotMatch(block,/\p{Script=Han}/u,`${file} contains untranslated C code`);
  }
 });
