@@ -4,7 +4,7 @@
 
 ## Install a lesson
 
-Choose a lesson, open its **Install lesson** button and click **Connect and download lesson**. Select the controller's USB port. The website writes and verifies the published firmware, restarts the controller and attempts to reconnect. On completion, it returns to the course and opens **Device serial** at the bottom.
+Choose a lesson, open its **Flash controller** button and click **Connect & flash**. Select the controller's USB port. The website writes and verifies the published firmware, restarts the controller and attempts to reconnect. On completion, it returns to the course and opens **Serial monitor** below the experiment controls.
 
 Install the updated lesson firmware once to enable runtime parameters. Switching to another lesson requires installing that lesson's firmware. Changing supported parameters within the same lesson does not require another download.
 
@@ -22,7 +22,7 @@ The page checks the controller's reported lesson before sending parameters. Olde
 
 ## One console
 
-The bottom console separates **Simulation output** from **Device serial**. Device serial contains real logs, command input, device information, restart and disconnect. It remains connected when the download panel closes or the selected lesson changes. Collapse the console when it is not needed.
+The console below the experiment controls separates **Simulation** from **Serial monitor**. Serial monitor contains real logs, command input, device information, restart and disconnect. It remains connected when the download panel closes or the selected lesson changes. Collapse the console when it is not needed.
 
 ## Recovery
 

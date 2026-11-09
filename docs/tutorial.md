@@ -18,8 +18,8 @@ Choose a lesson, adjust its parameters and select “Simulate”. “Simulation 
 ### Connect a real controller
 
 1. Connect the controller with a USB data cable and open this site in a desktop browser that supports Web Serial.
-2. In lessons 01–13, select “Install lesson”, choose the USB device and complete the download. If the first connection fails, follow the BOOT recovery instructions in the device panel.
-3. Wait for automatic reconnection and check the startup log under “Device serial”.
+2. In lessons 01–13, select “Flash controller”, choose the USB device and complete the download. If the first connection fails, follow the BOOT recovery instructions in the device panel.
+3. Wait for automatic reconnection and check the startup log under “Serial monitor”.
 4. After changing a “Device parameter”, select “Apply to controller”. To retain it after power loss, then select “Save to controller”. No compiler installation or new download is required.
 
 Changing lessons requires installing the corresponding firmware. Within a lesson, adjustments send parameters only. Moving a slider does not automatically drive hardware; wait for the device acknowledgement. Before attaching a servo, ESC or motor, check its supply rating and common-ground wiring.
@@ -148,7 +148,7 @@ Drive the GPIO42 passive buzzer with a configurable tone. Only the board and a U
 
 Frequency is 220–1760 Hz; duration is 100–1000 ms, followed by 100 ms of silence. Defaults are 440 Hz and 300 ms. Enable browser audio for the simulation. Hardware uses LEDC with a 50% duty cycle.
 
-Select “Install lesson” to download the firmware. Connect over USB, adjust frequency or duration, then select “Apply to controller”. Select “Save to controller” to retain these values after power loss. Source: `02_buzzer/main/main.c`.
+Select “Flash controller” to download the firmware. Connect over USB, adjust frequency or duration, then select “Apply to controller”. Select “Save to controller” to retain these values after power loss. Source: `02_buzzer/main/main.c`.
 
 ### Exercise
 
@@ -156,7 +156,7 @@ Double the frequency and compare pitch, then change only duration. The browser a
 
 ### Download
 
-Use “Install lesson” to connect and download over USB. After automatic reconnection, open “Device serial” for logs. Adjusting this lesson’s parameters does not require another download.
+Use “Flash controller” to connect and download over USB. After automatic reconnection, open “Serial monitor” for logs. Adjusting this lesson’s parameters does not require another download.
 
 ### Troubleshooting
 
@@ -476,7 +476,7 @@ Save one Kp value and read it after reboot. This lesson does not run a robot con
 1. Install this lesson, connect over USB and set Kp (default 2.5).
 2. Read `Loaded Kp=...`; an existing saved value takes precedence.
 3. Select “Apply to controller”, confirm the device value, then select “Save to controller” and wait for the save acknowledgement.
-4. Send `reboot` in “Device serial”, reconnect, and verify the loaded value.
+4. Send `reboot` in “Serial monitor”, reconnect, and verify the loaded value.
 
 “Simulate save” and “Simulate restart” use browser storage; “Save to controller” uses board NVS. These stores are independent. USB downloads preserve saved parameters. Adjustments within this lesson require no new download.
 
@@ -876,7 +876,7 @@ Use the board and a USB data cable. External receivers, motors and servos requir
 
 ### Procedure
 
-Select “Install lesson” in lesson 13 to download the diagnostic example. After automatic reconnection, open “Device serial”. Check the LED, buzzer and sensors before external interfaces.
+Select “Flash controller” in lesson 13 to download the diagnostic example. After automatic reconnection, open “Serial monitor”. Check the LED, buzzer and sensors before external interfaces.
 
 ### Source and output
 

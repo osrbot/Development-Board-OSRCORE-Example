@@ -113,7 +113,7 @@ onUnmounted(()=>{document.removeEventListener('keydown',keyboard);disposed=true;
    <section class="device-state" aria-live="polite"><div><i :class="{online:connected}"/>{{connected?say('已连接','Connected'):say('未连接','Disconnected')}} · {{transport==='usb'?'USB':'Wi-Fi'}}</div><p v-if="device">{{say('设备报告运行课程','Device reports lesson')}} · {{device.project}}<br/>{{say('版本','Version')}} · {{device.version}}</p><p v-else-if="connected">{{say('串口已连接，尚未收到课程固件的身份应答。旧版固件可正常下载，更新后支持设备识别。','Port connected; no course identity reply received yet. Older firmware can still be flashed; update it to enable identification.')}}</p><p v-if="lastFlash">{{say('本次已写入并校验','Written and verified this session')}} · {{lastFlash.example}}</p></section>
    <nav v-if="available" class="device-tabs" :aria-label="t('连接方式')"><button :aria-pressed="transport==='usb'" :disabled="busy" @click="switchTransport('usb')"><Usb/>USB</button><button v-if="available" :aria-pressed="transport==='wifi'" :disabled="busy" @click="switchTransport('wifi')"><Wifi/>Wi-Fi</button></nav>
    <div v-if="transport==='usb'" class="device-connect">
-    <p>{{say('用 USB 数据线连接开发板，然后安装本课。','Connect the controller with a USB data cable, then install this lesson.')}}</p>
+    <p>{{say('用 USB 数据线连接开发板，然后烧录本课固件。','Connect the controller with a USB data cable, then flash this lesson.')}}</p>
     <p v-if="!secure" class="device-notice"><a href="https://osrbot.github.io/osrcore-learn/">{{say('打开 HTTPS 正式站以使用 USB 下载','Open the HTTPS website to download over USB')}}</a></p>
     <p v-else-if="!supportedUSB" class="device-notice">{{t('当前浏览器未提供 Web Serial，请使用支持串口 API 的浏览器打开此页面。')}}</p>
     <button v-if="connected" :disabled="busy" @click="disconnect">{{t('断开 USB')}}</button>
@@ -127,7 +127,7 @@ onUnmounted(()=>{document.removeEventListener('keydown',keyboard);disposed=true;
      <p>{{say('安装会替换当前程序，保留已保存的课程参数。','Installation replaces the current program and preserves saved lesson parameters.')}}</p>
      <p v-if="presetLoading" role="status">{{say('正在获取课程固件…','Loading course firmware…')}}</p>
      <p v-if="presetError" role="alert">{{presetError}} <button :disabled="busy" @click="loadPreset">{{say('重试','Retry')}}</button></p>
-     <button class="device-primary" :disabled="!canDownload" @click="downloadLesson"><Download/>{{busy?say('请稍候…','Please wait…'):connected?t('下载到开发板'):say('连接并下载本课','Connect and download lesson')}}</button>
+     <button class="device-primary" :disabled="!canDownload" @click="downloadLesson"><Download/>{{busy?say('请稍候…','Please wait…'):connected?say('烧录到开发板','Flash controller'):say('连接并烧录','Connect & flash')}}</button>
      <details v-if="preset"><summary>{{say('版本信息','Version details')}}</summary><p>{{preset.revision.slice(0,8)}}</p></details>
     </template>
     <details v-if="transport==='usb'" :open="recovery"><summary>{{say('无法连接？首次安装 / BOOT 恢复','Cannot connect? First installation / BOOT recovery')}}</summary><p>{{say('通常无需按键。若无法连接：按住 B（BOOT），按下并松开 R（RESET），再松开 B。重新选择 USB 设备后下载；写入完成后如未运行，再按一次 R。','Normally no buttons are needed. If connection fails: hold B (BOOT), press and release R (RESET), then release B. Select the USB device again and download. If the program does not start after flashing, press R once.')}}</p><p>{{say('仅下载 OSRCORE 对应固件。写入会替换当前程序，但不擦除本项目分区布局中的 NVS 参数。','Install OSRCORE firmware only. Downloading replaces the current program while preserving NVS for this project’s partition layout.')}}</p></details>
