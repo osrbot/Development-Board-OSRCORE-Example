@@ -11,7 +11,12 @@ concurrency:
   group: pages-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  firmware:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && github.server_url == 'https://github.com'
+    uses: ./.github/workflows/build.yml
   validate:
+    needs: firmware
+    if: ${{ !cancelled() && (needs.firmware.result == 'success' || needs.firmware.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,6 +28,13 @@ jobs:
       - run: npm ci
         working-directory: docs
       - run: node --test tools/*.test.mjs docs/scripts/*.test.mjs
+      - name: Include course firmware
+        if: needs.firmware.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: web-*
+          merge-multiple: true
+          path: docs/public/firmware/
       - run: npm run build
         working-directory: docs
         env:

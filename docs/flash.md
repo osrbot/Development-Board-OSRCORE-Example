@@ -1,12 +1,20 @@
-# Build and download to the board
+# Download to the controller
 
-[Open the interactive lessons](/#lesson-01), select a lesson, then open **Connect board**.
+[Open the interactive lessons](/#lesson-01) in Chrome or Edge on a computer with USB access.
 
-1. Run the browser model and change firmware parameters.
-2. Connect USB, build current parameters, and download the resulting firmware.
-3. Reconnect device logs to observe real output. Parameter changes require a new build.
-4. Provision Wi-Fi over USB with the new lesson firmware first, then update through the same device panel.
+1. Select a lesson and open **Connect controller**.
+2. Plug in a USB data cable and select the controller's USB serial port.
+3. Click **Flash controller**. The website downloads the published lesson firmware, verifies it and writes it over USB.
+4. The controller restarts. The page attempts to reconnect the console; if needed, select USB again to see the logs.
 
-Resources, source and build artifacts follow the current refactored curriculum. Legacy prebuilt firmware, remote URL downloads and full-flash recovery are no longer offered here.
+No installation, ESP-IDF setup or local server is needed for these downloads. The published firmware uses the lesson's default parameters; simulation sliders do not change its contents.
 
-Local compilation requires `tools/lab-server.mjs`. For USB, open localhost on the computer connected to the board. Hardware validation is still pending.
+## First installation and recovery
+
+The page first attempts automatic download mode. If it cannot connect, hold **B (BOOT)**, press and release **R (RESET)**, then release B. Select the USB port again and retry. If the program does not start after writing, press R once.
+
+Downloading replaces the current program. Separate image writes preserve NVS for this project's partition layout; compatibility with unrelated partition layouts is not guaranteed.
+
+## Custom programs
+
+Changing C source or compiled parameters requires a new firmware build. The optional local companion service enables custom compilation and Wi-Fi operations. It is not required for the published USB lesson downloads.

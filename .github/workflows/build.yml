@@ -54,6 +54,17 @@ jobs:
           target: esp32s3
           path: ${{ matrix.example }}
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Package browser firmware
+        run: node tools/package-web-firmware.mjs ${{ matrix.example }} web-firmware
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-${{ matrix.example }}
+          path: web-firmware/
+          retention-days: 7
+
       - name: Collect app image
         run: |
           cp ${{ matrix.example }}/build/${{ matrix.example }}.bin osrcore-${{ matrix.example }}-app.bin
