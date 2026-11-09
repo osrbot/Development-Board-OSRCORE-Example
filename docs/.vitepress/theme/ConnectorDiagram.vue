@@ -12,11 +12,11 @@ const xtPositions={'1':[116,116],'2':[64,116],'3':[90,78],'4':[90,38]};
 <template>
  <div class="terminal-layout" :class="{many:pins.length>4}">
   <figure>
-   <svg v-if="part.kind==='socket'" :viewBox="`0 0 ${width} 172`" role="group" :aria-label="part.name+' 插座开口正视图'">
+   <svg v-if="part.kind==='socket'" :viewBox="`0 0 ${width} 172`" role="group" :aria-label="part.name+' · '+t('插座开口正视图')">
     <rect x="19" y="22" :width="width-38" height="57" class="shell"/>
     <rect x="27" y="30" :width="width-54" height="40" class="opening"/>
     <path :d="`M14 83H${width-14}v5H14Z`" class="base"/>
-    <g v-for="(p,i) in pins" :key="p.n" class="pin-target" :class="{selected:p.n===selected}" role="button" tabindex="0" :aria-label="part.id+' 引脚 '+p.n+' '+p.net" @click="emit('pin',p.n)" @keydown.enter.prevent="emit('pin',p.n)" @keydown.space.prevent="emit('pin',p.n)">
+    <g v-for="(p,i) in pins" :key="p.n" class="pin-target" :class="{selected:p.n===selected}" role="button" tabindex="0" :aria-label="part.id+' '+t('引脚')+' '+p.n+' '+p.net" @click="emit('pin',p.n)" @keydown.enter.prevent="emit('pin',p.n)" @keydown.space.prevent="emit('pin',p.n)">
      <rect :x="x(i)-23" y="34" width="46" height="116" fill="transparent"/>
      <rect :x="x(i)-3" y="43" width="6" height="18" class="contact"/>
      <path :d="`M${x(i)} 62V111`" class="leader"/>
@@ -24,9 +24,9 @@ const xtPositions={'1':[116,116],'2':[64,116],'3':[90,78],'4':[90,38]};
      <text :x="x(i)" y="146" class="net">{{p.net}}</text>
     </g>
    </svg>
-   <svg v-else-if="part.kind==='xt30'" viewBox="0 0 240 180" role="group" :aria-label="part.name+' 正面俯视引脚图'">
+   <svg v-else-if="part.kind==='xt30'" viewBox="0 0 240 180" role="group" :aria-label="part.name+' · '+t('正面俯视引脚图')">
     <path d="M48 12H132V136H48Z" class="shell"/><path d="M55 19H125V129H55Z" class="opening"/>
-    <g v-for="p in pins" :key="p.n" class="pin-target" :class="{selected:p.n===selected}" role="button" tabindex="0" :aria-label="part.id+' 引脚 '+p.n+' '+p.net" @click="emit('pin',p.n)" @keydown.enter.prevent="emit('pin',p.n)" @keydown.space.prevent="emit('pin',p.n)">
+    <g v-for="p in pins" :key="p.n" class="pin-target" :class="{selected:p.n===selected}" role="button" tabindex="0" :aria-label="part.id+' '+t('引脚')+' '+p.n+' '+p.net" @click="emit('pin',p.n)" @keydown.enter.prevent="emit('pin',p.n)" @keydown.space.prevent="emit('pin',p.n)">
      <circle v-if="Number(p.n)>2" :cx="xtPositions[p.n][0]" :cy="xtPositions[p.n][1]" r="12" class="contact"/>
      <rect v-else :x="xtPositions[p.n][0]-4" y="112" width="8" height="8" class="contact"/>
      <path :d="Number(p.n)>2?`M102 ${xtPositions[p.n][1]}H153`:`M${xtPositions[p.n][0]} 121V147`" class="leader"/>

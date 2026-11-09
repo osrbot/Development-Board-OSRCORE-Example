@@ -120,5 +120,7 @@
   "EX1 · GPIO 实验": "EX1 · GPIO lab",
   "固件参数": "Firmware parameter",
   "模拟输入": "Simulation input",
-  "编译并下载到真实开发板": "Build and flash the physical controller"
+  "编译并下载到真实开发板": "Build and flash the physical controller",
+  "插座开口正视图": "Socket opening, front view",
+  "正面俯视引脚图": "Pin diagram, top view"
 }

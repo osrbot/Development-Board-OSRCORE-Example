@@ -61,6 +61,11 @@ const props = defineProps({ locale: String });
 const en = ref(props.locale !== "zh");
 provide("osrcore-language",en);
 const tr = (zh, eng) => (en.value ? eng : zh);
+function syncPageLanguage() {
+  document.documentElement.lang = en.value ? 'en' : 'zh-CN';
+  document.title = en.value ? 'OSRCORE Learn' : 'OSRCORE 入门';
+}
+watch(en, syncPageLanguage, {flush: 'post'});
 const hardwareSelection = ref("");
 const hardwarePin = ref("");
 watch(hardwareSelection, () => { expanded.value = false; hardwarePin.value=""; });
@@ -74,7 +79,7 @@ function selectHardware(id){
 }
 
 const deviceOpen=ref(false), deviceStatus=ref('');
-const controller=ref(null),deviceSession=ref({logs:[]}),consoleOpen=ref(false),consoleTab=ref('simulation'),serialCommand=ref(''),unifiedConsole=ref(null);
+const controller=ref(null),deviceSession=ref({logs:[]}),consoleOpen=ref(true),consoleTab=ref('simulation'),serialCommand=ref(''),unifiedConsole=ref(null);
 const runtimeParameters=computed(()=>Object.keys(firmwareParameters[selected.value]||{}).length>0);
 const parameterMessage=computed(()=>{
  const session=deviceSession.value;
@@ -92,7 +97,8 @@ const actualParameterText=computed(()=>{
  if(device?.lesson!==selected.value||!device.parameters)return '';
  return lesson.value.params.filter(p=>Object.hasOwn(device.parameters,p.key)).map(p=>(en.value?p.en:p.zh)+': '+device.parameters[p.key]+(p.unit?' '+p.unit:'')).join(' · ');
 });
-async function openConsole(tab,reveal=false){consoleTab.value=tab;consoleOpen.value=true;if(reveal){await nextTick();unifiedConsole.value?.scrollIntoView({behavior:'smooth',block:'end'});}}
+async function openConsole(tab,reveal=false){consoleTab.value=tab;consoleOpen.value=true;await nextTick();if(tab==='simulation')paint();if(reveal)unifiedConsole.value?.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function workspaceKeydown(event){const tabs=['simulation','device'];let i=tabs.indexOf(consoleTab.value);if(event.key==='ArrowRight')i=(i+1)%tabs.length;else if(event.key==='ArrowLeft')i=(i+tabs.length-1)%tabs.length;else if(event.key==='Home')i=0;else if(event.key==='End')i=tabs.length-1;else return;event.preventDefault();event.stopPropagation();openConsole(tabs[i]);nextTick(()=>document.getElementById(tabs[i]+'-tab')?.focus());}
 function openDeviceConsole(){return openConsole('device',true);}
 function toggleConsole(){if(consoleOpen.value)consoleOpen.value=false;else openConsole(consoleTab.value);}
 function updateDeviceSession(next){const previous=deviceSession.value;deviceSession.value=next;if(next.error&&next.error!==previous.error&&!deviceOpen.value)openDeviceConsole();}
@@ -118,6 +124,10 @@ const selected = ref(0),
   graph = ref(),
   codeLines = ref(),
   courseRow = ref();
+const wideNavigation = ref(false);
+let navigationMedia;
+function syncNavigation(event) { wideNavigation.value = event.matches; sidebar.value = event.matches; }
+function closeNavigation() { sidebar.value = false; nextTick(() => document.querySelector('[aria-controls="lesson-navigation"]')?.focus()); }
 const icons = [
   Cpu,
   Lightbulb,
@@ -162,11 +172,11 @@ let state = createState(),
   gain,
   loadToken = 0,
   scrollFrame = 0;
-function addLog(text) {
+function addLog(text, english = text) {
   if (!text) return;
   logs.value = [
     ...logs.value.slice(-29),
-    { time: (elapsed.value / 1000).toFixed(2), text },
+    { time: (elapsed.value / 1000).toFixed(2), text, english },
   ];
 }
 function paint() {
@@ -222,7 +232,7 @@ function sample() {
   );
   if(gpioLab.value){
    const g=selectedContact.value?.gpio,high=Math.floor(elapsed.value/500)%2===0;
-   output.value={value:g==null?0:Number(high),label:g==null?'供电 / 地':high?'HIGH':'LOW',unit:'',secondary:g==null?'请选择 GPIO 针脚':`GPIO${g} · ${high?'3.3 V':'0 V'}`,line:high?5:7,log:g==null?'电源和接地针脚不执行 GPIO 输出':`EX1 · GPIO${g} → ${high?'HIGH':'LOW'}`};
+   output.value={value:g==null?0:Number(high),label:g==null?'POWER / GND':high?'HIGH':'LOW',unit:'',secondary:g==null?'Select a GPIO pin':`GPIO${g} · ${high?'3.3 V':'0 V'}`,line:high?5:7,log:g==null?'Power and ground pins do not drive GPIO output':`EX1 · GPIO${g} → ${high?'HIGH':'LOW'}`};
   }
   last = now;
   history.push(output.value.value);
@@ -252,10 +262,10 @@ function stop() {
 function run() {
   if (running.value) {
     stop();
-    addLog(tr("已停止", "Stopped"));
+    addLog("已停止", "Stopped");
     return;
   }
-  if(gpioLab.value&&selectedContact.value?.gpio==null){addLog(tr('请选择 GPIO 针脚后运行','Select a GPIO pin before running'));return;}
+  if(gpioLab.value&&selectedContact.value?.gpio==null){addLog('请选择 GPIO 针脚后运行','Select a GPIO pin before running');return;}
   state = createState();
   if (selected.value === 7) {
     try {
@@ -271,8 +281,9 @@ function run() {
   lastLogAt = -1000;
   started = last = performance.now();
   running.value = true;
+  openConsole('simulation');
   showSource.value = false;
-  addLog(tr("教学模拟已启动", "Lesson simulation started"));
+  addLog("教学模拟已启动", "Lesson simulation started");
   sample();
   timer = setInterval(sample, 50);
 }
@@ -296,7 +307,7 @@ function choose(i) {
   history = [];
   sourceIndex.value = 0;
   showSource.value = false;
-  sidebar.value = false;
+  if (!wideNavigation.value) sidebar.value = false;
   infoTab.value = "overview";
   if (typeof window !== "undefined") historyReplace(i);
   nextTick(() => {
@@ -305,7 +316,7 @@ function choose(i) {
     const el = courseRow.value?.children[i];
     if (el && courseRow.value) {
       courseRow.value.scrollTo({
-        left: Math.max(0, el.offsetLeft - courseRow.value.offsetLeft - 16),
+        top: Math.max(0, el.offsetTop - courseRow.value.clientHeight / 2 + el.clientHeight / 2),
         behavior: "smooth",
       });
     }
@@ -381,7 +392,7 @@ async function enableAudio() {
       await audio.resume();
     } catch {
       audioEnabled.value = false;
-      addLog(tr("浏览器未允许播放声音", "Audio unavailable"));
+      addLog("浏览器未允许播放声音", "Audio unavailable");
     }
   }
   updateAudio();
@@ -407,7 +418,7 @@ async function copy() {
     setTimeout(() => (copied.value = false), 1500);
   } catch {
     addLog(
-      tr("复制失败，请手动选择代码", "Copy failed; select the code manually"),
+      "复制失败，请手动选择代码", "Copy failed; select the code manually",
     );
   }
 }
@@ -429,7 +440,7 @@ function saveNvs() {
     addLog(`NVS saved kp=${state.saved}`);
     output.value = stepSimulation(7, values.value, elapsed.value, 0, state);
   } catch {
-    addLog(tr("浏览器存储不可用", "Browser storage unavailable"));
+    addLog("浏览器存储不可用", "Browser storage unavailable");
   }
 }
 function restartNvs() {
@@ -439,15 +450,15 @@ function restartNvs() {
       values.value.kp = saved;
       state.saved = saved;
       addLog(`NVS restored kp=${saved}`);
-    } else addLog(tr("还没有保存值", "No saved value"));
+    } else addLog("还没有保存值", "No saved value");
   } catch {
-    addLog(tr("读取失败", "Read failed"));
+    addLog("读取失败", "Read failed");
   }
 }
 function keydown(e) {
   if (e.key === "Escape") {
     settings.value = false;
-    sidebar.value = false;
+    if (sidebar.value) closeNavigation();
     expanded.value = false;
     if (!deviceSession.value.busy) deviceOpen.value = false;
     return;
@@ -467,10 +478,14 @@ function hashchange() {
 function visibility() {
   if (document.hidden && running.value) {
     stop();
-    addLog(tr("页面隐藏，模拟已暂停", "Page hidden; simulation paused"));
+    addLog("页面隐藏，模拟已暂停", "Page hidden; simulation paused");
   }
 }
 onMounted(() => {
+  syncPageLanguage();
+  navigationMedia = window.matchMedia("(min-width: 1360px)");
+  syncNavigation(navigationMedia);
+  navigationMedia.addEventListener("change", syncNavigation);
   try {
     const saved = JSON.parse(
       localStorage.getItem("osrcore-interactive-progress") || "[]",
@@ -486,6 +501,7 @@ onMounted(() => {
   document.addEventListener("visibilitychange", visibility);
 });
 onUnmounted(() => {
+  navigationMedia?.removeEventListener("change", syncNavigation);
   stop();
   cancelAnimationFrame(scrollFrame);
   audio?.close();
@@ -504,34 +520,31 @@ const displayValue = computed(() =>
 <template>
   <div
     class="interactive-lab hardware-lab"
-    :class="{ 'nav-open': sidebar, 'wide-code': expanded, 'console-open':consoleOpen }"
+    :class="{ 'nav-open': sidebar, 'wide-code': expanded, 'console-open':consoleOpen, 'board-overview':selected===0 }"
   >
     <DeviceLab ref="controller" :open="deviceOpen" :lesson="selected" :values="values" @close="deviceOpen=false" @status="deviceStatus=$event" @session="updateDeviceSession" @installed="openDeviceConsole" @show-console="openDeviceConsole" />
-    <SiteHeader :en="en" :device-busy="deviceSession.busy" :device-status="deviceStatus+(deviceSession.device?' · '+String(deviceSession.device.lesson>0?deviceSession.device.lesson:deviceSession.device.project).padStart(2,'0'):'')" @board="choose(0)" @lessons="sidebar=!sidebar" @help="settings=!settings" @language="en=!en" @connect="connectController" />
-    <div v-if="sidebar" class="lesson-drawer">
-      <header>
-        <strong>{{ tr("全部课程", "All lessons") }}</strong
-        ><button @click="sidebar = false" :aria-label="tr('关闭', 'Close')">
-          <X />
+    <SiteHeader :lessons-open="sidebar" :en="en" :device-busy="deviceSession.busy" :device-status="deviceStatus+(deviceSession.device?' · '+String(deviceSession.device.lesson>0?deviceSession.device.lesson:deviceSession.device.project).padStart(2,'0'):'')" @board="choose(0)" @lessons="sidebar=!sidebar" @help="settings=!settings" @language="en=!en" @connect="connectController" />
+    <button v-if="sidebar && !wideNavigation" class="lesson-backdrop" tabindex="-1" :aria-label="tr('关闭课程列表','Close lesson navigation')" @click="closeNavigation" />
+    <aside v-if="sidebar" id="lesson-navigation" class="lesson-sidebar" :aria-label="tr('课程列表','Lesson navigation')">
+      <header><div><strong>{{tr('全部课程','All lessons')}}</strong><small>{{progress.length}} / {{lessons.length}} {{tr('已完成','completed')}}</small></div><button @click="closeNavigation" :aria-label="tr('收起课程列表','Collapse lesson navigation')"><ChevronLeft/></button></header>
+      <nav ref="courseRow" class="lesson-list" :aria-label="tr('选择课程','Choose a lesson')">
+        <button v-for="l in lessons" :key="l.id" :class="{current:selected===l.id}" :aria-current="selected===l.id?'step':undefined" @click="choose(l.id)">
+          <span class="lesson-icon"><component :is="icons[l.id]"/></span><span class="lesson-label"><span class="lesson-number">{{String(l.id).padStart(2,'0')}}</span><span class="lesson-name">{{en?l.en:l.zh}}</span></span><Check v-if="progress.includes(l.id)" class="course-complete" :aria-label="tr('已完成','Completed')"/><ChevronRight v-else/>
         </button>
-      </header>
-      <button
-        v-for="l in lessons"
-        :key="l.id"
-        :class="{ current: selected === l.id }"
-        @click="choose(l.id)"
-      >
-        <span>{{ String(l.id).padStart(2, "0") }}</span
-        >{{ en ? l.en : l.zh }}<Check v-if="progress.includes(l.id)" />
-      </button>
+      </nav>
+    </aside>
+    <div class="workspace-heading">
+      <section class="experiment-info"><div class="info-content"><span class="lesson-eyebrow">{{tr('课程','LESSON')}} {{String(selected).padStart(2,'0')}}</span><h1>{{gpioLab?tr('EX1 · GPIO 实验','EX1 · GPIO lab'):en?lesson.en:lesson.zh}}</h1><p>{{en?lesson.descriptionEn:guide.action}}</p></div><div class="lesson-pagination"><button :disabled="selected===0" @click="choose(selected-1)" :aria-label="tr('上一课','Previous lesson')"><ChevronLeft/></button><button :disabled="selected===lessons.length-1" @click="choose(selected+1)" :aria-label="tr('下一课','Next lesson')"><ChevronRight/></button></div></section>
+      <details class="lesson-guide"><summary>{{tr('本课目标与接线','Goal & wiring')}}</summary><strong>{{guide.goal}}</strong><p>{{guide.hardware}}</p><p>{{tr('观察结果：','Expected result: ')}}{{guide.result}}</p><a :href="withBase((en?'/':'/zh/')+'chapter-'+String(selected).padStart(2,'0')+'.html')">{{tr('阅读本课说明','Read the lesson guide')}} →</a></details>
     </div>
     <main
       class="experiment-stage"
       :aria-label="tr('交互实验台', 'Interactive workbench')"
     >
-      <section class="experiment-info"><div class="info-content"><span class="lesson-eyebrow">{{tr('交互实验台','INTERACTIVE WORKBENCH')}}</span><h1>{{gpioLab?tr('EX1 · GPIO 实验','EX1 · GPIO lab'):en?lesson.en:lesson.zh}}</h1><p>{{en?lesson.descriptionEn:guide.action}}</p></div></section>
-      <details class="lesson-guide"><summary>{{tr('本课目标与接线','Goal & wiring')}}</summary><strong>{{guide.goal}}</strong><p>{{guide.hardware}}</p><p>{{tr('观察结果：','Expected result: ')}}{{guide.result}}</p><a :href="withBase((en?'/':'/zh/')+'chapter-'+String(selected).padStart(2,'0')+'.html')">{{tr('阅读本课说明','Read the lesson guide')}} →</a></details>
-      <div class="new-board-stage"><ExploreBoard :selection="activeHardware" :pin="hardwarePin" :running="running" :flow="flow" :color="output?.color" :led-level="output?.value" @update:flow="flow=$event" @select="selectHardware" /></div>
+      <div class="workbench-columns">
+        <div class="hardware-column">
+      <div class="new-board-stage"><header class="board-panel-heading"><span><Cpu/>{{tr('开发板','Controller')}}</span><small>{{tr('拖动旋转 · 滚轮缩放','Drag to rotate · Scroll to zoom')}}</small></header><ExploreBoard :selection="activeHardware" :pin="hardwarePin" :running="running" :flow="flow" :color="output?.color" :led-level="output?.value" @update:flow="flow=$event" @select="selectHardware" /></div>
+      <section class="control-deck" :aria-label="tr('实验控制','Experiment controls')"><header class="control-deck-heading"><span>{{tr('实验控制','Experiment controls')}}</span><small>{{tr('网页仿真 · 实板连接','Simulation · Hardware')}}</small></header>
       <div ref="parameterPanel" v-if="!gpioLab && lesson.params.length" class="inline-parameters">
        <label v-for="p in lesson.params" :key="p.key"><span class="parameter-heading"><span>{{en?p.en:p.zh}}</span><output>{{values[p.key]}}{{p.unit?' '+p.unit:''}}</output></span><small class="parameter-scope">{{firmwareParameters[selected]?.[p.key]?tr('实板可调','Device parameter'):tr('模拟输入','Simulation input')}}</small><input :data-parameter="p.key" v-model.number="values[p.key]" type="range" :min="p.min" :max="p.max" :step="p.step" :aria-label="(en?p.en:p.zh)+tr(' · 主面板',' · Main panel')"/></label>
       </div>
@@ -540,78 +553,18 @@ const displayValue = computed(() =>
        <div v-if="deviceSession.connected" class="runtime-actions"><button class="apply-device" :disabled="!deviceSession.canApply" @click="controller?.applyParameters(false)"><PlugZap/>{{tr('应用到开发板','Apply to controller')}}</button><button :disabled="!deviceSession.canApply||!deviceSession.parametersMatch||deviceSession.device?.parametersSaved" @click="controller?.applyParameters(true)"><Save/>{{tr('保存到开发板','Save to controller')}}</button></div>
        <p role="status" :class="{'parameters-confirmed':deviceSession.parametersMatch}">{{parameterMessage}}</p><p v-if="actualParameterText" class="actual-parameters">{{tr('设备当前值：','Device values: ')}}{{actualParameterText}}</p><p v-if="selected===3" class="motion-note">{{tr('应用后舵机会动作；保存后重启也会使用该脉宽。','Applying moves the servo. Saving also restores this pulse width after restart.')}}</p><p v-if="deviceSession.paramError" class="runtime-error" role="alert">{{deviceSession.paramError}}</p>
       </section>
-      <section
-        v-if="output"
-        class="instrument"
-        :aria-label="tr('模拟输出', 'Simulation output')"
-        :data-running="running"
-      >
-        <header>
-          <span class="live-dot" :class="{ running }"></span>{{ output.label
-          }}<small>{{ tr("教学模拟", "SIMULATION") }}</small>
-        </header>
-        <div class="instrument-value">
-          <span :style="{ color: selected === 1 ? output.color : undefined }">{{
-            displayValue
-          }}</span
-          ><small>{{ output.unit }}</small
-          ><component
-            :is="icons[selected]"
-            :style="{
-              transform: `rotate(${output.angle}deg)`,
-              color: selected === 1 ? output.color : undefined,
-            }"
-          />
+      </section>
         </div>
-        <p>{{ output.secondary }}</p>
-        <canvas
-          ref="graph"
-          width="480"
-          height="90"
-          :aria-label="tr('模拟输出趋势图', 'Simulation output history')"
-        ></canvas>
-      </section>
-    <section ref="unifiedConsole" class="workbench-console" :aria-label="tr('控制台','Console')">
-     <header>
-      <div class="console-tabs" role="tablist" :aria-label="tr('输出来源','Output source')">
-       <button id="simulation-tab" role="tab" aria-controls="simulation-output" :aria-selected="consoleTab==='simulation'" @click="openConsole('simulation')"><Activity/><span>{{tr('仿真','Simulation')}}</span></button>
-       <button id="device-tab" role="tab" aria-controls="device-output" :aria-selected="consoleTab==='device'" @click="openConsole('device')"><Terminal/><span>{{tr('设备串口','Serial monitor')}}</span></button>
-      </div>
-      <span class="console-status" :class="{active:consoleTab==='device'?deviceSession.connected:running}"><i aria-hidden="true"></i>{{consoleTab==='device'?(deviceStatus||tr('未连接','Disconnected')):(running?tr('运行中','Running'):tr('待运行','Idle'))}}</span>
-      <button class="console-toggle" :aria-expanded="consoleOpen" :aria-label="consoleOpen?tr('收起控制台','Collapse console'):tr('展开控制台','Expand console')" @click="toggleConsole"><ChevronDown :class="{open:consoleOpen}"/></button>
-     </header>
-     <div v-show="consoleOpen" class="console-body">
-      <section v-show="consoleTab==='simulation'" id="simulation-output" role="tabpanel" aria-labelledby="simulation-tab"><div class="console-tools"><span>{{tr('仅显示网页仿真，不是实板数据。','Browser simulation only; not controller data.')}}</span><button v-if="logs.length" @click="logs=[]">{{tr('清空','Clear')}}</button></div><pre role="log" :class="{'empty-log':!logs.length}" :aria-label="tr('仿真输出','Simulation output')">{{logs.map(log=>log.time+'  '+log.text).join('\n')||tr('运行仿真后在此查看输出。','Run a simulation to see its output here.')}}</pre></section>
-      <section v-show="consoleTab==='device'" id="device-output" role="tabpanel" aria-labelledby="device-tab"><div class="console-tools"><span>{{deviceSession.device?deviceSession.device.project+' · '+deviceSession.device.version:deviceSession.connected?tr('正在读取设备信息…','Reading device info…'):'USB'}}</span><button v-if="!deviceSession.connected" :disabled="deviceSession.busy" @click="connectController">{{tr('连接 USB','Connect USB')}}</button><template v-else><button :disabled="deviceSession.busy" @click="controller?.queryInfo()">{{tr('读取设备信息','Read device info')}}</button><button :disabled="deviceSession.busy||!deviceSession.device" @click="controller?.restartController()">{{tr('重启','Restart')}}</button><button :disabled="deviceSession.busy" @click="controller?.disconnect()">{{tr('断开','Disconnect')}}</button></template><button v-if="deviceSession.logs?.length" @click="controller?.clearLogs()">{{tr('清空','Clear')}}</button></div>
-       <details v-if="deviceSession.physicalGuide" class="console-guide"><summary>{{tr('实板操作与预期表现','Physical actions and expected results')}} · {{String(deviceSession.guideLesson).padStart(2,'0')}}</summary><p>{{deviceSession.physicalGuide[0]}} {{deviceSession.physicalGuide[1]}}</p><p v-if="!deviceSession.device">{{tr('尚未确认程序启动。','Application startup is not confirmed.')}}</p></details>
-       <p v-if="deviceSession.error" class="runtime-error" role="alert">{{deviceSession.error}}</p>
-       <pre role="log" :class="{'empty-log':!deviceSession.logs?.length}" :aria-label="tr('设备串口日志','Device serial log')">{{deviceSession.logs?.join('\n')||tr('设备日志会显示在这里。','Controller logs will appear here.')}}</pre>
-       <form v-if="deviceSession.connected&&deviceSession.transport==='usb'" @submit.prevent="controller?.sendCommand(serialCommand);serialCommand=''"><input v-model="serialCommand" :disabled="deviceSession.busy" :aria-label="tr('串口命令','Serial command')" :placeholder="tr('串口命令，如 status','Serial command, e.g. status')"/><button :disabled="deviceSession.busy||!serialCommand.trim()">{{tr('发送','Send')}}</button></form>
-      </section>
-     </div>
-    </section>
-    </main>
-    <aside class="experiment-aside">
+        <aside class="detail-column">
       <PartInspector :preferred-gpio="preferredGpio" :id="activeHardware" :running="running" :output="output" :flow="flow" @pin="hardwarePin=$event" />
-      <section class="experiment-code">
-        <header>
-          <h2><Code2/>{{tr("代码", "Code")}}</h2>
-          <div>
-            <button v-if="showSource" @click="download" :disabled="!source" :aria-label="tr('下载完整源码','Download full source')"><Download/></button>
-            <button
-              @click="expanded = !expanded"
-              :aria-label="
-                expanded
-                  ? tr('收起代码', 'Collapse code')
-                  : tr('展开代码', 'Expand code')
-              "
-            >
-              <Minimize2 v-if="expanded" /><Maximize2 v-else /></button
-            ><button @click="copy" :aria-label="tr('复制代码', 'Copy code')">
-              <Check v-if="copied" /><Copy v-else /></button
->
-          </div>
-        </header>
+      <section v-if="selected===0 && !gpioLab" class="board-discovery">
+        <span class="section-kicker">{{tr('从这里开始','START EXPLORING')}}</span><h2>{{tr('点选接口，了解控制器','Explore your controller')}}</h2><p>{{tr('在板卡上选择元件，查看引脚与信号定义。也可以从下面的接口开始。','Select a component on the board to inspect its pins and signals, or start with an interface below.')}}</p>
+        <button @click="selectHardware('EX1')"><SlidersHorizontal/><span><strong>{{tr('GPIO 扩展','GPIO expansion')}}</strong><small>EX1 · 8 PIN</small></span><ChevronRight/></button>
+        <button @click="selectHardware('EX2')"><Cpu/><span><strong>{{tr('控制排针','Control headers')}}</strong><small>EX2 · 3 × 8 PIN</small></span><ChevronRight/></button>
+        <button @click="choose(1)"><Lightbulb/><span><strong>{{tr('开始第一个实验','Try your first experiment')}}</strong><small>{{tr('点亮 RGB 灯','Light up an LED')}}</small></span><ChevronRight/></button>
+      </section>
+      <section v-else class="experiment-code" :class="{'is-expanded':expanded}" :aria-label="tr('代码','Code')">
+        <header><h2><Code2/>{{tr('代码','Code')}}</h2><div><button v-if="showSource" @click="download" :disabled="!source" :aria-label="tr('下载完整源码','Download full source')"><Download/></button><button @click="expanded=!expanded" :aria-label="expanded?tr('收起代码','Collapse code'):tr('展开代码','Expand code')"><Minimize2 v-if="expanded"/><Maximize2 v-else/></button><button @click="copy" :aria-label="tr('复制代码','Copy code')"><Check v-if="copied"/><Copy v-else/></button></div></header>
         <div class="code-mode">
           <div class="code-tabs"><button :aria-pressed="!showSource" @click="showSource=false">{{tr('关键逻辑','Key logic')}}</button><button v-if="!gpioLab" :aria-pressed="showSource" @click="showSource=true">{{tr('完整源码','Full source')}}</button></div>
           <select v-if="showSource" class="source-select" v-model="sourceIndex" :aria-label="tr('源文件','Source file')"><option v-for="(f,i) in files" :key="f.name" :value="i">{{f.name}}</option></select>
@@ -664,49 +617,63 @@ const displayValue = computed(() =>
         >
 
       </section>
-    </aside>
-    <section
-      class="experiment-courses"
-      :aria-label="tr('课程选择', 'Choose a lesson')"
-    >
-      <header>
-        <h2>{{ tr("课程", "Lessons") }}</h2>
-        <span>{{ selected + 1 }} / {{ lessons.length }}</span>
-        <div>
-          <button
-            :disabled="selected === 0"
-            @click="choose(selected - 1)"
-            :aria-label="tr('上一课', 'Previous lesson')"
-          >
-            <ChevronLeft /></button
-          ><button
-            :disabled="selected === 13"
-            @click="choose(selected + 1)"
-            :aria-label="tr('下一课', 'Next lesson')"
-          >
-            <ChevronRight />
-          </button>
-        </div>
-      </header>
-      <div ref="courseRow" class="experiment-course-row">
-        <button
-          v-for="l in lessons"
-          :key="l.id"
-          :class="{ selected: l.id === selected }"
-          :aria-pressed="l.id === selected"
-          @click="choose(l.id)"
-        >
-          <span class="course-art"><component :is="icons[l.id]" /></span
-          ><span
-            ><small>{{ String(l.id).padStart(2, "0") }}</small
-            ><strong>{{ en ? l.en : l.zh }}</strong></span
-          ><Check
-            v-if="progress.includes(l.id)"
-            class="course-complete"
-          /><ChevronRight v-else />
-        </button>
+        </aside>
       </div>
-    </section>
+      <button v-if="expanded" class="code-backdrop" tabindex="-1" :aria-label="tr('关闭代码放大视图','Close expanded code')" @click="expanded=false"/>
+      <section ref="unifiedConsole" class="workbench-console" :aria-label="tr('输出','Output')">
+        <header>
+          <div class="console-tabs" role="tablist" :aria-label="tr('工作区','Workspace')" @keydown="workspaceKeydown">
+
+            <button id="simulation-tab" role="tab" aria-controls="simulation-output" :tabindex="consoleTab==='simulation'?0:-1" :aria-selected="consoleTab==='simulation'" @click="openConsole('simulation')"><Activity/><span>{{tr('仿真输出','Simulation')}}</span></button>
+            <button id="device-tab" role="tab" aria-controls="device-output" :tabindex="consoleTab==='device'?0:-1" :aria-selected="consoleTab==='device'" @click="openConsole('device')"><Terminal/><span>{{tr('设备串口','Serial monitor')}}</span></button>
+          </div>
+          <span class="console-status" :class="{active:consoleTab==='device'?deviceSession.connected:running}"><i aria-hidden="true"></i>{{consoleTab==='device'?(deviceStatus||tr('未连接','Disconnected')):(running?tr('仿真运行中','Simulation running'):tr('待运行','Idle'))}}</span>
+          <div class="workspace-actions"><button :aria-expanded="consoleOpen" :aria-label="consoleOpen?tr('收起输出','Collapse output'):tr('展开输出','Expand output')" @click="toggleConsole"><ChevronDown :class="{open:consoleOpen}"/></button></div>
+        </header>
+        <div v-show="consoleOpen" class="workspace-body">
+          <div class="console-body">
+      <section v-show="consoleTab==='simulation'" id="simulation-output" role="tabpanel" aria-labelledby="simulation-tab"><div class="simulation-results" :class="{'has-output':output}">      <section
+        v-if="output"
+        class="instrument"
+        :aria-label="tr('模拟输出', 'Simulation output')"
+        :data-running="running"
+      >
+        <header>
+          <span class="live-dot" :class="{ running }"></span>{{ output.label
+          }}<small>{{ tr("教学模拟", "SIMULATION") }}</small>
+        </header>
+        <div class="instrument-value">
+          <span :style="{ color: selected === 1 ? output.color : undefined }">{{
+            displayValue
+          }}</span
+          ><small>{{ output.unit }}</small
+          ><component
+            :is="icons[selected]"
+            :style="{
+              transform: `rotate(${output.angle}deg)`,
+              color: selected === 1 ? output.color : undefined,
+            }"
+          />
+        </div>
+        <p>{{ output.secondary }}</p>
+        <canvas
+          ref="graph"
+          width="480"
+          height="90"
+          :aria-label="tr('模拟输出趋势图', 'Simulation output history')"
+        ></canvas>
+      </section>
+<div class="simulation-log"><div class="console-tools"><span>{{tr('仅显示网页仿真，不是实板数据。','Browser simulation only; not controller data.')}}</span><button v-if="logs.length" @click="logs=[]">{{tr('清空','Clear')}}</button></div><pre role="log" :class="{'empty-log':!logs.length}" :aria-label="tr('仿真输出','Simulation output')">{{logs.map(log=>log.time+'  '+(en?log.english:log.text)).join('\n')||tr('运行仿真后在此查看输出。','Run a simulation to see its output here.')}}</pre></div></div></section>
+      <section v-show="consoleTab==='device'" id="device-output" role="tabpanel" aria-labelledby="device-tab"><div class="console-tools"><span>{{deviceSession.device?deviceSession.device.project+' · '+deviceSession.device.version:deviceSession.connected?tr('正在读取设备信息…','Reading device info…'):'USB'}}</span><button v-if="!deviceSession.connected" :disabled="deviceSession.busy" @click="connectController">{{tr('连接 USB','Connect USB')}}</button><template v-else><button :disabled="deviceSession.busy" @click="controller?.queryInfo()">{{tr('读取设备信息','Read device info')}}</button><button :disabled="deviceSession.busy||!deviceSession.device" @click="controller?.restartController()">{{tr('重启','Restart')}}</button><button :disabled="deviceSession.busy" @click="controller?.disconnect()">{{tr('断开','Disconnect')}}</button></template><button v-if="deviceSession.logs?.length" @click="controller?.clearLogs()">{{tr('清空','Clear')}}</button></div>
+       <details v-if="deviceSession.physicalGuide" class="console-guide"><summary>{{tr('实板操作与预期表现','Physical actions and expected results')}} · {{String(deviceSession.guideLesson).padStart(2,'0')}}</summary><p>{{deviceSession.physicalGuide[0]}} {{deviceSession.physicalGuide[1]}}</p><p v-if="!deviceSession.device">{{tr('尚未确认程序启动。','Application startup is not confirmed.')}}</p></details>
+       <p v-if="deviceSession.error" class="runtime-error" role="alert">{{deviceSession.error}}</p>
+       <pre role="log" :class="{'empty-log':!deviceSession.logs?.length}" :aria-label="tr('设备串口日志','Device serial log')">{{deviceSession.logs?.join('\n')||tr('设备日志会显示在这里。','Controller logs will appear here.')}}</pre>
+       <form v-if="deviceSession.connected&&deviceSession.transport==='usb'" @submit.prevent="controller?.sendCommand(serialCommand);serialCommand=''"><input v-model="serialCommand" :disabled="deviceSession.busy" :aria-label="tr('串口命令','Serial command')" :placeholder="tr('串口命令，如 status','Serial command, e.g. status')"/><button :disabled="deviceSession.busy||!serialCommand.trim()">{{tr('发送','Send')}}</button></form>
+      </section>
+          </div>
+        </div>
+      </section>
+    </main>
     <section
       v-if="settings"
       class="experiment-settings"
