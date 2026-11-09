@@ -26,3 +26,24 @@ test('missing/ambiguous devices time out; disposal cancels retries',async()=>{
  assert.equal(await reconnectAuthorizedUSB(options),false);assert.equal(opened,0);
  assert.equal(await reconnectAuthorizedUSB({...options,cancelled:()=>true}),false);
 });
+
+test('flasher cleanup releases an actual ReadableStream lock before closing the port',async()=>{
+ const {closeFlashTransport}=await import('../.vitepress/theme/usb-session.mjs');
+ const readable=new ReadableStream();const reader=readable.getReader();let closed=false;
+ const transport={reader,device:{readable,writable:new WritableStream(),close:async()=>{assert.equal(readable.locked,false);closed=true;}}};
+ assert.equal(readable.locked,true);
+ await closeFlashTransport(transport);
+ assert.equal(closed,true);assert.equal(transport.reader,undefined);
+});
+test('a stalled stream cancellation cannot block releasing its lock',async()=>{
+ const {closeFlashTransport}=await import('../.vitepress/theme/usb-session.mjs');
+ const readable=new ReadableStream({cancel:()=>new Promise(()=>{})});const reader=readable.getReader();let closed=false;
+ await closeFlashTransport({reader,device:{readable,close:async()=>{closed=true;}}},20);
+ assert.equal(readable.locked,false);assert.equal(closed,true);
+});
+test('port close and enumeration have bounded failure paths',async()=>{
+ const {closeFlashTransport}=await import('../.vitepress/theme/usb-session.mjs');
+ await assert.rejects(closeFlashTransport({device:{readable:new ReadableStream(),close:()=>new Promise(()=>{})}},20),/close timed out/);
+ const result=await reconnectAuthorizedUSB({serial:{getPorts:()=>new Promise(()=>{})},previous:port(),open:async()=>{},cleanup:async()=>{},timeoutMs:20});
+ assert.equal(result,false);
+});
